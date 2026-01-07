@@ -1,0 +1,11 @@
+{
+  "suite_name": "default_suite",
+  "execute_time": "2026-01-06T15:44:44.015232",
+  "summary": {
+    "total": 0,
+    "pass": 0,
+    "fail": 0
+  },
+  "cases": [],
+  "canceled": false
+}
