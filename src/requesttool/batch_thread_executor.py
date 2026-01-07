@@ -21,6 +21,8 @@ class _CaseRunnable(QRunnable):
 class BatchThreadExecutor(QObject):
     progress = Signal(int, int)
     finished = Signal(object)
+    case_started = Signal(object)
+    case_finished = Signal(object)
 
     def __init__(self, http_client, assertion_engine, max_workers: int = 5) -> None:
         super().__init__()
@@ -77,6 +79,7 @@ class BatchThreadExecutor(QObject):
     def _on_case_done(self, result: dict[str, Any]) -> None:
         with self._lock:
             self._results.append(result)
+            self.case_finished.emit(result)
             self._completed += 1
             self._active = max(0, self._active - 1)
             self.progress.emit(self._completed, self._total)
@@ -89,6 +92,7 @@ class BatchThreadExecutor(QObject):
     def _start_next(self, pool: QThreadPool) -> None:
         while self._active < self.max_workers and self._pending:
             case = self._pending.pop(0)
+            self.case_started.emit(case)
             task = _CaseRunnable(case, self._run_single_case, self._on_case_done)
             self._active += 1
             pool.start(task)

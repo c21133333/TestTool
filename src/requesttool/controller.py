@@ -189,7 +189,7 @@ class ApiTestController(QObject):
     def set_suite(self, suite: dict) -> None:
         self.suite = suite
 
-    def run_suite_async(self, on_progress=None, on_finished=None) -> None:
+    def run_suite_async(self, on_progress=None, on_finished=None, on_case_started=None, on_case_finished=None) -> None:
         try:
             if self._batch_running:
                 return
@@ -208,6 +208,10 @@ class ApiTestController(QObject):
 
             if callable(on_progress):
                 executor.progress.connect(on_progress)
+            if callable(on_case_started):
+                executor.case_started.connect(on_case_started)
+            if callable(on_case_finished):
+                executor.case_finished.connect(on_case_finished)
             executor.finished.connect(self._on_suite_finished)
             executor.start(cases)
         except Exception as exc:
