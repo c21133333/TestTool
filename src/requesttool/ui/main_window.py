@@ -1,12 +1,92 @@
 import json
+import logging
 import shutil
+import time
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QSplitter, QWidget, QFileDialog, QApplication
+from PySide6.QtGui import QFont, QIcon, QKeySequence, QShortcut
+from PySide6.QtCore import QObject, QEvent, QTimer
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QMainWindow,
+    QMessageBox,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
+
+
+class _DialogWatcher(QObject):
+    def __init__(self, main_window) -> None:
+        super().__init__(main_window)
+        self._main_window = main_window
+        self._last_user_action = time.monotonic()
+        self._allow_window_seconds = 0.6
+
+    def eventFilter(self, obj, event) -> bool:
+        if event.type() in {QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress}:
+            self._last_user_action = time.monotonic()
+        if event.type() == QEvent.Type.Show and isinstance(obj, QWidget) and obj.isWindow():
+            if obj is self._main_window:
+                return False
+            if isinstance(obj, QLabel) and obj.parent() is None:
+                obj.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+                obj.hide()
+                obj.deleteLater()
+                return True
+        return False
+
+
+class DebugConsole(QDialog):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Debug Console")
+        self.resize(700, 360)
+        self._log_view = QPlainTextEdit()
+        self._log_view.setReadOnly(True)
+        self._log_view.setPlaceholderText("Debug log output...")
+        clear_button = QPushButton("\u6e05\u7a7a")
+        clear_button.clicked.connect(self._log_view.clear)
+        close_button = QPushButton("\u5173\u95ed")
+        close_button.clicked.connect(self.close)
+
+        controls = QHBoxLayout()
+        controls.addStretch(1)
+        controls.addWidget(clear_button)
+        controls.addWidget(close_button)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+        layout.addWidget(self._log_view, 1)
+        layout.addLayout(controls)
+
+    def append_line(self, message: str) -> None:
+        current = self._log_view.toPlainText()
+        if current:
+            self._log_view.setPlainText(f"{current}\n{message}")
+        else:
+            self._log_view.setPlainText(message)
+        self._log_view.verticalScrollBar().setValue(self._log_view.verticalScrollBar().maximum())
+
+
+class _QtLogHandler(logging.Handler):
+    def __init__(self, console: DebugConsole) -> None:
+        super().__init__()
+        self._console = console
+
+    def emit(self, record: logging.LogRecord) -> None:
+        message = self.format(record)
+        QTimer.singleShot(0, lambda: self._console.append_line(message))
 
 from requesttool.controller import ApiTestController
 from requesttool.ui.panels import CaseListPanel, RightPanel
@@ -15,6 +95,7 @@ from requesttool.ui.panels import CaseListPanel, RightPanel
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        self._set_window_icon()
         self.setWindowTitle("API \u63a5\u53e3\u6d4b\u8bd5\u5de5\u5177")
         self.resize(1200, 800)
         self.setFont(QFont("Segoe UI", 10))
@@ -23,9 +104,32 @@ class MainWindow(QMainWindow):
         self._request_state = RequestRunState.IDLE
         self._suite_case_map: dict[str, object] = {}
         self._global_history: list[dict] = []
+        self._current_case: dict | None = None
+        self._current_case_item = None
         self._setup_ui()
 
+    def _set_window_icon(self) -> None:
+        icon_path = Path(__file__).resolve().parents[3] / "assets" / "lightning.ico"
+        if icon_path.exists():
+            icon = QIcon(str(icon_path))
+            self.setWindowIcon(icon)
+            QApplication.instance().setWindowIcon(icon)
+
     def _setup_ui(self) -> None:
+        self._debug_console = DebugConsole(self)
+        self._dialog_watcher = _DialogWatcher(self)
+        QApplication.instance().installEventFilter(self._dialog_watcher)
+        logger = logging.getLogger("requesttool")
+        if not any(isinstance(h, _QtLogHandler) for h in logger.handlers):
+            logger.setLevel(logging.INFO)
+            handler = _QtLogHandler(self._debug_console)
+            handler.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", "%H:%M:%S"))
+            logger.addHandler(handler)
+        open_console = QShortcut(QKeySequence("F12"), self)
+        open_console.activated.connect(self._debug_console.show)
+        open_console.activated.connect(self._debug_console.raise_)
+        save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
+        save_shortcut.activated.connect(self._on_save_request)
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         self.left_panel = CaseListPanel()
@@ -41,10 +145,13 @@ class MainWindow(QMainWindow):
         self.controller = ApiTestController(
             self.right_panel.request_panel,
             self.right_panel.response_panel,
+            self.right_panel.assertion_panel,
         )
         self.right_panel.send_button.clicked.connect(self._on_send_request)
         self.right_panel.save_button.clicked.connect(self._on_save_request)
         self.right_panel.request_panel.data_changed.connect(self._on_request_data_changed)
+        self.right_panel.assertion_panel.data_changed.connect(self._on_request_data_changed)
+        self.right_panel.request_panel.name_input.textEdited.connect(self._on_request_name_changed)
         self.right_panel.welcome_new_request_button.clicked.connect(self.left_panel._on_add_request_clicked)
         self.right_panel.welcome_new_folder_button.clicked.connect(self.left_panel._on_add_folder_clicked)
         self.left_panel.request_selected.connect(self._on_request_selected)
@@ -77,7 +184,10 @@ class MainWindow(QMainWindow):
     def _on_request_selected(self, item) -> None:
         if item is None:
             self._has_request_selection = False
+            self._current_case = None
+            self._current_case_item = None
             self.right_panel.request_panel.clear_request()
+            self.right_panel.assertion_panel.clear_assertions()
             self.right_panel.response_panel.clear()
             self.right_panel.save_status_label.setText("\u672a\u4fdd\u5b58")
             if not self.left_panel.has_requests():
@@ -89,13 +199,19 @@ class MainWindow(QMainWindow):
 
         self._has_request_selection = True
         data = self._load_request_data(item)
-        if data is None:
-            self.right_panel.request_panel.clear_request()
-        else:
-            self.right_panel.request_panel.set_request_data(data)
-        if not self.right_panel.request_panel.name_input.text().strip():
-            raw_name = item.data(0, self.left_panel._NAME_ROLE)
-            self.right_panel.request_panel.name_input.setText(raw_name if isinstance(raw_name, str) else item.text(0))
+        if not isinstance(data, dict):
+            data = {}
+        item.setData(0, self.left_panel._DATA_ROLE, data)
+        self._current_case = data
+        self._current_case_item = item
+        if not isinstance(data.get("name"), str) or not data.get("name"):
+            data["name"] = item.data(0, self.left_panel._NAME_ROLE) or self.left_panel._strip_method_prefix(item.text(0))
+        if not isinstance(data.get("method"), str):
+            data["method"] = "GET"
+        if not isinstance(data.get("url"), str):
+            data["url"] = ""
+        self.right_panel.request_panel.set_request_data(data)
+        self.right_panel.assertion_panel.set_assertions(data.get("assertions") if isinstance(data, dict) else None)
         status = "\u5df2\u4fdd\u5b58" if self.left_panel.is_request_saved(item) else "\u672a\u4fdd\u5b58"
         self.right_panel.save_status_label.setText(status)
         cached_response = self.left_panel.get_request_response(item)
@@ -111,17 +227,34 @@ class MainWindow(QMainWindow):
         if item is None:
             return
         data = self.right_panel.request_panel.get_request_data()
-        name = data.get("name")
-        if isinstance(name, str) and name.strip():
-            name = name.strip()
-            self.left_panel.set_request_name(item, name)
-        else:
-            name = item.text(0)
-            data["name"] = name
-        if not self._save_request_file(item, data, name):
+        data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
+        name_value = data.get("name")
+        user_name = name_value.strip() if isinstance(name_value, str) else ""
+        display_name = self.left_panel._strip_method_prefix(item.text(0))
+        save_name = user_name or display_name
+        data["name"] = user_name
+        saved_path = self._save_request_file(item, data, save_name)
+        if saved_path is None:
             QMessageBox.warning(self, "\u4fdd\u5b58\u5931\u8d25", "\u8bf7\u6c42\u4fdd\u5b58\u5931\u8d25")
             return
+        final_name = data.get("name")
+        if isinstance(final_name, str):
+            final_name = final_name.strip()
+        if not final_name:
+            if saved_path is not None:
+                final_name = saved_path.stem
+            if not final_name:
+                final_name = display_name
+            data["name"] = final_name
+        name_input = self.right_panel.request_panel.name_input
+        if name_input.text().strip() != final_name:
+            block = name_input.blockSignals(True)
+            name_input.setText(final_name)
+            name_input.blockSignals(block)
+        self.left_panel.set_request_name(item, final_name)
         self.left_panel.set_request_data(item, data)
+        self._current_case = data
+        self._current_case_item = item
         self.right_panel.save_status_label.setText("\u5df2\u4fdd\u5b58")
         self._persist_cases()
         path_value = self.left_panel.get_item_path(item)
@@ -138,12 +271,46 @@ class MainWindow(QMainWindow):
         item = self.left_panel.get_selected_request_item()
         if item is None:
             return
-        name = self.right_panel.request_panel.name_input.text().strip()
-        if name:
-            self.left_panel.set_request_name(item, name)
+        case_data = self._current_case if self._current_case_item is item else None
+        if case_data is None:
+            case_data = self.left_panel.get_request_data(item)
+            if case_data is None:
+                case_data = {}
+                item.setData(0, self.left_panel._DATA_ROLE, case_data)
+            self._current_case = case_data
+            self._current_case_item = item
+        payload = self.right_panel.request_panel.get_request_data()
+        payload["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
+        if not payload.get("name") and case_data.get("name"):
+            payload["name"] = case_data.get("name")
+        case_data.clear()
+        case_data.update(payload)
+        item.setData(0, self.left_panel._DATA_ROLE, case_data)
+        self.left_panel.set_request_name(
+            item,
+            case_data.get("name") or self.left_panel._strip_method_prefix(item.text(0)),
+        )
         if self.left_panel.is_request_saved(item):
             self.left_panel.set_request_saved(item, False)
         self.right_panel.save_status_label.setText("\u672a\u4fdd\u5b58")
+
+    def _on_request_name_changed(self, text: str) -> None:
+        item = self.left_panel.get_selected_request_item()
+        if item is None:
+            return
+        case_data = self._current_case if self._current_case_item is item else None
+        if case_data is None:
+            case_data = self.left_panel.get_request_data(item)
+            if case_data is None:
+                case_data = {}
+                item.setData(0, self.left_panel._DATA_ROLE, case_data)
+            self._current_case = case_data
+            self._current_case_item = item
+        case_data["name"] = text.strip()
+        self.left_panel.set_request_name(
+            item,
+            case_data.get("name") or self.left_panel._strip_method_prefix(item.text(0)),
+        )
 
     def _on_import_request(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -223,19 +390,24 @@ class MainWindow(QMainWindow):
         self.left_panel.set_request_data(item, data)
         return data
 
-    def _save_request_file(self, item, data: dict, name: str) -> bool:
+    def _save_request_file(self, item, data: dict, name: str) -> Path | None:
         path = self._resolve_request_path(item, name)
         if path is None:
-            return False
+            return None
         if not path.suffix:
             path = path.with_suffix(".json")
+        desired_name = data.get("name")
+        normalized_name = desired_name.strip() if isinstance(desired_name, str) else ""
+        if not normalized_name:
+            normalized_name = path.stem
+        data["name"] = normalized_name
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception:
-            return False
+            return None
         self.left_panel.set_item_path(item, str(path))
-        return True
+        return path
 
     def _resolve_request_path(self, item, name: str) -> Path | None:
         existing = self.left_panel.get_item_path(item)
@@ -271,9 +443,15 @@ class MainWindow(QMainWindow):
         nodes = payload.get("cases") if isinstance(payload, dict) else None
         if isinstance(nodes, list):
             self.left_panel.load_tree(nodes)
+        ui_state = payload.get("ui_state") if isinstance(payload, dict) else None
+        if isinstance(ui_state, dict):
+            self.right_panel.apply_ui_state(ui_state)
 
     def _persist_cases(self) -> None:
-        payload = {"cases": self.left_panel.serialize_tree()}
+        payload = {
+            "cases": self.left_panel.serialize_tree(),
+            "ui_state": self.right_panel.get_ui_state(),
+        }
         try:
             self._data_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         except Exception:
@@ -339,12 +517,8 @@ class MainWindow(QMainWindow):
 
     def _on_send_request(self) -> None:
         request_data = self.right_panel.request_panel.get_request_data()
+        request_data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
         if not request_data.get("method") or not request_data.get("url"):
-            return
-        current = self.left_panel.get_selected_request_item()
-        if current is not None and self._is_request_dirty(current, request_data):
-            name = current.data(0, self.left_panel._NAME_ROLE) or current.text(0)
-            QMessageBox.warning(self, "未保存", f"检测到未保存的修改，请先保存：{name}")
             return
         self._apply_request_state(RequestRunState.RUNNING)
         self.right_panel.response_panel.show_running()
@@ -372,12 +546,6 @@ class MainWindow(QMainWindow):
         self.controller.send_request_async(on_finished, on_error)
 
     def _on_run_suite(self) -> None:
-        dirty_names = self._collect_dirty_requests()
-        if dirty_names:
-            preview = "\n".join(dirty_names[:5])
-            extra = "" if len(dirty_names) <= 5 else f"\n...共 {len(dirty_names)} 条"
-            QMessageBox.warning(self, "未保存", f"检测到未保存的修改，请先保存：\n{preview}{extra}")
-            return
         suite = self._build_suite_from_selection()
         if suite is None:
             QMessageBox.warning(self, "\u65e0\u6cd5\u6267\u884c", "\u8bf7\u9009\u62e9\u542b\u6709\u8bf7\u6c42\u7684\u6587\u4ef6\u5939")
@@ -394,6 +562,8 @@ class MainWindow(QMainWindow):
             item = self._suite_case_map.get(case_id)
             if item is not None:
                 self.left_panel.set_running_item(item)
+                if item == self.left_panel.get_selected_request_item():
+                    self.right_panel.response_panel.show_running()
 
         def on_case_finished(case_result: dict) -> None:
             case_id = case_result.get("case_id")
@@ -403,6 +573,8 @@ class MainWindow(QMainWindow):
             response = case_result.get("response")
             if isinstance(response, dict):
                 self.left_panel.set_request_response(item, response)
+                if item == self.left_panel.get_selected_request_item():
+                    self.right_panel.response_panel.update_response(response)
             self._append_run_history(
                 item,
                 case_result.get("result") == "PASS",
@@ -455,59 +627,6 @@ class MainWindow(QMainWindow):
             self.right_panel.send_button.setToolTip("\u53d1\u9001\u8bf7\u6c42\uff08Ctrl + Enter\uff09")
         self.right_panel.request_panel.update_run_button_state(state.value)
         self._update_run_state_badge(state)
-
-    def _collect_dirty_requests(self) -> list[str]:
-        current = self.left_panel.tree_widget.currentItem()
-        if current is None:
-            return []
-        items: list = []
-        if current.data(0, self.left_panel._TYPE_ROLE) == "request":
-            items.append(current)
-        else:
-            self._collect_request_items(current, items)
-        dirty: list[str] = []
-        for item in items:
-            if self._is_request_dirty(item):
-                name = item.data(0, self.left_panel._NAME_ROLE) or item.text(0)
-                dirty.append(str(name))
-        return dirty
-
-    def _collect_request_items(self, item, items: list) -> None:
-        if item.data(0, self.left_panel._TYPE_ROLE) == "request":
-            items.append(item)
-            return
-        for idx in range(item.childCount()):
-            self._collect_request_items(item.child(idx), items)
-
-    def _is_request_dirty(self, item, current_data: dict | None = None) -> bool:
-        saved = self._load_saved_request_data(item)
-        if saved is None:
-            return True
-        if current_data is None:
-            current_data = self.left_panel.get_request_data(item)
-        if current_data is None:
-            return False
-        return self._normalize_request_data(current_data) != self._normalize_request_data(saved)
-
-    def _load_saved_request_data(self, item) -> dict | None:
-        path_value = self.left_panel.get_item_path(item)
-        if path_value:
-            path = Path(path_value)
-            if path.exists():
-                data = self._read_request_file(path)
-                if isinstance(data, dict):
-                    return data
-        data = self.left_panel.get_request_data(item)
-        return data if isinstance(data, dict) else None
-
-    def _normalize_request_data(self, data: dict) -> dict:
-        return {
-            "name": data.get("name"),
-            "method": data.get("method"),
-            "url": data.get("url"),
-            "headers": data.get("headers") or {},
-            "body": data.get("body"),
-        }
 
     def _append_run_history(self, item, success: bool, result: dict | None) -> None:
         run_id = f"#{len(self._global_history) + 1}"
@@ -622,8 +741,22 @@ class MainWindow(QMainWindow):
             "case_id": case_id,
             "name": name,
             "request": request_data,
-            "assertions": data.get("assertions") or [],
+            "assertions": self._filter_assertions(data.get("assertions") or []),
         }
+
+    def _filter_assertions(self, assertions: list) -> list:
+        filtered: list = []
+        for assertion in assertions:
+            if not isinstance(assertion, dict):
+                continue
+            if assertion.get("enabled", True) is False:
+                continue
+            filtered.append(assertion)
+        return filtered
+
+    def closeEvent(self, event) -> None:
+        self._persist_cases()
+        super().closeEvent(event)
 
 
 class RequestRunState(Enum):

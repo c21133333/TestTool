@@ -37,6 +37,9 @@ class ApiTestController(QObject):
         try:
             print("Request started")
             self.response_panel.clear()
+            updater = getattr(self.response_panel, "clear_assertion_results", None)
+            if callable(updater):
+                updater()
             params = self.request_panel.get_request_data()
             method = params.get("method")
             if isinstance(method, str):
@@ -55,10 +58,9 @@ class ApiTestController(QObject):
                     result,
                     assertions,
                 )
-                if self.assertion_panel is not None:
-                    updater = getattr(self.assertion_panel, "update_results", None)
-                    if callable(updater):
-                        updater(self.last_assertion_results)
+                updater = getattr(self.response_panel, "update_assertion_results", None)
+                if callable(updater):
+                    updater(self.last_assertion_results)
             print("Request finished")
         except Exception as exc:
             error_result = {
@@ -75,6 +77,12 @@ class ApiTestController(QObject):
                 return
             self._request_running = True
             self.response_panel.clear()
+            append_log = getattr(self.response_panel, "append_log", None)
+            if callable(append_log):
+                append_log("request_started")
+            updater = getattr(self.response_panel, "clear_assertion_results", None)
+            if callable(updater):
+                updater()
             params = self.request_panel.get_request_data()
             method = params.get("method")
             if isinstance(method, str):
@@ -87,6 +95,8 @@ class ApiTestController(QObject):
                 params["timeout"] = 20
 
             assertions = self._get_assertions()
+            if callable(append_log):
+                append_log(f"assertions_enabled={len(assertions)}")
             thread = QThread(self)
             worker = ApiRequestWorker(params, assertions)
             worker.moveToThread(thread)
@@ -123,10 +133,12 @@ class ApiTestController(QObject):
         response_result = payload.get("response") or {}
         assertion_results = payload.get("assertion_results") or []
         self.response_panel.update_response(response_result)
-        if self.assertion_panel is not None:
-            updater = getattr(self.assertion_panel, "update_results", None)
-            if callable(updater):
-                updater(assertion_results)
+        append_log = getattr(self.response_panel, "append_log", None)
+        if callable(append_log):
+            append_log("request_finished")
+        updater = getattr(self.response_panel, "update_assertion_results", None)
+        if callable(updater):
+            updater(assertion_results)
         if callable(self._request_done_cb):
             self._request_done_cb(response_result)
 
@@ -138,6 +150,9 @@ class ApiTestController(QObject):
             "error_message": error_info.get("error_message", ""),
         }
         self.response_panel.update_response(error_result)
+        append_log = getattr(self.response_panel, "append_log", None)
+        if callable(append_log):
+            append_log(f"request_error={error_result.get('error_type')}")
         if callable(self._request_error_cb):
             self._request_error_cb(error_result)
 
