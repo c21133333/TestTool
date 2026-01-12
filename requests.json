@@ -8,16 +8,16 @@
     "request_panel": {
       "headers_table_columns": [
         56,
-        160,
+        183,
         1143
       ],
       "headers_splitter_sizes": [
         32,
-        360
+        209
       ],
       "params_table_columns": [
         56,
-        309,
+        330,
         1123
       ],
       "assertion_panel": {

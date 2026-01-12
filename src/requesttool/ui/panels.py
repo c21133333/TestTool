@@ -45,6 +45,8 @@ from PySide6.QtWidgets import (
     QFrame,
 )
 
+DEFAULT_INPUT_FONT = QFont("Segoe UI", 10)
+
 OPERATOR_LABELS = {
     "contains": "\u5305\u542b",
     "not_contains": "\u4e0d\u5305\u542b",
@@ -64,17 +66,132 @@ OPERATOR_LABELS = {
 }
 
 TABLE_STYLE = (
-    "QTableWidget { background: #f8fafc; gridline-color: #e5e7eb; }"
+    "QTableWidget { background: #f8fafc; gridline-color: #e5e7eb; border: 1px solid #e5e7eb; }"
     "QTableWidget::item { color: #9ca3af; }"
     "QTableWidget::item:selected { background: #eef2f7; color: #111827; }"
     "QTableWidget::item:focus { outline: none; }"
+    "QTableWidget:focus { outline: none; border: 1px solid #e5e7eb; }"
     "QComboBox, QLineEdit, QPlainTextEdit { background: #ffffff; color: #6b7280; "
     "border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 4px; }"
-    "QComboBox[activeRow=\"true\"], QLineEdit[activeRow=\"true\"], QPlainTextEdit[activeRow=\"true\"] "
-    "{ color: #111827; background: #ffffff; border-color: #93c5fd; }"
+    "QComboBox:focus, QLineEdit:focus, QPlainTextEdit:focus { outline: none; }"
+    "QPlainTextEdit[editingRow=\"true\"] { color: #111827; background: #ffffff; border-color: #93c5fd; }"
     "QSpinBox { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 4px; }"
     "QSpinBox[activeRow=\"true\"] { background: #ffffff; border-color: #93c5fd; }"
 )
+
+
+class ClickToEditPlainTextEdit(QPlainTextEdit):
+    """Plain text widget that only enters edit mode after the user explicitly clicks."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._editing = False
+        self.setReadOnly(True)
+        self.setCursor(Qt.CursorShape.IBeamCursor)
+        self.setFrameShadow(QFrame.Shadow.Plain)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setFont(DEFAULT_INPUT_FONT)
+        self.setProperty("editingRow", False)
+        self._sync_interaction_flags()
+
+    def mousePressEvent(self, event):
+        if not self._editing:
+            self._enter_edit_mode()
+        super().mousePressEvent(event)
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        self._exit_edit_mode()
+
+    def _enter_edit_mode(self):
+        if self._editing:
+            return
+        self._editing = True
+        self.setReadOnly(False)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        self.setProperty("editingRow", True)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self._sync_interaction_flags()
+        self.setFocus(Qt.FocusReason.MouseFocusReason)
+
+    def _exit_edit_mode(self):
+        if not self._editing:
+            return
+        self._editing = False
+        self.setReadOnly(True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.clearFocus()
+        self.setProperty("editingRow", False)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self._sync_interaction_flags()
+        self.clearFocus()
+
+    def _sync_interaction_flags(self):
+        if self._editing:
+            self.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
+        else:
+            self.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+
+class ClickToEditLineEdit(QLineEdit):
+    """Line edit that stays passive until the user clicks, preventing hover focus."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._editing = False
+        self.setReadOnly(True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setCursor(Qt.CursorShape.IBeamCursor)
+        self.setFont(DEFAULT_INPUT_FONT)
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.setStyleSheet("QLineEdit { background: transparent; border: none; padding-left: 6px; }")
+
+    def mousePressEvent(self, event):
+        if not self._editing:
+            self._enter_edit_mode()
+        super().mousePressEvent(event)
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        self._exit_edit_mode()
+
+    def _enter_edit_mode(self):
+        if self._editing:
+            return
+        self._editing = True
+        self.setReadOnly(False)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        self.setFocus(Qt.FocusReason.MouseFocusReason)
+
+    def _exit_edit_mode(self):
+        if not self._editing:
+            return
+        self._editing = False
+        self.setReadOnly(True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+class StableTableWidget(QTableWidget):
+    """QTableWidget that keeps borders/focus fixed and prevents horizontal shifts."""
+
+    def __init__(self, rows: int, columns: int, parent: QWidget | None = None) -> None:
+        super().__init__(rows, columns, parent)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setFrameShadow(QFrame.Shadow.Plain)
+        self.setLineWidth(0)
+        self.setMidLineWidth(0)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+    def scrollTo(
+        self,
+        index,
+        hint: QAbstractItemView.ScrollHint = QAbstractItemView.ScrollHint.EnsureVisible,
+    ) -> None:
+        super().scrollTo(index, hint)
+        self.horizontalScrollBar().setValue(0)
 
 
 class CollapsibleSection(QWidget):
@@ -1215,8 +1332,8 @@ class RequestPanel(QWidget):
 
     def _init_tabs(self) -> QTabWidget:
         self._tabs = QTabWidget()
-        self._tabs.addTab(self._init_params(), "Params")
         self._tabs.addTab(self._init_headers(), "\u8bf7\u6c42\u5934")
+        self._tabs.addTab(self._init_params(), "Params")
         self._tabs.addTab(self._init_body(), "\u8bf7\u6c42\u4f53")
         self.assertion_panel = AssertionPanel()
         self._tabs.addTab(self.assertion_panel, "\u65ad\u8a00")
@@ -2522,11 +2639,10 @@ class ResponsePanel(QWidget):
         return
 
 
-class ParamsTable(QTableWidget):
+class ParamsTable(StableTableWidget):
     def __init__(self, on_changed, parent: QWidget | None = None) -> None:
         super().__init__(0, 3, parent)
         self._on_changed = on_changed
-        self._active_row = -1
         self._resizing = False
         self._column_constraints = {0: (48, 70)}
         self.setHorizontalHeaderLabels(["\u542f\u7528", "\u53c2\u6570\u540d", "\u503c"])
@@ -2631,17 +2747,6 @@ class ParamsTable(QTableWidget):
             return
         enabled_item = self.item(row, 0)
         enabled = enabled_item is not None and enabled_item.checkState() == Qt.CheckState.Checked
-        for col in range(self.columnCount()):
-            widget = self.cellWidget(row, col)
-            if widget is not None:
-                widget.setProperty("activeRow", active and enabled)
-                widget.style().unpolish(widget)
-                widget.style().polish(widget)
-                line_edit = widget.findChild(QLineEdit)
-                if line_edit is not None:
-                    line_edit.setProperty("activeRow", active and enabled)
-                    line_edit.style().unpolish(line_edit)
-                    line_edit.style().polish(line_edit)
         item = self.item(row, 0)
         if item is not None:
             if enabled:
@@ -2718,14 +2823,14 @@ class ParamsTable(QTableWidget):
         )
         self.setItem(row, 0, enabled_item)
 
-        key_input = QLineEdit()
+        key_input = ClickToEditLineEdit()
         key_input.setText(str(data.get("key", "")))
         key_input.setFixedHeight(28)
         key_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         key_input.textChanged.connect(self._notify_changed)
         self.setCellWidget(row, 1, key_input)
 
-        value_input = QPlainTextEdit()
+        value_input = ClickToEditPlainTextEdit()
         value_input.setPlainText(str(data.get("value", "")))
         value_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         value_input.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -2800,7 +2905,7 @@ class ParamsTable(QTableWidget):
             self._on_changed()
 
 
-class HeadersTable(QTableWidget):
+class HeadersTable(StableTableWidget):
     COMMON_HEADERS = [
         "Accept",
         "Accept-Encoding",
@@ -2817,8 +2922,8 @@ class HeadersTable(QTableWidget):
 
     def __init__(self, on_changed, parent: QWidget | None = None) -> None:
         super().__init__(0, 3, parent)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._on_changed = on_changed
-        self._active_row = -1
         self._resizing = False
         self._column_constraints = {0: (48, 70)}
         self.setHorizontalHeaderLabels(["\u542f\u7528", "\u952e", "\u503c", "\u7c7b\u578b"])
@@ -2923,22 +3028,10 @@ class HeadersTable(QTableWidget):
             return
         enabled_item = self.item(row, 0)
         enabled = enabled_item is not None and enabled_item.checkState() == Qt.CheckState.Checked
-        for col in range(self.columnCount()):
-            widget = self.cellWidget(row, col)
-            if widget is not None:
-                widget.setProperty("activeRow", active and enabled)
-                widget.style().unpolish(widget)
-                widget.style().polish(widget)
-                line_edit = widget.findChild(QLineEdit)
-                if line_edit is not None:
-                    line_edit.setProperty("activeRow", active and enabled)
-                    line_edit.style().unpolish(line_edit)
-                    line_edit.style().polish(line_edit)
         item = self.item(row, 0)
         if item is not None:
             item.setForeground(QBrush(QColor("#111827" if active else "#9ca3af")))
             item.setBackground(QBrush(Qt.GlobalColor.transparent))
-
     def keyPressEvent(self, event) -> None:
         if event.matches(QKeySequence.StandardKey.Paste):
             if self._handle_paste():
@@ -3003,6 +3096,9 @@ class HeadersTable(QTableWidget):
 
         key_combo = QComboBox()
         key_combo.setEditable(True)
+        key_combo.setFont(DEFAULT_INPUT_FONT)
+        line_edit = ClickToEditLineEdit()
+        key_combo.setLineEdit(line_edit)
         key_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         key_combo.addItems(self.COMMON_HEADERS)
         completer = QCompleter(self.COMMON_HEADERS)
@@ -3014,11 +3110,8 @@ class HeadersTable(QTableWidget):
         key_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         key_combo.currentTextChanged.connect(self._notify_changed)
         self.setCellWidget(row, 1, key_combo)
-        line_edit = key_combo.lineEdit()
-        if line_edit is not None:
-            line_edit.installEventFilter(self)
 
-        value_edit = QPlainTextEdit()
+        value_edit = ClickToEditPlainTextEdit()
         value_edit.setPlainText(str(data.get("value", "")))
         value_edit.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         value_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -3183,7 +3276,6 @@ class AssertionPanel(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._active_row = -1
         self._resizing = False
         self._column_constraints = {0: (50, 70)}
         self._setup_ui()
@@ -3218,7 +3310,7 @@ class AssertionPanel(QWidget):
         title_row.addWidget(add_button)
         title_row.addWidget(delete_button)
 
-        self.table = QTableWidget(0, 5)
+        self.table = StableTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
             [
                 "\u542f\u7528",
@@ -3239,10 +3331,11 @@ class AssertionPanel(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet(
-            "QTableWidget { background: #f8fafc; gridline-color: #e5e7eb; }"
+            "QTableWidget { background: #f8fafc; gridline-color: #e5e7eb; border: 1px solid #e5e7eb; }"
             "QTableWidget::item { color: #9ca3af; }"
             "QTableWidget::item:selected { background: #eef2f7; color: #111827; }"
             "QTableWidget::item:focus { outline: none; }"
+            "QTableWidget:focus { outline: none; border: 1px solid #e5e7eb; }"
             "QComboBox, QLineEdit, QPlainTextEdit { background: #ffffff; color: #6b7280; "
             "border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 4px; }"
             "QComboBox[activeRow=\"true\"], QLineEdit[activeRow=\"true\"], QPlainTextEdit[activeRow=\"true\"] "
@@ -3410,7 +3503,7 @@ class AssertionPanel(QWidget):
         type_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.table.setCellWidget(row, 1, type_combo)
 
-        target_input = QLineEdit()
+        target_input = ClickToEditLineEdit()
         target_input.setText(str(row_data.get("path") or row_data.get("header") or row_data.get("target") or ""))
         target_input.setFixedHeight(28)
         target_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -3532,7 +3625,7 @@ class AssertionPanel(QWidget):
             self._build_numeric_widget(row, value, assertion_type)
             return
         if assertion_type in {"response_body", "json_path"}:
-            expected_input = QPlainTextEdit()
+            expected_input = ClickToEditPlainTextEdit()
             expected_input.setPlainText("" if value is None else str(value))
             expected_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
             expected_input.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -3543,7 +3636,7 @@ class AssertionPanel(QWidget):
             self.table.setCellWidget(row, 4, expected_input)
             return
         if assertion_type == "header":
-            expected_input = QLineEdit()
+            expected_input = ClickToEditLineEdit()
             expected_input.setText("" if value is None else str(value))
             expected_input.setPlaceholderText(self._expected_placeholder_for(assertion_type))
             expected_input.setFixedHeight(28)
@@ -3551,7 +3644,7 @@ class AssertionPanel(QWidget):
             expected_input.textChanged.connect(self._emit_changed)
             self.table.setCellWidget(row, 4, expected_input)
             return
-        expected_input = QLineEdit()
+        expected_input = ClickToEditLineEdit()
         expected_input.setText("" if value is None else str(value))
         expected_input.setFixedHeight(28)
         expected_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
