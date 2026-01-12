@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QVBoxLayout,
     QWidget,
+    QTreeWidgetItem,
 )
 
 
@@ -106,6 +107,8 @@ class MainWindow(QMainWindow):
         self._global_history: list[dict] = []
         self._current_case: dict | None = None
         self._current_case_item = None
+        self._current_collection_item: QTreeWidgetItem | None = None
+        self._apply_scrollbar_style()
         self._setup_ui()
 
     def _set_window_icon(self) -> None:
@@ -155,11 +158,13 @@ class MainWindow(QMainWindow):
         self.right_panel.welcome_new_request_button.clicked.connect(self.left_panel._on_add_request_clicked)
         self.right_panel.welcome_new_folder_button.clicked.connect(self.left_panel._on_add_folder_clicked)
         self.left_panel.request_selected.connect(self._on_request_selected)
+        self.left_panel.selection_changed.connect(self._on_tree_selection_changed)
         self.left_panel.request_edited.connect(self._on_request_edited)
         self.left_panel.import_request_clicked.connect(self._on_import_request)
         self.left_panel.import_folder_clicked.connect(self._on_import_folder)
         self.left_panel.export_clicked.connect(self._on_export_cases)
         self.left_panel.run_suite_clicked.connect(self._on_run_suite)
+        self.right_panel.collection_panel.data_changed.connect(self._on_collection_data_changed)
         self.left_panel.tree_changed.connect(self._persist_cases)
         self.left_panel.history_selected.connect(self._on_history_selected)
         self._load_saved_cases()
@@ -167,6 +172,28 @@ class MainWindow(QMainWindow):
         self._apply_request_state(RequestRunState.IDLE)
         self.right_panel.show_welcome()
         self._set_busy(False, "\u7a7a\u95f2", allow_cancel=False)
+
+    def _apply_scrollbar_style(self) -> None:
+        app = QApplication.instance()
+        if app is None:
+            return
+        style = app.styleSheet() or ""
+        if "QScrollBar:vertical" in style:
+            return
+        scrollbar_style = (
+            "QScrollBar:vertical { background: #f1f5f9; width: 8px; margin: 2px; border-radius: 4px; }"
+            "QScrollBar::handle:vertical { background: #cbd5f5; min-height: 24px; border-radius: 4px; }"
+            "QScrollBar::handle:vertical:hover { background: #94a3b8; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }"
+            "QScrollBar:horizontal { background: #f1f5f9; height: 8px; margin: 2px; border-radius: 4px; }"
+            "QScrollBar::handle:horizontal { background: #cbd5f5; min-width: 24px; border-radius: 4px; }"
+            "QScrollBar::handle:horizontal:hover { background: #94a3b8; }"
+            "QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }"
+            "QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: transparent; }"
+            "QScrollBar::corner { background: transparent; }"
+        )
+        app.setStyleSheet(style + scrollbar_style)
 
     def _set_busy(self, busy: bool, message: str, allow_cancel: bool) -> None:
         self.right_panel.send_button.setEnabled(not busy and self._has_request_selection)
@@ -183,6 +210,14 @@ class MainWindow(QMainWindow):
 
     def _on_request_selected(self, item) -> None:
         if item is None:
+            folder_item = self.left_panel.get_selected_folder_item()
+            if folder_item is not None:
+                self._has_request_selection = False
+                self._current_case = None
+                self._current_case_item = None
+                self._current_collection_item = folder_item
+                self._update_request_controls()
+                return
             self._has_request_selection = False
             self._current_case = None
             self._current_case_item = None
@@ -222,6 +257,34 @@ class MainWindow(QMainWindow):
         self.right_panel.show_content()
         self._update_request_controls()
 
+    def _on_tree_selection_changed(self, item) -> None:
+        folder_item = self.left_panel.get_selected_folder_item()
+        if item is None or folder_item is None or item is not folder_item:
+            self._current_collection_item = None
+            return
+        self._current_collection_item = folder_item
+        self._has_request_selection = False
+        folder_data = self.left_panel.get_folder_data(folder_item)
+        name = folder_data.get("name")
+        if not name:
+            name = folder_item.text(0)
+        description = folder_data.get("description") or ""
+        self.right_panel.collection_panel.set_data(name, description)
+        self.right_panel.show_collection_panel()
+        self.right_panel.save_status_label.setText("\u7528\u4f8b\u96c6")
+        self._update_request_controls()
+
+    def _on_collection_data_changed(self) -> None:
+        item = self._current_collection_item
+        if item is None:
+            return
+        data = self.right_panel.collection_panel.get_data()
+        name = data.get("name", "").strip()
+        description = data.get("description", "").strip()
+        if name:
+            self.left_panel.rename_folder(item, name)
+        self.left_panel.set_folder_data(item, {"name": name or item.text(0), "description": description})
+        self.left_panel.tree_changed.emit()
     def _on_save_request(self) -> None:
         item = self.left_panel.get_selected_request_item()
         if item is None:
@@ -229,10 +292,21 @@ class MainWindow(QMainWindow):
         data = self.right_panel.request_panel.get_request_data()
         data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
         name_value = data.get("name")
-        user_name = name_value.strip() if isinstance(name_value, str) else ""
+        raw_name = name_value.strip() if isinstance(name_value, str) else ""
         display_name = self.left_panel._strip_method_prefix(item.text(0))
-        save_name = user_name or display_name
-        data["name"] = user_name
+        method_from_name, custom_name_from_name = self._parse_method_and_name(raw_name)
+        custom_candidate = (custom_name_from_name or raw_name).strip()
+        final_custom_name = custom_candidate or display_name
+        method_value = data.get("method")
+        if not isinstance(method_value, str):
+            method_value = ""
+        method_value = method_value.strip().upper()
+        parsed_method = method_from_name or method_value
+        method_label = parsed_method or "GET"
+        final_custom_name = final_custom_name or method_label
+        data["method"] = method_label
+        data["name"] = final_custom_name
+        save_name = final_custom_name
         saved_path = self._save_request_file(item, data, save_name)
         if saved_path is None:
             QMessageBox.warning(self, "\u4fdd\u5b58\u5931\u8d25", "\u8bf7\u6c42\u4fdd\u5b58\u5931\u8d25")
@@ -260,6 +334,15 @@ class MainWindow(QMainWindow):
         path_value = self.left_panel.get_item_path(item)
         if path_value:
             QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", f"\u6587\u4ef6\u5df2\u4fdd\u5b58\u5230:\n{path_value}")
+
+    def _parse_method_and_name(self, raw_name: str) -> tuple[str, str]:
+        trimmed = raw_name.strip()
+        if not trimmed.startswith("[") or "]" not in trimmed:
+            return "", ""
+        end = trimmed.find("]")
+        method_part = trimmed[1:end].strip().upper()
+        custom_part = trimmed[end + 1 :].strip()
+        return method_part, custom_part
 
     def _on_request_edited(self, item) -> None:
         if item == self.left_panel.get_selected_request_item():
@@ -733,6 +816,8 @@ class MainWindow(QMainWindow):
             "headers": data.get("headers") or {},
             "body": data.get("body"),
         }
+        pre_processors = data.get("preProcessors")
+        post_processors = data.get("postProcessors")
         if not request_data.get("method") or not request_data.get("url"):
             return None
         case_id = f"item_{id(item)}"
@@ -742,6 +827,8 @@ class MainWindow(QMainWindow):
             "name": name,
             "request": request_data,
             "assertions": self._filter_assertions(data.get("assertions") or []),
+            "preProcessors": pre_processors if isinstance(pre_processors, list) else [],
+            "postProcessors": post_processors if isinstance(post_processors, list) else [],
         }
 
     def _filter_assertions(self, assertions: list) -> list:

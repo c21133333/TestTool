@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, QThread, Slot
 
 from assertions import AssertionEngine
 from requesttool import http_client
+from requesttool import processor_engine
 from requesttool.batch_executor import BatchExecutor
 from requesttool.batch_thread_executor import BatchThreadExecutor
 from requesttool.result_exporter import ResultExporter
@@ -41,23 +42,20 @@ class ApiTestController(QObject):
             if callable(updater):
                 updater()
             params = self.request_panel.get_request_data()
-            method = params.get("method")
-            if isinstance(method, str):
-                params["method"] = method.upper()
-            if params.get("headers") is None:
-                params["headers"] = {}
-            if params.get("body") is None:
-                params.pop("body", None)
-            if params.get("timeout") is None:
-                params["timeout"] = 20
-            result = http_client.send_request(params)
-            self.response_panel.update_response(result)
-            if result.get("success") is True:
-                assertions = self._get_assertions()
-                self.last_assertion_results = self.assertion_engine.run_assertions(
-                    result,
-                    assertions,
-                )
+            assertions = self._get_assertions()
+            pre_processors = params.get("preProcessors") if isinstance(params, dict) else []
+            post_processors = params.get("postProcessors") if isinstance(params, dict) else []
+            response_result, assertion_results, _context = processor_engine.execute_request(
+                params,
+                assertions,
+                pre_processors or [],
+                post_processors or [],
+                http_client,
+                self.assertion_engine,
+            )
+            self.response_panel.update_response(response_result)
+            if response_result.get("success") is True or assertion_results:
+                self.last_assertion_results = assertion_results
                 updater = getattr(self.response_panel, "update_assertion_results", None)
                 if callable(updater):
                     updater(self.last_assertion_results)
@@ -84,21 +82,13 @@ class ApiTestController(QObject):
             if callable(updater):
                 updater()
             params = self.request_panel.get_request_data()
-            method = params.get("method")
-            if isinstance(method, str):
-                params["method"] = method.upper()
-            if params.get("headers") is None:
-                params["headers"] = {}
-            if params.get("body") is None:
-                params.pop("body", None)
-            if params.get("timeout") is None:
-                params["timeout"] = 20
-
             assertions = self._get_assertions()
             if callable(append_log):
                 append_log(f"assertions_enabled={len(assertions)}")
+            pre_processors = params.get("preProcessors") if isinstance(params, dict) else []
+            post_processors = params.get("postProcessors") if isinstance(params, dict) else []
             thread = QThread(self)
-            worker = ApiRequestWorker(params, assertions)
+            worker = ApiRequestWorker(params, assertions, pre_processors or [], post_processors or [])
             worker.moveToThread(thread)
             thread.started.connect(worker.run)
 

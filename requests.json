@@ -2,22 +2,22 @@
   "cases": [],
   "ui_state": {
     "splitter_sizes": [
-      401,
-      370
+      559,
+      421
     ],
     "request_panel": {
       "headers_table_columns": [
         56,
-        183,
-        1143
+        159,
+        1144
       ],
       "headers_splitter_sizes": [
         32,
-        209
+        360
       ],
       "params_table_columns": [
         56,
-        330,
+        257,
         1123
       ],
       "assertion_panel": {

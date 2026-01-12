@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QButtonGroup,
+    QCheckBox,
     QComboBox,
     QCompleter,
     QGroupBox,
@@ -78,6 +79,20 @@ TABLE_STYLE = (
     "QSpinBox { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 4px; }"
     "QSpinBox[activeRow=\"true\"] { background: #ffffff; border-color: #93c5fd; }"
 )
+
+PRE_PROCESSOR_TYPES = [
+    ("set_variable", "\u8bbe\u7f6e\u53d8\u91cf"),
+    ("builtin_function", "\u5185\u7f6e\u51fd\u6570"),
+    ("sleep", "\u5ef6\u8fdf\u6267\u884c"),
+    ("script", "\u811a\u672c"),
+]
+
+POST_PROCESSOR_TYPES = [
+    ("jsonpath_extract", "JSONPath \u63d0\u53d6"),
+    ("regex_extract", "\u6b63\u5219\u63d0\u53d6"),
+    ("fail_if", "\u6761\u4ef6\u5931\u8d25\u7ec8\u6b62"),
+    ("script", "\u811a\u672c"),
+]
 
 
 class ClickToEditPlainTextEdit(QPlainTextEdit):
@@ -172,6 +187,20 @@ class ClickToEditLineEdit(QLineEdit):
         self._editing = False
         self.setReadOnly(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+
+class AutoSizeStackedWidget(QStackedWidget):
+    def sizeHint(self):
+        current = self.currentWidget()
+        if current is not None:
+            return current.sizeHint()
+        return super().sizeHint()
+
+    def minimumSizeHint(self):
+        current = self.currentWidget()
+        if current is not None:
+            return current.minimumSizeHint()
+        return super().minimumSizeHint()
 class StableTableWidget(QTableWidget):
     """QTableWidget that keeps borders/focus fixed and prevents horizontal shifts."""
 
@@ -251,6 +280,12 @@ class CollapsibleSection(QWidget):
     def content_layout(self) -> QVBoxLayout:
         return self._content_layout
 
+    def set_collapsed(self, collapsed: bool) -> None:
+        self._on_toggled(not collapsed)
+
+    def is_expanded(self) -> bool:
+        return self._content.isVisible()
+
     def _on_toggled(self, checked: bool) -> None:
         self._toggle.setArrowType(Qt.ArrowType.DownArrow if checked else Qt.ArrowType.UpArrow)
         self._content.setVisible(checked)
@@ -263,6 +298,552 @@ class CollapsibleSection(QWidget):
             return True
         return super().eventFilter(obj, event)
 
+
+class ProcessorRow(QWidget):
+    data_changed = Signal()
+    remove_requested = Signal(object)
+
+    def __init__(self, type_options: list[tuple[str, str]], data: dict | None = None, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._type_options = type_options
+        self._config_getters: dict[str, callable] = {}
+        self._config_setters: dict[str, callable] = {}
+        self._config_index: dict[str, int] = {}
+
+        self.enable_checkbox = QCheckBox()
+        self.enable_checkbox.setChecked(True)
+        self.enable_checkbox.stateChanged.connect(self._emit_changed)
+
+        self.type_combo = QComboBox()
+        for key, label in type_options:
+            self.type_combo.addItem(label, key)
+        self.type_combo.currentIndexChanged.connect(self._on_type_changed)
+
+        self._config_stack = AutoSizeStackedWidget()
+        self._config_stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        for key, _label in type_options:
+            widget, getter, setter = self._build_config_widget(key)
+            index = self._config_stack.addWidget(widget)
+            self._config_getters[key] = getter
+            self._config_setters[key] = setter
+            self._config_index[key] = index
+
+        self.delete_button = QToolButton()
+        self.delete_button.setText("\u5220\u9664")
+        self.delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.delete_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.delete_button.clicked.connect(lambda: self.remove_requested.emit(self))
+
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(8)
+        row_layout.addWidget(self.enable_checkbox, 0, Qt.AlignmentFlag.AlignTop)
+        row_layout.addWidget(self.type_combo, 0, Qt.AlignmentFlag.AlignTop)
+        row_layout.addWidget(self._config_stack, 1, Qt.AlignmentFlag.AlignTop)
+        row_layout.addWidget(self.delete_button, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Plain)
+        separator.setStyleSheet("color: #e5e7eb;")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        layout.addWidget(row_widget)
+        layout.addWidget(separator)
+
+        if data:
+            self.set_data(data)
+        else:
+            default_type = type_options[0][0] if type_options else ""
+            self._set_type(default_type)
+
+    def _emit_changed(self) -> None:
+        self.data_changed.emit()
+
+    def _bind_change(self, widget: QWidget) -> None:
+        if isinstance(widget, QLineEdit):
+            widget.textChanged.connect(self._emit_changed)
+        elif isinstance(widget, QTextEdit):
+            widget.textChanged.connect(self._emit_changed)
+        elif isinstance(widget, QPlainTextEdit):
+            widget.textChanged.connect(self._emit_changed)
+        elif isinstance(widget, QComboBox):
+            widget.currentIndexChanged.connect(self._emit_changed)
+        elif isinstance(widget, QSpinBox):
+            widget.valueChanged.connect(self._emit_changed)
+
+    def _build_config_widget(self, type_key: str):
+        if type_key == "set_variable":
+            key_input = QLineEdit()
+            key_input.setPlaceholderText("\u53d8\u91cf\u540d")
+            value_input = QLineEdit()
+            value_input.setPlaceholderText("\u503c")
+            self._bind_change(key_input)
+            self._bind_change(value_input)
+            widget = QWidget()
+            layout = QHBoxLayout(widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            layout.addWidget(QLabel("\u53d8\u91cf"))
+            layout.addWidget(key_input, 1)
+            layout.addWidget(QLabel("\u503c"))
+            layout.addWidget(value_input, 2)
+            def getter():
+                return {"key": key_input.text().strip(), "value": value_input.text()}
+            def setter(config: dict):
+                key_input.setText(str(config.get("key") or ""))
+                value_input.setText(str(config.get("value") or ""))
+            return widget, getter, setter
+
+        if type_key == "builtin_function":
+            func_combo = QComboBox()
+            func_combo.addItem("\u65f6\u95f4\u6233", "timestamp")
+            func_combo.addItem("\u968f\u673a\u6570", "random")
+            func_combo.addItem("UUID", "uuid")
+            target_input = QLineEdit()
+            target_input.setPlaceholderText("\u53d8\u91cf\u540d")
+            self._bind_change(func_combo)
+            self._bind_change(target_input)
+            widget = QWidget()
+            layout = QHBoxLayout(widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            layout.addWidget(QLabel("\u51fd\u6570"))
+            layout.addWidget(func_combo, 0)
+            layout.addWidget(QLabel("\u53d8\u91cf"))
+            layout.addWidget(target_input, 1)
+            def getter():
+                return {"function": func_combo.currentData(), "target": target_input.text().strip()}
+            def setter(config: dict):
+                func = config.get("function") or "timestamp"
+                index = func_combo.findData(func)
+                func_combo.setCurrentIndex(index if index >= 0 else 0)
+                target_input.setText(str(config.get("target") or ""))
+            return widget, getter, setter
+
+        if type_key == "sleep":
+            sleep_input = QSpinBox()
+            sleep_input.setRange(0, 600000)
+            sleep_input.setSingleStep(100)
+            sleep_input.setSuffix(" ms")
+            sleep_input.setValue(1000)
+            self._bind_change(sleep_input)
+            widget = QWidget()
+            layout = QHBoxLayout(widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            layout.addWidget(QLabel("\u5ef6\u8fdf"))
+            layout.addWidget(sleep_input, 0)
+            layout.addStretch(1)
+            def getter():
+                return {"milliseconds": int(sleep_input.value())}
+            def setter(config: dict):
+                value = config.get("milliseconds")
+                try:
+                    sleep_input.setValue(int(value))
+                except Exception:
+                    sleep_input.setValue(1000)
+            return widget, getter, setter
+
+        if type_key == "jsonpath_extract":
+            path_input = QLineEdit()
+            path_input.setPlaceholderText("$.data.id")
+            target_input = QLineEdit()
+            target_input.setPlaceholderText("\u53d8\u91cf\u540d")
+            self._bind_change(path_input)
+            self._bind_change(target_input)
+            widget = QWidget()
+            layout = QHBoxLayout(widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            layout.addWidget(QLabel("JSONPath"))
+            layout.addWidget(path_input, 2)
+            layout.addWidget(QLabel("\u53d8\u91cf"))
+            layout.addWidget(target_input, 1)
+            def getter():
+                return {"path": path_input.text().strip(), "target": target_input.text().strip()}
+            def setter(config: dict):
+                path_input.setText(str(config.get("path") or ""))
+                target_input.setText(str(config.get("target") or ""))
+            return widget, getter, setter
+
+        if type_key == "regex_extract":
+            pattern_input = QLineEdit()
+            pattern_input.setPlaceholderText("\u6b63\u5219\u8868\u8fbe\u5f0f")
+            group_input = QSpinBox()
+            group_input.setRange(0, 20)
+            group_input.setValue(1)
+            target_input = QLineEdit()
+            target_input.setPlaceholderText("\u53d8\u91cf\u540d")
+            self._bind_change(pattern_input)
+            self._bind_change(group_input)
+            self._bind_change(target_input)
+            widget = QWidget()
+            layout = QHBoxLayout(widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            layout.addWidget(QLabel("\u6b63\u5219"))
+            layout.addWidget(pattern_input, 2)
+            layout.addWidget(QLabel("\u7ec4"))
+            layout.addWidget(group_input, 0)
+            layout.addWidget(QLabel("\u53d8\u91cf"))
+            layout.addWidget(target_input, 1)
+            def getter():
+                return {
+                    "pattern": pattern_input.text().strip(),
+                    "group": int(group_input.value()),
+                    "target": target_input.text().strip(),
+                }
+            def setter(config: dict):
+                pattern_input.setText(str(config.get("pattern") or ""))
+                group = config.get("group")
+                try:
+                    group_input.setValue(int(group))
+                except Exception:
+                    group_input.setValue(1)
+                target_input.setText(str(config.get("target") or ""))
+            return widget, getter, setter
+
+        if type_key == "fail_if":
+            var_input = QLineEdit()
+            var_input.setPlaceholderText("\u53d8\u91cf\u540d")
+            operator_combo = QComboBox()
+            operator_combo.addItem("\u5b58\u5728", "exists")
+            operator_combo.addItem("\u975e\u7a7a", "not_empty")
+            operator_combo.addItem("\u7b49\u4e8e", "equals")
+            value_input = QLineEdit()
+            value_input.setPlaceholderText("\u671f\u671b\u503c")
+            self._bind_change(var_input)
+            self._bind_change(operator_combo)
+            self._bind_change(value_input)
+            widget = QWidget()
+            layout = QHBoxLayout(widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            layout.addWidget(QLabel("\u53d8\u91cf"))
+            layout.addWidget(var_input, 1)
+            layout.addWidget(QLabel("\u6761\u4ef6"))
+            layout.addWidget(operator_combo, 0)
+            layout.addWidget(QLabel("\u503c"))
+            layout.addWidget(value_input, 1)
+            def getter():
+                return {
+                    "variable": var_input.text().strip(),
+                    "operator": operator_combo.currentData(),
+                    "value": value_input.text(),
+                }
+            def setter(config: dict):
+                var_input.setText(str(config.get("variable") or ""))
+                operator = config.get("operator") or "exists"
+                index = operator_combo.findData(operator)
+                operator_combo.setCurrentIndex(index if index >= 0 else 0)
+                value_input.setText(str(config.get("value") or ""))
+            return widget, getter, setter
+
+        if type_key == "script":
+            language_combo = QComboBox()
+            language_combo.addItem("JavaScript", "js")
+            code_input = ClickToEditPlainTextEdit()
+            code_input.setPlaceholderText("ctx.set('key', 'value')")
+            code_input.setFixedHeight(140)
+            code_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+            code_input.setFont(QFont("Consolas", 9))
+            code_input.setStyleSheet(
+                "QPlainTextEdit { background: #ffffff; border: 1px solid #e5e7eb; "
+                "border-radius: 6px; padding: 6px; }"
+                "QPlainTextEdit:focus { border-color: #93c5fd; }"
+                "QScrollBar:vertical { background: #f1f5f9; width: 8px; margin: 2px; border-radius: 4px; }"
+                "QScrollBar::handle:vertical { background: #cbd5f5; min-height: 24px; border-radius: 4px; }"
+                "QScrollBar::handle:vertical:hover { background: #94a3b8; }"
+                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+                "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }"
+            )
+            self._bind_change(language_combo)
+            self._bind_change(code_input)
+            widget = QWidget()
+            layout = QVBoxLayout(widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            toolbar = QHBoxLayout()
+            toolbar.setContentsMargins(0, 0, 0, 0)
+            toolbar.setSpacing(6)
+            toolbar.addWidget(QLabel("\u8bed\u8a00"))
+            toolbar.addWidget(language_combo, 0)
+            toolbar.addStretch(1)
+            layout.addLayout(toolbar)
+            layout.addWidget(code_input, 1)
+            def getter():
+                return {"language": language_combo.currentData(), "code": code_input.toPlainText()}
+            def setter(config: dict):
+                language = config.get("language") or "js"
+                index = language_combo.findData(language)
+                language_combo.setCurrentIndex(index if index >= 0 else 0)
+                code_input.setPlainText(str(config.get("code") or ""))
+            return widget, getter, setter
+
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addStretch(1)
+        def getter():
+            return {}
+        def setter(_config: dict):
+            return None
+        return widget, getter, setter
+
+    def _set_type(self, type_key: str) -> None:
+        index = self.type_combo.findData(type_key)
+        if index < 0:
+            index = 0
+        self.type_combo.setCurrentIndex(index)
+        self._config_stack.setCurrentIndex(self._config_index.get(type_key, index))
+
+    def _on_type_changed(self) -> None:
+        type_key = self.type_combo.currentData()
+        index = self._config_index.get(type_key, 0)
+        self._config_stack.setCurrentIndex(index)
+        self._config_stack.updateGeometry()
+        self.updateGeometry()
+        self._emit_changed()
+
+    def get_data(self) -> dict:
+        type_key = self.type_combo.currentData()
+        getter = self._config_getters.get(type_key)
+        config = getter() if callable(getter) else {}
+        return {
+            "type": type_key,
+            "enabled": self.enable_checkbox.isChecked(),
+            "config": config,
+        }
+
+    def set_data(self, data: dict) -> None:
+        enabled = data.get("enabled", True)
+        self.enable_checkbox.setChecked(bool(enabled))
+        type_key = data.get("type")
+        if not isinstance(type_key, str):
+            type_key = self.type_combo.currentData()
+        self._set_type(type_key)
+        config = data.get("config") or {}
+        if type_key == "script":
+            if "language" in data and "language" not in config:
+                config = dict(config)
+                config["language"] = data.get("language")
+            if "code" in data and "code" not in config:
+                config = dict(config)
+                config["code"] = data.get("code")
+        setter = self._config_setters.get(type_key)
+        if callable(setter):
+            setter(config)
+
+
+class ProcessorSection(QWidget):
+    data_changed = Signal()
+
+    def __init__(
+        self,
+        title: str,
+        add_label: str,
+        type_options: list[tuple[str, str]],
+        default_type: str,
+        empty_hint: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._type_options = type_options
+        self._default_type = default_type
+        self._rows: list[ProcessorRow] = []
+
+        self.section = CollapsibleSection(title, collapsed=True)
+        self.section.setVisible(False)
+        self.add_button = QPushButton(add_label)
+        self.add_button.setObjectName("secondaryButton")
+        self.add_button.setFixedHeight(24)
+        self.add_button.clicked.connect(self._on_add_clicked)
+        self.section.add_header_widget(self.add_button)
+
+        self._empty_label = QLabel(empty_hint)
+        self._empty_label.setStyleSheet("color: #94a3b8; font-size: 9pt; padding: 2px 0;")
+        self._empty_label.setWordWrap(True)
+        self.section.content_layout().addWidget(self._empty_label)
+        self._refresh_empty_state()
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.section)
+
+    def _on_add_clicked(self) -> None:
+        self.add_row()
+
+    def _refresh_empty_state(self) -> None:
+        self._empty_label.setVisible(len(self._rows) == 0)
+
+    def _create_row(self, row_data: dict) -> None:
+        row = ProcessorRow(self._type_options, row_data)
+        row.data_changed.connect(self._emit_changed)
+        row.remove_requested.connect(self._on_row_remove)
+        self.section.content_layout().addWidget(row)
+        self._rows.append(row)
+
+    def add_row(self, data: dict | None = None) -> None:
+        row_data = data or {"type": self._default_type, "enabled": True, "config": {}}
+        self._create_row(row_data)
+        self.section.setVisible(True)
+        self.section.set_collapsed(False)
+        self._refresh_empty_state()
+        self.data_changed.emit()
+
+    def _on_row_remove(self, row: ProcessorRow) -> None:
+        if row in self._rows:
+            self._rows.remove(row)
+        row.setParent(None)
+        row.deleteLater()
+        self._refresh_empty_state()
+        self.data_changed.emit()
+
+    def _emit_changed(self) -> None:
+        self.data_changed.emit()
+
+    def set_rows(self, rows: list) -> None:
+        for row in list(self._rows):
+            row.setParent(None)
+            row.deleteLater()
+        self._rows = []
+        for row_data in rows or []:
+            self._create_row(row_data)
+        self._refresh_empty_state()
+        self.section.set_collapsed(True)
+        self.section.setVisible(False)
+        self.data_changed.emit()
+
+    def clear(self) -> None:
+        self.set_rows([])
+
+    def get_rows(self) -> list[dict]:
+        return [row.get_data() for row in self._rows]
+
+    def enabled_count(self) -> int:
+        return sum(1 for row in self._rows if row.get_data().get("enabled", True))
+
+    def set_collapsed(self, collapsed: bool) -> None:
+        self.section.set_collapsed(collapsed)
+
+    def is_expanded(self) -> bool:
+        return self.section.is_expanded()
+
+    def show_section(self) -> None:
+        self.section.setVisible(True)
+
+    def hide_section(self) -> None:
+        self.section.setVisible(False)
+
+    def is_section_visible(self) -> bool:
+        return self.section.isVisible()
+
+class ProcessorTabPanel(QWidget):
+    data_changed = Signal()
+
+    def __init__(
+        self,
+        title: str,
+        add_label: str,
+        type_options: list[tuple[str, str]],
+        default_type: str,
+        empty_hint: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._type_options = type_options
+        self._default_type = default_type
+        self._rows: list[ProcessorRow] = []
+
+        header_row = QWidget()
+        header_layout = QHBoxLayout(header_row)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(6)
+        title_label = QLabel(title)
+        title_label.setObjectName("sectionTitle")
+        add_button = QPushButton(add_label)
+        add_button.setObjectName("secondaryButton")
+        add_button.setFixedHeight(28)
+        add_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        add_button.ensurePolished()
+        hint_width = add_button.sizeHint().width()
+        padding_extra = max(12, add_button.fontMetrics().averageCharWidth())
+        add_button.setMinimumWidth(hint_width + padding_extra)
+        add_button.clicked.connect(self._on_add_clicked)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch(1)
+        header_layout.addWidget(add_button)
+
+        self._list_container = QWidget()
+        self._list_layout = QVBoxLayout(self._list_container)
+        self._list_layout.setContentsMargins(0, 0, 0, 0)
+        self._list_layout.setSpacing(6)
+
+        self._empty_label = QLabel(empty_hint)
+        self._empty_label.setStyleSheet("color: #94a3b8; font-size: 9pt; padding: 2px 0;")
+        self._empty_label.setWordWrap(True)
+        self._list_layout.addWidget(self._empty_label)
+        self._list_layout.addStretch(1)
+        self._refresh_empty_state()
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(6)
+        layout.addWidget(header_row)
+        layout.addWidget(self._list_container, 1)
+
+    def _refresh_empty_state(self) -> None:
+        self._empty_label.setVisible(len(self._rows) == 0)
+
+    def _emit_changed(self) -> None:
+        self.data_changed.emit()
+
+    def _create_row(self, row_data: dict) -> None:
+        row = ProcessorRow(self._type_options, row_data)
+        row.data_changed.connect(self._emit_changed)
+        row.remove_requested.connect(self._on_row_remove)
+        self._list_layout.insertWidget(self._list_layout.count() - 1, row)
+        self._rows.append(row)
+
+    def _on_add_clicked(self) -> None:
+        self.add_row()
+
+    def add_row(self, data: dict | None = None) -> None:
+        row_data = data or {"type": self._default_type, "enabled": True, "config": {}}
+        self._create_row(row_data)
+        self._refresh_empty_state()
+        self.data_changed.emit()
+
+    def _on_row_remove(self, row: ProcessorRow) -> None:
+        if row in self._rows:
+            self._rows.remove(row)
+        row.setParent(None)
+        row.deleteLater()
+        self._refresh_empty_state()
+        self.data_changed.emit()
+
+    def set_rows(self, rows: list) -> None:
+        for row in list(self._rows):
+            row.setParent(None)
+            row.deleteLater()
+        self._rows = []
+        for row_data in rows or []:
+            self._create_row(row_data)
+        self._refresh_empty_state()
+        self.data_changed.emit()
+
+    def clear(self) -> None:
+        self.set_rows([])
+
+    def get_rows(self) -> list[dict]:
+        return [row.get_data() for row in self._rows]
+
+    def enabled_count(self) -> int:
+        return sum(1 for row in self._rows if row.get_data().get("enabled", True))
 
 class AssertionResultCard(QFrame):
     def __init__(
@@ -350,6 +931,7 @@ class CaseListPanel(QWidget):
     run_suite_clicked = Signal()
     tree_changed = Signal()
     history_selected = Signal(object)
+    selection_changed = Signal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -586,6 +1168,42 @@ class CaseListPanel(QWidget):
             return item
         return None
 
+    def get_folder_data(self, item: QTreeWidgetItem | None) -> dict:
+        if item is None or item.data(0, self._TYPE_ROLE) != "folder":
+            return {}
+        data = item.data(0, self._DATA_ROLE)
+        if isinstance(data, dict):
+            return dict(data)
+        return {}
+
+    def set_folder_data(self, item: QTreeWidgetItem | None, data: dict | None) -> dict:
+        if item is None or item.data(0, self._TYPE_ROLE) != "folder":
+            return {}
+        safe_data = {"name": item.text(0), "description": ""}
+        if isinstance(data, dict):
+            safe_data.update({k: v for k, v in data.items() if isinstance(v, str)})
+        item.setData(0, self._DATA_ROLE, safe_data)
+        return safe_data
+
+    def rename_folder(self, item: QTreeWidgetItem | None, new_name: str) -> None:
+        if item is None or item.data(0, self._TYPE_ROLE) != "folder":
+            return
+        new_name = new_name.strip()
+        if not new_name:
+            return
+        prev_name = item.data(0, self._NAME_ROLE)
+        if not isinstance(prev_name, str):
+            prev_name = item.text(0)
+        if prev_name == new_name:
+            return
+        self._rename_item_path(item, prev_name, new_name, "folder")
+        item.setData(0, self._NAME_ROLE, new_name)
+        self._updating_label = True
+        try:
+            item.setText(0, new_name)
+        finally:
+            self._updating_label = False
+
     def get_request_data(self, item: QTreeWidgetItem) -> dict | None:
         data = item.data(0, self._DATA_ROLE)
         return data if isinstance(data, dict) else None
@@ -801,6 +1419,8 @@ class CaseListPanel(QWidget):
         self.tree_changed.emit()
 
     def _on_selection_changed(self) -> None:
+        current = self.tree_widget.currentItem()
+        self.selection_changed.emit(current)
         self.request_selected.emit(self.get_selected_request_item())
 
     def _on_item_changed(self, item: QTreeWidgetItem, _column: int) -> None:
@@ -848,6 +1468,7 @@ class CaseListPanel(QWidget):
         item.setData(0, self._TYPE_ROLE, "folder")
         item.setIcon(0, self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon))
         item.setData(0, self._NAME_ROLE, name)
+        item.setData(0, self._DATA_ROLE, {"name": name, "description": ""})
         if parent_item is None:
             self.tree_widget.addTopLevelItem(item)
         else:
@@ -875,6 +1496,7 @@ class CaseListPanel(QWidget):
         self._apply_request_style(item)
         self._apply_request_label(item)
         return item
+
 
     def _next_name(self, parent_item: QTreeWidgetItem | None, base_name: str) -> str:
         existing = set()
@@ -910,16 +1532,14 @@ class CaseListPanel(QWidget):
 
     def _apply_request_label(self, item: QTreeWidgetItem) -> None:
         data = self.get_request_data(item) or {}
-        method = data.get("method")
-        method_label = method.upper() if isinstance(method, str) else "GET"
         base_name = data.get("name")
-        if not isinstance(base_name, str) or not base_name:
-            base_name = item.data(0, self._NAME_ROLE)
-        if not isinstance(base_name, str) or not base_name:
+        if not isinstance(base_name, str) or not base_name.strip():
+            base_name = item.data(0, self._NAME_ROLE) or ""
+        if not isinstance(base_name, str) or not base_name.strip():
             base_name = self._strip_method_prefix(item.text(0))
         self._updating_label = True
         try:
-            item.setText(0, f"[{method_label}]  {base_name}")
+            item.setText(0, base_name)
         finally:
             self._updating_label = False
 
@@ -962,6 +1582,13 @@ class CaseListPanel(QWidget):
         if text.startswith("[") and "]" in text:
             return text.split("]", 1)[-1].strip()
         return text
+
+    def _extract_method_from_label(self, text: str) -> str:
+        stripped = text.strip()
+        if stripped.startswith("[") and "]" in stripped:
+            end = stripped.index("]")
+            return stripped[1:end].strip()
+        return ""
 
     def _on_item_entered(self, item: QTreeWidgetItem, _column: int) -> None:
         if item.data(0, self._TYPE_ROLE) != "request":
@@ -1031,7 +1658,17 @@ class CaseListPanel(QWidget):
             if not self.is_request_saved(item):
                 return None
             data = self.get_request_data(item) or {}
-            data.setdefault("name", item.text(0))
+            method = data.get("method")
+            if not isinstance(method, str) or not method.strip():
+                method = self._extract_method_from_label(item.text(0))
+            method_label = method.strip().upper() if isinstance(method, str) else ""
+            data["method"] = method_label or "GET"
+            base_name = data.get("name")
+            if not isinstance(base_name, str) or not base_name.strip():
+                base_name = item.data(0, self._NAME_ROLE) or ""
+            if not isinstance(base_name, str) or not base_name.strip():
+                base_name = self._strip_method_prefix(item.text(0))
+            data["name"] = base_name.strip() if isinstance(base_name, str) else ""
             return {
                 "type": "request",
                 "name": item.text(0),
@@ -1045,12 +1682,16 @@ class CaseListPanel(QWidget):
                 children.append(child)
         if not children:
             return None
-        return {
+        node: dict = {
             "type": "folder",
             "name": item.text(0),
             "path": self.get_item_path(item),
             "children": children,
         }
+        folder_data = item.data(0, self._DATA_ROLE)
+        if isinstance(folder_data, dict):
+            node["data"] = folder_data
+        return node
 
     def _load_item(self, node: dict, parent: QTreeWidgetItem | None) -> None:
         node_type = node.get("type")
@@ -1060,6 +1701,9 @@ class CaseListPanel(QWidget):
             path_value = node.get("path")
             if isinstance(path_value, str):
                 self.set_item_path(item, path_value)
+            folder_data = node.get("data")
+            if isinstance(folder_data, dict):
+                self.set_folder_data(item, folder_data)
             for child in node.get("children") or []:
                 if isinstance(child, dict):
                     self._load_item(child, item)
@@ -1124,6 +1768,54 @@ class HistoryItemWidget(QWidget):
 
     def set_index(self, index: int) -> None:
         self._index_label.setText(str(index))
+
+
+class CollectionPanel(QWidget):
+    data_changed = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(10)
+
+        title = QLabel("\u7528\u4f8b\u96c6\u914d\u7f6e")
+        title.setStyleSheet("font-weight: 600; font-size: 12pt; color: #111827;")
+
+        name_label = QLabel("\u540d\u79f0")
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("\u8bf7\u8f93\u5165\u7528\u4f8b\u96c6\u540d\u79f0")
+        self.name_input.textChanged.connect(lambda: self.data_changed.emit())
+
+        description_label = QLabel("\u63cf\u8ff0")
+        self.description_input = QTextEdit()
+        self.description_input.setPlaceholderText("\u8bf7\u8f93\u5165\u7528\u4f8b\u96c6\u63cf\u8ff0")
+        self.description_input.setFixedHeight(120)
+        self.description_input.textChanged.connect(lambda: self.data_changed.emit())
+
+        layout.addWidget(title)
+        layout.addWidget(name_label)
+        layout.addWidget(self.name_input)
+        layout.addWidget(description_label)
+        layout.addWidget(self.description_input)
+        layout.addStretch(1)
+
+    def set_data(self, name: str, description: str) -> None:
+        block = self.name_input.blockSignals(True)
+        self.name_input.setText(name)
+        self.name_input.blockSignals(block)
+        block = self.description_input.blockSignals(True)
+        self.description_input.setPlainText(description)
+        self.description_input.blockSignals(block)
+
+    def get_data(self) -> dict:
+        return {
+            "name": self.name_input.text().strip(),
+            "description": self.description_input.toPlainText().strip(),
+        }
+
+    def clear(self) -> None:
+        self.set_data("", "")
 
 
 class RightPanel(QWidget):
@@ -1226,6 +1918,8 @@ class RightPanel(QWidget):
         self.stack = QStackedWidget()
         self.stack.addWidget(self.welcome_panel)
         self.stack.addWidget(scroll_area)
+        self.collection_panel = CollectionPanel()
+        self.stack.addWidget(self.collection_panel)
 
         layout.addWidget(self.stack, 1)
 
@@ -1234,6 +1928,9 @@ class RightPanel(QWidget):
 
     def show_content(self) -> None:
         self.stack.setCurrentIndex(1)
+
+    def show_collection_panel(self) -> None:
+        self.stack.setCurrentIndex(2)
 
     def get_ui_state(self) -> dict:
         return {
@@ -1338,6 +2035,26 @@ class RequestPanel(QWidget):
         self.assertion_panel = AssertionPanel()
         self._tabs.addTab(self.assertion_panel, "\u65ad\u8a00")
         self.assertion_panel.data_changed.connect(self._emit_changed)
+
+        self._pre_section = ProcessorTabPanel(
+            "\u524d\u7f6e\u5904\u7406",
+            "+ \u65b0\u589e\u524d\u7f6e\u64cd\u4f5c",
+            PRE_PROCESSOR_TYPES,
+            "set_variable",
+            "\u6682\u65e0\u524d\u7f6e\u64cd\u4f5c\uff0c\u70b9\u51fb\u201c\u65b0\u589e\u524d\u7f6e\u64cd\u4f5c\u201d\u6dfb\u52a0\u3002",
+        )
+        self._post_section = ProcessorTabPanel(
+            "\u540e\u7f6e\u5904\u7406",
+            "+ \u65b0\u589e\u540e\u7f6e\u64cd\u4f5c",
+            POST_PROCESSOR_TYPES,
+            "jsonpath_extract",
+            "\u6682\u65e0\u540e\u7f6e\u64cd\u4f5c\uff0c\u70b9\u51fb\u201c\u65b0\u589e\u540e\u7f6e\u64cd\u4f5c\u201d\u6dfb\u52a0\u3002",
+        )
+        self._pre_section.data_changed.connect(self._on_processors_changed)
+        self._post_section.data_changed.connect(self._on_processors_changed)
+        self._pre_tab_index = self._tabs.addTab(self._pre_section, "\u524d\u7f6e\u5904\u7406(0)")
+        self._post_tab_index = self._tabs.addTab(self._post_section, "\u540e\u7f6e\u5904\u7406(0)")
+        self._update_processor_badges()
         return self._tabs
 
     def _init_params(self) -> QWidget:
@@ -1490,6 +2207,21 @@ class RequestPanel(QWidget):
         self.body_raw_edit.setReadOnly(disabled)
         self.body_add_button.setEnabled(not disabled)
 
+    def _update_processor_badges(self) -> None:
+        pre_count = self._pre_section.enabled_count() if hasattr(self, "_pre_section") else 0
+        post_count = self._post_section.enabled_count() if hasattr(self, "_post_section") else 0
+        if hasattr(self, "_tabs"):
+            if hasattr(self, "_pre_tab_index"):
+                self._tabs.setTabText(self._pre_tab_index, f"\u524d\u7f6e\u5904\u7406({pre_count})")
+                self._tabs.setTabToolTip(self._pre_tab_index, f"\u5df2\u542f\u7528 {pre_count} \u4e2a\u524d\u7f6e\u5904\u7406")
+            if hasattr(self, "_post_tab_index"):
+                self._tabs.setTabText(self._post_tab_index, f"\u540e\u7f6e\u5904\u7406({post_count})")
+                self._tabs.setTabToolTip(self._post_tab_index, f"\u5df2\u542f\u7528 {post_count} \u4e2a\u540e\u7f6e\u5904\u7406")
+
+    def _on_processors_changed(self) -> None:
+        self._update_processor_badges()
+        self._emit_changed()
+
     def _on_url_changed(self) -> None:
         if self._loading or self._syncing_from_params:
             self._emit_changed()
@@ -1610,6 +2342,8 @@ class RequestPanel(QWidget):
             "body_type": self.get_body_type(),
             "params_detail": self.get_param_rows(),
             "params": params,
+            "preProcessors": self._pre_section.get_rows(),
+            "postProcessors": self._post_section.get_rows(),
         }
 
     def set_request_data(self, data: dict) -> None:
@@ -1669,6 +2403,17 @@ class RequestPanel(QWidget):
             self.body_edit.clear()
         else:
             self.body_edit.setPlainText(str(body))
+        pre_processors = data.get("preProcessors")
+        if isinstance(pre_processors, list):
+            self._pre_section.set_rows(pre_processors)
+        else:
+            self._pre_section.clear()
+        post_processors = data.get("postProcessors")
+        if isinstance(post_processors, list):
+            self._post_section.set_rows(post_processors)
+        else:
+            self._post_section.clear()
+        self._update_processor_badges()
         self._update_body_tab_state()
         self._loading = False
 
@@ -1683,6 +2428,9 @@ class RequestPanel(QWidget):
         self.body_raw_edit.clear()
         self.body_form_table.apply_rows([])
         self.body_type_combo.setCurrentIndex(0)
+        self._pre_section.clear()
+        self._post_section.clear()
+        self._update_processor_badges()
         self._update_body_tab_state()
         self._loading = False
 
@@ -1781,9 +2529,13 @@ class ResponsePanel(QWidget):
         super().__init__(parent)
         self._last_result: dict | None = None
         self._assertion_results: list[dict] = []
+        self._processor_results: list[dict] = []
         self._render_version = 0
         self._headers_rendered_version = -1
         self._body_rendered_version = -1
+        self._processor_rendered_version = -1
+        self._request_headers_rendered_version = -1
+        self._request_body_rendered_version = -1
         self._body_mode = "text"
         self._body_mode_user_override = False
         self._json_path_items: dict[str, QTreeWidgetItem] = {}
@@ -1834,6 +2586,36 @@ class ResponsePanel(QWidget):
         summary_layout.addLayout(cards_row)
         summary_layout.addWidget(self.error_group)
         summary_layout.addStretch(1)
+
+        request_headers_tab = QWidget()
+        request_headers_layout = QVBoxLayout(request_headers_tab)
+        request_headers_layout.setContentsMargins(10, 10, 10, 10)
+        request_headers_layout.setSpacing(6)
+        self.request_headers_table = QTableWidget(0, 2)
+        self.request_headers_table.setHorizontalHeaderLabels(["Key", "Value"])
+        request_header = self.request_headers_table.horizontalHeader()
+        request_header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        request_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.request_headers_table.verticalHeader().setVisible(False)
+        self.request_headers_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.request_headers_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.request_headers_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.request_headers_table.setStyleSheet(
+            "QTableWidget { background: #ffffff; gridline-color: #e5e7eb; }"
+            "QTableWidget::item:focus { outline: none; }"
+        )
+        request_headers_layout.addWidget(self.request_headers_table, 1)
+
+        request_body_tab = QWidget()
+        request_body_layout = QVBoxLayout(request_body_tab)
+        request_body_layout.setContentsMargins(10, 10, 10, 10)
+        request_body_layout.setSpacing(6)
+        self.request_body_text = QPlainTextEdit()
+        self.request_body_text.setReadOnly(True)
+        self.request_body_text.setPlaceholderText("\u65e0\u8bf7\u6c42\u4f53")
+        self.request_body_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.request_body_text.setFont(QFont("Consolas"))
+        request_body_layout.addWidget(self.request_body_text, 1)
 
         headers_tab = QWidget()
         headers_layout = QVBoxLayout(headers_tab)
@@ -1955,6 +2737,10 @@ class ResponsePanel(QWidget):
         self.body_tree = QTreeWidget()
         self.body_tree.setHeaderLabels(["Key", "Value"])
         self.body_tree.setHeaderHidden(False)
+        body_header = self.body_tree.header()
+        body_header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        body_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        body_header.setStretchLastSection(True)
         self.body_tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.body_tree.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.body_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -2017,17 +2803,46 @@ class ResponsePanel(QWidget):
         self.assertion_scroll.setWidget(self.assertion_container)
         assertions_layout.addWidget(self.assertion_scroll, 1)
 
+        processors_tab = QWidget()
+        processors_layout = QVBoxLayout(processors_tab)
+        processors_layout.setContentsMargins(10, 10, 10, 10)
+        processors_layout.setSpacing(6)
+        self.processor_empty_label = QLabel("\u6682\u65e0\u524d\u540e\u7f6e\u6267\u884c\u7ed3\u679c")
+        self.processor_empty_label.setStyleSheet("color: #94a3b8; font-size: 9pt;")
+        self.processor_table = QTableWidget(0, 4)
+        self.processor_table.setHorizontalHeaderLabels(["\u9636\u6bb5", "\u64cd\u4f5c", "\u72b6\u6001", "\u8bf4\u660e"])
+        processor_header = self.processor_table.horizontalHeader()
+        processor_header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        processor_header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        processor_header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        processor_header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.processor_table.verticalHeader().setVisible(False)
+        self.processor_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.processor_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.processor_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.processor_table.setStyleSheet(
+            "QTableWidget { background: #ffffff; gridline-color: #e5e7eb; }"
+            "QTableWidget::item:focus { outline: none; }"
+        )
+        processors_layout.addWidget(self.processor_empty_label)
+        processors_layout.addWidget(self.processor_table, 1)
+
         self._tab_index = {
             "summary": 0,
-            "assertions": 1,
-            "body": 2,
+            "request_headers": 1,
+            "request_body": 2,
             "headers": 3,
-            "logs": 4,
+            "body": 4,
+            "processors": 5,
+            "assertions": 6,
+            "logs": 7,
         }
         self.result_tabs.addTab(summary_tab, "\u6982\u89c8")
-        self.result_tabs.addTab(assertions_tab, "\u65ad\u8a00\u7ed3\u679c")
-        self.result_tabs.addTab(body_tab, "\u54cd\u5e94\u4f53")
+        self.result_tabs.addTab(request_headers_tab, "\u8bf7\u6c42\u5934")
+        self.result_tabs.addTab(request_body_tab, "\u8bf7\u6c42\u4f53")
         self.result_tabs.addTab(headers_tab, "\u54cd\u5e94\u5934")
+        self.result_tabs.addTab(body_tab, "\u54cd\u5e94\u4f53")
+        self.result_tabs.addTab(processors_tab, "\u524d\u540e\u7f6e\u7ed3\u679c")
 
         logs_tab = QWidget()
         logs_layout = QVBoxLayout(logs_tab)
@@ -2038,6 +2853,7 @@ class ResponsePanel(QWidget):
         self.logs_view.setPlaceholderText("\u65e0\u65e5\u5fd7")
         self.logs_view.setFont(QFont("Consolas"))
         logs_layout.addWidget(self.logs_view, 1)
+        self.result_tabs.addTab(assertions_tab, "\u65ad\u8a00\u7ed3\u679c")
         self.result_tabs.addTab(logs_tab, "\u65e5\u5fd7")
 
         self.result_tabs.setCurrentIndex(self._tab_index["summary"])
@@ -2084,6 +2900,10 @@ class ResponsePanel(QWidget):
 
         self._headers_rendered_version = -1
         self._body_rendered_version = -1
+        self._processor_rendered_version = -1
+        self._request_headers_rendered_version = -1
+        self._request_body_rendered_version = -1
+        self._processor_results = result.get("processor_results") or []
         self._body_mode_user_override = False
         self._failed_json_paths = []
         self._clear_json_highlights()
@@ -2140,6 +2960,16 @@ class ResponsePanel(QWidget):
         self._set_body_mode("text", user_initiated=False)
         self.body_search_input.clear()
         self.logs_view.setPlainText("\u8bf7\u6c42\u6267\u884c\u4e2d...")
+        self._processor_results = []
+        self._processor_rendered_version = -1
+        self.processor_table.setRowCount(0)
+        self.processor_table.setVisible(False)
+        self.processor_empty_label.setVisible(True)
+        self.processor_empty_label.setText("\u8bf7\u6c42\u6267\u884c\u4e2d...")
+        self.request_headers_table.setRowCount(0)
+        self.request_body_text.setPlainText("\u8bf7\u6c42\u6267\u884c\u4e2d...")
+        self._request_headers_rendered_version = -1
+        self._request_body_rendered_version = -1
         self._reset_assertion_tab()
 
     def clear(self) -> None:
@@ -2160,6 +2990,16 @@ class ResponsePanel(QWidget):
         self._set_body_mode("text", user_initiated=False)
         self.body_search_input.clear()
         self.logs_view.clear()
+        self._processor_results = []
+        self._processor_rendered_version = -1
+        self.processor_table.setRowCount(0)
+        self.processor_table.setVisible(False)
+        self.processor_empty_label.setVisible(True)
+        self.processor_empty_label.setText("\u6682\u65e0\u524d\u540e\u7f6e\u6267\u884c\u7ed3\u679c")
+        self.request_headers_table.setRowCount(0)
+        self.request_body_text.clear()
+        self._request_headers_rendered_version = -1
+        self._request_body_rendered_version = -1
         self._reset_assertion_tab()
 
     def _apply_status_style(self, success: bool | None) -> None:
@@ -2258,6 +3098,10 @@ class ResponsePanel(QWidget):
         if item is None:
             return
         self._clear_json_highlights()
+        parent = item.parent()
+        while parent is not None:
+            parent.setExpanded(True)
+            parent = parent.parent()
         item.setBackground(0, QBrush(QColor("#fee2e2")))
         item.setBackground(1, QBrush(QColor("#fee2e2")))
         self.body_tree.setCurrentItem(item)
@@ -2294,12 +3138,52 @@ class ResponsePanel(QWidget):
         self._update_assertion_tab_badge()
 
     def _on_tab_changed(self, index: int) -> None:
-        if index == self._tab_index.get("headers"):
+        if index == self._tab_index.get("request_headers"):
+            self._render_request_headers()
+        elif index == self._tab_index.get("request_body"):
+            self._render_request_body()
+        elif index == self._tab_index.get("headers"):
             self._render_headers()
         elif index == self._tab_index.get("body"):
             self._render_body()
         elif index == self._tab_index.get("assertions"):
             self._render_assertions()
+        elif index == self._tab_index.get("processors"):
+            self._render_processor_results()
+
+    def _render_request_headers(self) -> None:
+        if self._last_result is None:
+            self.request_headers_table.setRowCount(0)
+            return
+        if self._request_headers_rendered_version == self._render_version:
+            return
+        headers = self._last_result.get("request_headers") or {}
+        self.request_headers_table.setRowCount(0)
+        if isinstance(headers, dict):
+            for key, value in headers.items():
+                row = self.request_headers_table.rowCount()
+                self.request_headers_table.insertRow(row)
+                self.request_headers_table.setItem(row, 0, QTableWidgetItem(str(key)))
+                self.request_headers_table.setItem(row, 1, QTableWidgetItem(str(value)))
+        self._request_headers_rendered_version = self._render_version
+
+    def _render_request_body(self) -> None:
+        if self._last_result is None:
+            self.request_body_text.clear()
+            return
+        if self._request_body_rendered_version == self._render_version:
+            return
+        body = self._last_result.get("request_body")
+        if body is None:
+            self.request_body_text.setPlainText("\u65e0\u8bf7\u6c42\u4f53")
+        elif isinstance(body, (dict, list)):
+            try:
+                self.request_body_text.setPlainText(json.dumps(body, ensure_ascii=False, indent=2))
+            except Exception:
+                self.request_body_text.setPlainText(str(body))
+        else:
+            self.request_body_text.setPlainText(str(body))
+        self._request_body_rendered_version = self._render_version
 
     def _render_headers(self) -> None:
         if self._last_result is None:
@@ -2403,6 +3287,10 @@ class ResponsePanel(QWidget):
             add_item(root, "value", data, "$.value")
         self.jsonpath_label.setText("JSONPath: $")
         self.body_tree.expandToDepth(1)
+        data_item = self._json_path_items.get("$.data")
+        if data_item is not None and data_item.childCount() > 0:
+            self.body_tree.expandItem(data_item)
+        self.body_tree.resizeColumnToContents(0)
         if self._failed_json_paths:
             self._highlight_json_path(self._failed_json_paths[0])
 
@@ -2417,6 +3305,161 @@ class ResponsePanel(QWidget):
             self.assertion_container_layout.addWidget(widget)
         self.assertion_container_layout.addStretch(1)
         self.assertion_container.setMinimumHeight(self.assertion_container_layout.sizeHint().height())
+
+    def _render_processor_results(self) -> None:
+        if self._processor_rendered_version == self._render_version:
+            return
+        results = self._processor_results if isinstance(self._processor_results, list) else []
+        if not results:
+            self.processor_table.setRowCount(0)
+            self.processor_table.setVisible(False)
+            self.processor_empty_label.setVisible(True)
+            self.processor_empty_label.setText("\u6682\u65e0\u524d\u540e\u7f6e\u6267\u884c\u7ed3\u679c")
+            self._processor_rendered_version = self._render_version
+            return
+        self.processor_empty_label.setVisible(False)
+        self.processor_table.setVisible(True)
+        self.processor_table.setRowCount(0)
+        for item in results:
+            row = self.processor_table.rowCount()
+            self.processor_table.insertRow(row)
+            phase = self._format_processor_phase(item.get("phase"))
+            name = self._format_processor_type(item.get("type"))
+            status_text, status_color = self._format_processor_status(item)
+            summary = self._format_processor_summary(item)
+            phase_item = QTableWidgetItem(phase)
+            name_item = QTableWidgetItem(name)
+            status_item = QTableWidgetItem(status_text)
+            summary_item = QTableWidgetItem(summary)
+            if status_color:
+                status_item.setForeground(QBrush(QColor(status_color)))
+            self.processor_table.setItem(row, 0, phase_item)
+            self.processor_table.setItem(row, 1, name_item)
+            self.processor_table.setItem(row, 2, status_item)
+            self.processor_table.setItem(row, 3, summary_item)
+        self._processor_rendered_version = self._render_version
+
+    def _format_processor_phase(self, phase: object) -> str:
+        if phase == "pre":
+            return "\u6267\u884c\u524d"
+        if phase == "post":
+            return "\u6267\u884c\u540e"
+        return "\u672a\u77e5\u9636\u6bb5"
+
+    def _format_processor_type(self, type_key: object) -> str:
+        mapping = {
+            "set_variable": "\u8bbe\u7f6e\u53d8\u91cf",
+            "builtin_function": "\u5185\u7f6e\u51fd\u6570",
+            "sleep": "\u5ef6\u8fdf\u6267\u884c",
+            "jsonpath_extract": "JSONPath \u63d0\u53d6",
+            "regex_extract": "\u6b63\u5219\u63d0\u53d6",
+            "fail_if": "\u6761\u4ef6\u5931\u8d25\u7ec8\u6b62",
+            "script": "\u811a\u672c",
+        }
+        key = str(type_key or "")
+        return mapping.get(key, key or "\u672a\u77e5\u64cd\u4f5c")
+
+    def _format_processor_status(self, item: dict) -> tuple[str, str | None]:
+        status = str(item.get("status") or "")
+        mapping = {
+            "ok": ("\u5df2\u6267\u884c", "#16a34a"),
+            "disabled": ("\u5df2\u7981\u7528", "#94a3b8"),
+            "unsupported": ("\u4e0d\u652f\u6301", "#f59e0b"),
+            "failed": ("\u5931\u8d25", "#dc2626"),
+            "error": ("\u9519\u8bef", "#dc2626"),
+        }
+        return mapping.get(status, ("\u672a\u6267\u884c", "#6b7280"))
+
+    def _format_processor_summary(self, item: dict) -> str:
+        config = item.get("config") or {}
+        type_key = str(item.get("type") or "")
+        message = item.get("message")
+        if message:
+            return str(message)
+        output = item.get("output") or {}
+        if isinstance(output, dict) and output:
+            output_summary = self._format_processor_output(type_key, output)
+            if output_summary:
+                return output_summary
+        if type_key == "set_variable":
+            key = config.get("key") or ""
+            value = config.get("value")
+            return f"{key} = {value}"
+        if type_key == "builtin_function":
+            target = config.get("target") or ""
+            function = config.get("function") or "timestamp"
+            return f"{target} <= {function}"
+        if type_key == "sleep":
+            duration = config.get("milliseconds") or 0
+            return f"sleep {duration}ms"
+        if type_key == "jsonpath_extract":
+            path = config.get("path") or ""
+            target = config.get("target") or ""
+            return f"{path} -> {target}"
+        if type_key == "regex_extract":
+            pattern = config.get("pattern") or ""
+            group = config.get("group") or 1
+            target = config.get("target") or ""
+            return f"{pattern} (group {group}) -> {target}"
+        if type_key == "fail_if":
+            variable = config.get("variable") or ""
+            operator = config.get("operator") or ""
+            value = config.get("value")
+            return f"{variable} {operator} {value}"
+        if type_key == "script":
+            output = item.get("output") or {}
+            updated = output.get("updated") if isinstance(output, dict) else None
+            if isinstance(updated, dict) and updated:
+                keys = ", ".join(updated.keys())
+                return f"\u66f4\u65b0: {keys}"
+            return "\u811a\u672c\u5df2\u6267\u884c"
+        return ""
+
+    def _format_processor_output(self, type_key: str, output: dict) -> str:
+        if type_key == "set_variable":
+            key = output.get("key") or ""
+            value = self._format_processor_output_value(output.get("value"))
+            return f"{key} = {value}"
+        if type_key == "builtin_function":
+            target = output.get("target") or ""
+            value = self._format_processor_output_value(output.get("value"))
+            function = output.get("function") or ""
+            return f"{target} <= {function} ({value})"
+        if type_key == "sleep":
+            duration = output.get("milliseconds") or 0
+            return f"sleep {duration}ms"
+        if type_key == "jsonpath_extract":
+            path = output.get("path") or ""
+            target = output.get("target") or ""
+            value = self._format_processor_output_value(output.get("value"))
+            return f"{path} -> {target} = {value}"
+        if type_key == "regex_extract":
+            pattern = output.get("pattern") or ""
+            group = output.get("group") or 1
+            target = output.get("target") or ""
+            value = self._format_processor_output_value(output.get("value"))
+            return f"{pattern} (group {group}) -> {target} = {value}"
+        if type_key == "fail_if":
+            variable = output.get("variable") or ""
+            operator = output.get("operator") or ""
+            expected = self._format_processor_output_value(output.get("expected"))
+            actual = self._format_processor_output_value(output.get("actual"))
+            passed = output.get("passed")
+            status = "\u901a\u8fc7" if passed else "\u5931\u8d25"
+            return f"{variable} {operator} {expected} / actual: {actual} ({status})"
+        return ""
+
+    def _format_processor_output_value(self, value: object) -> str:
+        if value is None:
+            return "-"
+        if isinstance(value, (dict, list)):
+            try:
+                return json.dumps(value, ensure_ascii=False)
+            except Exception:
+                return str(value)
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+        return str(value)
 
     def _on_assertion_clicked(self, data: dict) -> None:
         if not isinstance(data, dict):
@@ -3655,7 +4698,7 @@ class AssertionPanel(QWidget):
     def _build_numeric_widget(self, row: int, value: object | None, assertion_type: str) -> None:
         text = "" if value is None else str(value)
         placeholder = self._expected_placeholder_for(assertion_type)
-        editor = QLineEdit()
+        editor = ClickToEditLineEdit()
         editor.setPlaceholderText(placeholder)
         editor.setText(text)
         editor.setFixedHeight(28)
@@ -3670,8 +4713,8 @@ class AssertionPanel(QWidget):
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
-        low_input = QLineEdit()
-        high_input = QLineEdit()
+        low_input = ClickToEditLineEdit()
+        high_input = ClickToEditLineEdit()
         low_input.setValidator(QIntValidator(0, 1000000, self))
         low_input.setFixedHeight(28)
         low_input.setMaximumWidth(110)
