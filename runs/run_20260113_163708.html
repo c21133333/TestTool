@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Test Report</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+        margin: 0;
+        padding: 24px;
+      }
+      header {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+      }
+      header h1 {
+        margin: 0 0 6px 0;
+        font-size: 22px;
+      }
+      header .meta {
+        color: #64748b;
+        font-size: 14px;
+      }
+      .summary-card {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .summary-card div {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+      }
+      section {
+        margin-top: 20px;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+      }
+      section h2 {
+        margin: 0 0 12px 0;
+        font-size: 18px;
+      }
+      .failure-item {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 10px 0;
+      }
+      .failure-item:last-child {
+        border-bottom: none;
+      }
+      .failure-item .count {
+        background: #fee2e2;
+        color: #991b1b;
+        border-radius: 999px;
+        padding: 2px 8px;
+        margin-left: 6px;
+        font-size: 12px;
+      }
+      .failure-item .message {
+        color: #475569;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .failure-item .cases {
+        color: #0f172a;
+        font-size: 12px;
+        margin-top: 4px;
+        line-height: 1.5;
+      }
+      .case-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: #f8fafc;
+      }
+      .case-item summary {
+        cursor: pointer;
+        font-weight: 600;
+        list-style: none;
+      }
+      .case-item summary::-webkit-details-marker {
+        display: none;
+      }
+      .badge {
+        padding: 2px 8px;
+        border-radius: 999px;
+        margin-left: 8px;
+        font-size: 12px;
+      }
+      .badge.ok {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge.ng {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 10px;
+        border-radius: 8px;
+        max-height: 280px;
+        overflow: auto;
+        font-size: 12px;
+      }
+      .empty {
+        color: #94a3b8;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>API Test Report</h1>
+      <div class="meta">Suite: test</div>
+      <div class="meta">Base URL: </div>
+      <div class="meta">Generated: 2026-01-13T16:37:08.544426</div>
+      <div class='summary-card'><div><strong>Total</strong><span>2</span></div><div><strong>OK</strong><span>2</span></div><div><strong>NG</strong><span>0</span></div><div><strong>Pass Rate</strong><span>100.0%</span></div><div><strong>Duration</strong><span>1797 ms</span></div></div>
+    </header>
+
+    <section>
+      <h2>Failures</h2>
+      <p class='empty'>No failures.</p>
+    </section>
+
+    <section>
+      <h2>Case Details</h2>
+      <details class='case-item'><summary>测试一下111112 <span class='badge ok'>OK</span></summary><div class='detail-grid'><div><h4>Request</h4><pre>{
+  "method": "GET",
+  "url": "https://www.baidu.com",
+  "headers": {},
+  "body": ""
+}</pre></div><div><h4>Response</h4><pre>{
+  "success": true,
+  "status_code": 200,
+  "headers": {
+    "Cache-Control": "private, no-cache, no-store, proxy-revalidate, no-transform",
+    "Content-Encoding": "gzip",
+    "Content-Length": "1145",
+    "Content-Type": "text/html",
+    "Pragma": "no-cache",
+    "Server": "bfe",
+    "Set-Cookie": "BDORZ=27315; max-age=86400; domain=.baidu.com; path=/",
+    "Date": "Tue, 13 Jan 2026 08:37:08 GMT"
+  },
+  "response_text": "<!DOCTYPE html>\r\n<!--STATUS OK--><html> <head><meta http-equiv=content-type content=text/html;charset=utf-8><meta http-equiv=X-UA-Compatible content=IE=Edge><meta content=always name=referrer><link rel=stylesheet type=text/css href=https://ss1.bdstatic.com/5eN1bjq8AAUYm2zgoY3K/r/www/cache/bdorz/baidu.min.css><title>百度一下，你就知道</title></head> <body link=#0000cc> <div id=wrapper> <div id=head> <div class=head_wrapper> <div class=s_form> <div class=s_form_wrapper> <div id=lg> <img hidefocus=true src=//www.baidu.com/img/bd_logo1.png width=270 height=129> </div> <form id=form name=f action=//www.baidu.com/s class=fm> <input type=hidden name=bdorz_come value=1> <input type=hidden name=ie value=utf-8> <input type=hidden name=f value=8> <input type=hidden name=rsv_bp value=1> <input type=hidden name=rsv_idx value=1> <input type=hidden name=tn value=baidu><span class=\"bg s_ipt_wr\"><input id=kw name=wd class=s_ipt value maxlength=255 autocomplete=off autofocus=autofocus></span><span class=\"bg s_btn_wr\"><input type=submit id=su value=百度一下 class=\"bg s_btn\" autofocus></span> </form> </div> </div> <div id=u1> <a href=http://news.baidu.com name=tj_trnews class=mnav>新闻</a> <a href=https://www.hao123.com name=tj_trhao123 class=mnav>hao123</a> <a href=http://map.baidu.com name=tj_trmap class=mnav>地图</a> <a href=http://v.baidu.com name=tj_trvideo class=mnav>视频</a> <a href=http://tieba.baidu.com name=tj_trtieba class=mnav>贴吧</a> <noscript> <a href=http://www.baidu.com/bdorz/login.gif?login&amp;tpl=mn&amp;u=http%3A%2F%2Fwww.baidu.com%2f%3fbdorz_come%3d1 name=tj_login class=lb>登录</a> </noscript> <script>document.write('<a href=\"http://www.baidu.com/bdorz/login.gif?login&tpl=mn&u='+ encodeURIComponent(window.location.href+ (window.location.search === \"\" ? \"?\" : \"&\")+ \"bdorz_come=1\")+ '\" name=\"tj_login\" class=\"lb\">登录</a>');\r\n                </script> <a href=//www.baidu.com/more/ name=tj_briicon class=bri style=\"display: block;\">更多产品</a> </div> </div> </div> <div id=ftCon> <div id=ftConw> <p id=lh> <a href=http://home.baidu.com>关于百度</a> <a href=http://ir.baidu.com>About Baidu</a> </p> <p id=cp>&copy;2017&nbsp;Baidu&nbsp;<a href=http://www.baidu.com/duty/>使用百度前必读</a>&nbsp; <a href=http://jianyi.baidu.com/ class=cp-feedback>意见反馈</a>&nbsp;京ICP证030173号&nbsp; <img src=//www.baidu.com/img/gs.gif> </p> </div> </div> </div> </body> </html>\r\n",
+  "response_json": null,
+  "elapsed_ms": 217,
+  "request_headers": {},
+  "request_body": "",
+  "processor_results": []
+}</pre></div><div><h4>Assertions</h4><pre>[]</pre></div></div></details>
+<details class='case-item'><summary>充电桩登录1 <span class='badge ok'>OK</span></summary><div class='detail-grid'><div><h4>Request</h4><pre>{
+  "method": "POST",
+  "url": "https://charge-te.reachstar.com:15008/prod-api/auth/steward/login",
+  "headers": {},
+  "body": {
+    "password": "rcd@123",
+    "username": "{{pwd}}"
+  }
+}</pre></div><div><h4>Response</h4><pre>{
+  "success": true,
+  "status_code": 200,
+  "headers": {
+    "Server": "nginx/1.26.2",
+    "Date": "Tue, 13 Jan 2026 08:37:09 GMT",
+    "Content-Type": "application/json",
+    "Transfer-Encoding": "chunked",
+    "Connection": "keep-alive",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY"
+  },
+  "response_text": "{\"msg\":\"用户名或密码错误\",\"code\":500}",
+  "response_json": {
+    "msg": "用户名或密码错误",
+    "code": 500
+  },
+  "elapsed_ms": 1128,
+  "request_headers": {},
+  "request_body": {
+    "password": "rcd@123",
+    "username": "868526"
+  },
+  "processor_results": [
+    {
+      "phase": "pre",
+      "type": "builtin_function",
+      "enabled": true,
+      "config": {
+        "function": "random",
+        "target": "pwd"
+      },
+      "output": {
+        "target": "pwd",
+        "value": "868526",
+        "function": "random"
+      },
+      "status": "ok"
+    },
+    {
+      "phase": "pre",
+      "type": "script",
+      "enabled": true,
+      "config": {
+        "code": "const rand = Math.floor(10000000 + Math.random() * 90000000); // 8位随机数\nconst ts = Date.now().toString().slice(-4); // 时间戳后4位\nconst pwd = `${rand}${ts}`;\n\nctx.set(\"pwd\", pwd);\nctx.log(\"pwd generated\", pwd);\nconst rand = Math.floor(10000000 + Math.random() * 90000000); // 8位随机数\nconst ts = Date.now().toString().slice(-4); // 时间戳后4位\nconst pwd = `${rand}${ts}`;\n\nctx.set(\"pwd\", pwd);\nctx.log(\"pwd generated\", pwd);",
+        "language": "js"
+      },
+      "status": "error",
+      "message": "Identifier 'rand' has already been declared"
+    },
+    {
+      "phase": "post",
+      "type": "jsonpath_extract",
+      "enabled": true,
+      "config": {
+        "path": "$.data.token",
+        "target": "token"
+      },
+      "status": "ok"
+    }
+  ]
+}</pre></div><div><h4>Assertions</h4><pre>[]</pre></div></div></details>
+    </section>
+  </body>
+</html>

@@ -2,12 +2,13 @@ import json
 import logging
 import shutil
 import time
+import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QIcon, QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QThread, Slot, QUrl
+from PySide6.QtGui import QDesktopServices, QFont, QIcon, QKeySequence, QShortcut
 from PySide6.QtCore import QObject, QEvent, QTimer
 from PySide6.QtWidgets import (
     QApplication,
@@ -90,6 +91,12 @@ class _QtLogHandler(logging.Handler):
         QTimer.singleShot(0, lambda: self._console.append_line(message))
 
 from requesttool.controller import ApiTestController
+from requesttool.app.core.case_schema import CaseSchema
+from requesttool.app.core.excel_importer import ExcelImporter
+from requesttool.app.core.executor_worker import RunResult, SuiteExecutorWorker
+from requesttool.app.core.project_store import ProjectStore
+from requesttool.app.core.report_generator import ReportGenerator
+from requesttool.app.ui.dialogs.import_result_dialog import ImportResultDialog
 from requesttool.ui.panels import CaseListPanel, RightPanel
 
 
@@ -101,13 +108,22 @@ class MainWindow(QMainWindow):
         self.resize(1200, 800)
         self.setFont(QFont("Segoe UI", 10))
         self._has_request_selection = False
-        self._data_path = self._resolve_data_path()
+        self._project_store = ProjectStore()
+        self._project_path = self._resolve_data_path()
+        self._project_state: dict | None = None
+        self._envs: list[dict] = []
+        self._runs_index: list[dict] = []
+        self._last_report_paths: dict[str, str] = {}
+        self._suite_thread: QThread | None = None
+        self._suite_worker: SuiteExecutorWorker | None = None
         self._request_state = RequestRunState.IDLE
         self._suite_case_map: dict[str, object] = {}
         self._global_history: list[dict] = []
         self._current_case: dict | None = None
         self._current_case_item = None
         self._current_collection_item: QTreeWidgetItem | None = None
+        self._ai_suite_context: dict | None = None
+        self._ai_env_context: dict | None = None
         self._apply_scrollbar_style()
         self._setup_ui()
 
@@ -162,8 +178,10 @@ class MainWindow(QMainWindow):
         self.left_panel.request_edited.connect(self._on_request_edited)
         self.left_panel.import_request_clicked.connect(self._on_import_request)
         self.left_panel.import_folder_clicked.connect(self._on_import_folder)
+        self.left_panel.import_excel_clicked.connect(self._on_import_excel)
         self.left_panel.export_clicked.connect(self._on_export_cases)
         self.left_panel.run_suite_clicked.connect(self._on_run_suite)
+        self.right_panel.export_report_button.clicked.connect(self._on_export_report)
         self.right_panel.collection_panel.data_changed.connect(self._on_collection_data_changed)
         self.left_panel.tree_changed.connect(self._persist_cases)
         self.left_panel.history_selected.connect(self._on_history_selected)
@@ -291,6 +309,10 @@ class MainWindow(QMainWindow):
             return
         data = self.right_panel.request_panel.get_request_data()
         data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
+        if self._current_case_item is item and isinstance(self._current_case, dict):
+            ai_case = self._current_case.get("ai_case")
+            if ai_case is not None:
+                data["ai_case"] = ai_case
         name_value = data.get("name")
         raw_name = name_value.strip() if isinstance(name_value, str) else ""
         display_name = self.left_panel._strip_method_prefix(item.text(0))
@@ -362,12 +384,29 @@ class MainWindow(QMainWindow):
                 item.setData(0, self.left_panel._DATA_ROLE, case_data)
             self._current_case = case_data
             self._current_case_item = item
+        preserved_ai_case = case_data.get("ai_case") if isinstance(case_data, dict) else None
         payload = self.right_panel.request_panel.get_request_data()
         payload["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
         if not payload.get("name") and case_data.get("name"):
             payload["name"] = case_data.get("name")
         case_data.clear()
         case_data.update(payload)
+        if isinstance(preserved_ai_case, dict):
+            request_json = preserved_ai_case.get("request_json")
+            if not isinstance(request_json, dict):
+                request_json = {}
+            request_json.update(
+                {
+                    "method": payload.get("method"),
+                    "headers": payload.get("headers") or {},
+                    "params": payload.get("params") or {},
+                    "body": payload.get("body"),
+                }
+            )
+            preserved_ai_case["request_json"] = request_json
+            if isinstance(payload.get("url"), str) and payload.get("url"):
+                preserved_ai_case["endpoint"] = payload.get("url")
+            case_data["ai_case"] = preserved_ai_case
         item.setData(0, self.left_panel._DATA_ROLE, case_data)
         self.left_panel.set_request_name(
             item,
@@ -390,6 +429,8 @@ class MainWindow(QMainWindow):
             self._current_case = case_data
             self._current_case_item = item
         case_data["name"] = text.strip()
+        if isinstance(case_data.get("ai_case"), dict):
+            case_data["ai_case"]["name"] = text.strip()
         self.left_panel.set_request_name(
             item,
             case_data.get("name") or self.left_panel._strip_method_prefix(item.text(0)),
@@ -428,6 +469,45 @@ class MainWindow(QMainWindow):
         self._persist_cases()
         QMessageBox.information(self, "\u5bfc\u5165\u6210\u529f", f"\u5df2\u5bfc\u5165:\n{folder_path}")
 
+    def _on_import_excel(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "\u5bfc\u5165 AI \u7528\u4f8b",
+            "",
+            "Excel (*.xlsx);;All Files (*)",
+        )
+        if not file_path:
+            return
+        importer = ExcelImporter()
+        try:
+            result = importer.import_file(file_path, self._collect_case_ids())
+        except Exception as exc:
+            QMessageBox.warning(self, "\u5bfc\u5165\u5931\u8d25", str(exc))
+            return
+        cases: list[CaseSchema] = result.get("cases") or []
+        failures: list[dict] = result.get("failures") or []
+        if not cases and failures:
+            dialog = ImportResultDialog(0, failures, self)
+            dialog.exec()
+            return
+        suite_name = result.get("suite_name") or Path(file_path).stem
+        suite_name = self.left_panel._next_name(None, suite_name)
+        suite_item = self.left_panel._add_folder_item(None, suite_name, edit=False)
+        suite_data = {
+            "name": suite_name,
+            "description": "",
+            "suite_type": "ai_excel",
+            "suite_id": uuid.uuid4().hex,
+        }
+        self.left_panel.set_folder_data(suite_item, suite_data)
+        for case in cases:
+            case_data = self._build_request_data_from_ai_case(case)
+            self.left_panel.add_request_from_data(case.name, case_data, None, suite_item)
+        self.left_panel.tree_widget.setCurrentItem(suite_item)
+        self._persist_cases()
+        dialog = ImportResultDialog(len(cases), failures, self)
+        dialog.exec()
+
     def _import_folder_contents(self, path: Path, parent_item) -> None:
         try:
             entries = sorted(path.iterdir(), key=lambda item: (item.is_file(), item.name.lower()))
@@ -446,6 +526,43 @@ class MainWindow(QMainWindow):
             name = data.get("name") if isinstance(data.get("name"), str) else entry.stem
             data["name"] = name
             self.left_panel.add_request_from_data(name, data, str(entry), parent_item)
+
+    def _collect_case_ids(self) -> set[str]:
+        ids: set[str] = set()
+
+        def walk(item) -> None:
+            if item.data(0, self.left_panel._TYPE_ROLE) == "request":
+                data = self.left_panel.get_request_data(item) or {}
+                ai_case = data.get("ai_case")
+                if isinstance(ai_case, dict):
+                    case_id = str(ai_case.get("case_id") or "").strip()
+                    if case_id:
+                        ids.add(case_id)
+                return
+            for idx in range(item.childCount()):
+                walk(item.child(idx))
+
+        for idx in range(self.left_panel.tree_widget.topLevelItemCount()):
+            walk(self.left_panel.tree_widget.topLevelItem(idx))
+        return ids
+
+    def _build_request_data_from_ai_case(self, case: CaseSchema) -> dict:
+        request_json = case.request_json if isinstance(case.request_json, dict) else {}
+        method = request_json.get("method") or "POST"
+        headers = request_json.get("headers") if isinstance(request_json.get("headers"), dict) else {}
+        params = request_json.get("params") or request_json.get("query") or {}
+        body = request_json.get("body")
+        if body is None:
+            body = request_json.get("data")
+        return {
+            "name": case.name,
+            "method": str(method).upper(),
+            "url": case.endpoint,
+            "headers": headers,
+            "params": params,
+            "body": body,
+            "ai_case": case.to_dict(),
+        }
 
     def _read_request_file(self, path: Path) -> dict | None:
         try:
@@ -513,30 +630,56 @@ class MainWindow(QMainWindow):
 
     def _resolve_data_path(self) -> Path:
         root = Path(__file__).resolve().parents[3]
+        return root / "project.json"
+
+    def _resolve_legacy_path(self) -> Path:
+        root = Path(__file__).resolve().parents[3]
         return root / "requests.json"
 
     def _load_saved_cases(self) -> None:
-        if not self._data_path.exists():
-            return
-        try:
-            content = self._data_path.read_text(encoding="utf-8")
-            payload = json.loads(content)
-        except Exception:
-            return
-        nodes = payload.get("cases") if isinstance(payload, dict) else None
-        if isinstance(nodes, list):
-            self.left_panel.load_tree(nodes)
-        ui_state = payload.get("ui_state") if isinstance(payload, dict) else None
+        project_path = self._project_path
+        legacy_path = self._resolve_legacy_path()
+        if not project_path.exists() and legacy_path.exists():
+            try:
+                legacy_payload = json.loads(legacy_path.read_text(encoding="utf-8"))
+            except Exception:
+                legacy_payload = {}
+            legacy_cases = legacy_payload.get("cases") if isinstance(legacy_payload, dict) else None
+            legacy_state = legacy_payload.get("ui_state") if isinstance(legacy_payload, dict) else None
+            project = self._project_store.load_project(project_path)
+            if isinstance(legacy_cases, list):
+                project["suites"] = legacy_cases
+            if isinstance(legacy_state, dict):
+                project["ui_state"] = legacy_state
+            self._project_store.save_project(project_path, project)
+        self._project_state = self._project_store.load_project(project_path)
+        suites = self._project_state.get("suites") if isinstance(self._project_state, dict) else None
+        if isinstance(suites, list):
+            self.left_panel.load_tree(suites)
+        ui_state = self._project_state.get("ui_state") if isinstance(self._project_state, dict) else None
         if isinstance(ui_state, dict):
             self.right_panel.apply_ui_state(ui_state)
+        self._envs = self._project_state.get("envs") if isinstance(self._project_state, dict) else []
+        self._runs_index = self._project_state.get("runsIndex") if isinstance(self._project_state, dict) else []
+        if self._runs_index:
+            latest = self._runs_index[0]
+            if isinstance(latest, dict):
+                self._last_report_paths = {
+                    "json": latest.get("json_path"),
+                    "html": latest.get("html_path"),
+                }
+                has_report = any(self._last_report_paths.values())
+                self.right_panel.export_report_button.setEnabled(has_report)
 
     def _persist_cases(self) -> None:
-        payload = {
-            "cases": self.left_panel.serialize_tree(),
-            "ui_state": self.right_panel.get_ui_state(),
-        }
+        project = self._project_state if isinstance(self._project_state, dict) else {}
+        project["suites"] = self.left_panel.serialize_tree()
+        project["ui_state"] = self.right_panel.get_ui_state()
+        project["envs"] = self._envs if isinstance(self._envs, list) else []
+        project["runsIndex"] = self._runs_index if isinstance(self._runs_index, list) else []
         try:
-            self._data_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            self._project_store.save_project(self._project_path, project)
+            self._project_state = project
         except Exception:
             return
 
@@ -633,9 +776,22 @@ class MainWindow(QMainWindow):
         if suite is None:
             QMessageBox.warning(self, "\u65e0\u6cd5\u6267\u884c", "\u8bf7\u9009\u62e9\u542b\u6709\u8bf7\u6c42\u7684\u6587\u4ef6\u5939")
             return
+        suite_type = suite.get("suite_type")
+        if suite_type == "ai_excel":
+            self._run_ai_suite(suite)
+            return
+        if suite_type == "mixed":
+            QMessageBox.warning(
+                self,
+                "\u65e0\u6cd5\u6267\u884c",
+                "\u7528\u4f8b\u96c6\u5305\u542b AI \u7528\u4f8b\u548c\u666e\u901a\u7528\u4f8b\uff0c\u8bf7\u5206\u5f00\u6267\u884c\u3002",
+            )
+            return
         self.controller.set_suite(suite)
         self._apply_request_state(RequestRunState.RUNNING)
         self._set_busy(True, "\u6267\u884c\u4e2d...", allow_cancel=False)
+        self.right_panel.export_report_button.setEnabled(False)
+        legacy_started_at = time.monotonic()
 
         def on_progress(done: int, total: int) -> None:
             self.right_panel.progress_label.setText(f"\u6279\u91cf\u8fdb\u5ea6: {done}/{total}")
@@ -680,6 +836,7 @@ class MainWindow(QMainWindow):
             else:
                 self._apply_request_state(RequestRunState.SUCCESS)
             self.left_panel.set_running_item(None)
+            report_paths = self._generate_legacy_report(result, suite, legacy_started_at)
             title = "\u6267\u884c\u5b8c\u6210" if not canceled else "\u5df2\u53d6\u6d88"
             resolved_path = str(Path(path).resolve()) if path else "-"
             message = f"\u901a\u8fc7\u7387: {rate:.1f}%\n\u7ed3\u679c\u6587\u4ef6:\n{resolved_path}"
@@ -688,16 +845,132 @@ class MainWindow(QMainWindow):
             box.setWindowTitle(title)
             box.setText(message)
             copy_button = box.addButton("\u590d\u5236\u8def\u5f84", QMessageBox.ButtonRole.ActionRole)
+            open_button = None
+            html_path = report_paths.get("html") if isinstance(report_paths, dict) else None
+            if isinstance(html_path, str) and html_path:
+                open_button = box.addButton("\u6253\u5f00HTML\u62a5\u544a", QMessageBox.ButtonRole.ActionRole)
             box.addButton(QMessageBox.StandardButton.Ok)
             box.exec()
             if box.clickedButton() == copy_button:
                 QApplication.clipboard().setText(resolved_path)
+            elif open_button is not None and box.clickedButton() == open_button and html_path:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(html_path).resolve())))
 
         self.controller.run_suite_async(on_progress, on_finished, on_case_started, on_case_finished)
+
+    def _run_ai_suite(self, suite: dict) -> None:
+        if self._suite_thread is not None or self._suite_worker is not None:
+            return
+        self._apply_request_state(RequestRunState.RUNNING)
+        self._set_busy(True, "\u6267\u884c\u4e2d...", allow_cancel=False)
+        self.right_panel.export_report_button.setEnabled(False)
+        env = self._get_active_env()
+        self._ai_suite_context = suite
+        self._ai_env_context = env
+        worker = SuiteExecutorWorker(suite, env)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+
+        worker.progress.connect(self._on_ai_suite_progress, Qt.ConnectionType.QueuedConnection)
+        worker.case_started.connect(self._on_ai_suite_case_started, Qt.ConnectionType.QueuedConnection)
+        worker.case_finished.connect(self._on_ai_suite_case_finished, Qt.ConnectionType.QueuedConnection)
+        worker.finished.connect(self._on_ai_suite_finished, Qt.ConnectionType.QueuedConnection)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+
+        self._suite_thread = thread
+        self._suite_worker = worker
+        thread.start()
+
+    @Slot(int, int)
+    def _on_ai_suite_progress(self, done: int, total: int) -> None:
+        self.right_panel.progress_label.setText(f"\u6279\u91cf\u8fdb\u5ea6: {done}/{total}")
+
+    @Slot(object)
+    def _on_ai_suite_case_started(self, case: dict) -> None:
+        case_id = case.get("case_id")
+        item = self._suite_case_map.get(case_id)
+        if item is not None:
+            self.left_panel.set_running_item(item)
+            if item == self.left_panel.get_selected_request_item():
+                self.right_panel.response_panel.show_running()
+
+    @Slot(object)
+    def _on_ai_suite_case_finished(self, case_result: dict) -> None:
+        case_id = case_result.get("case_id")
+        item = self._suite_case_map.get(case_id)
+        if item is None:
+            return
+        response = case_result.get("response")
+        if isinstance(response, dict):
+            self.left_panel.set_request_response(item, response)
+            if item == self.left_panel.get_selected_request_item():
+                self.right_panel.response_panel.update_response(response)
+        success = case_result.get("result") == "OK"
+        self._append_run_history(item, success, response if isinstance(response, dict) else None)
+        self.left_panel.set_case_result_icon(item, success)
+
+    @Slot(object)
+    def _on_ai_suite_finished(self, result: RunResult) -> None:
+        self._suite_thread = None
+        self._suite_worker = None
+        self._set_busy(False, "\u7a7a\u95f2", allow_cancel=False)
+        summary = result.summary
+        total = summary.get("total", 0) or 0
+        ok = summary.get("ok", 0) or 0
+        ng = summary.get("ng", 0) or 0
+        rate = summary.get("pass_rate", 0)
+        if result.canceled or ng:
+            self._apply_request_state(RequestRunState.ERROR)
+        else:
+            self._apply_request_state(RequestRunState.SUCCESS)
+        self.left_panel.set_running_item(None)
+        suite = self._ai_suite_context or {}
+        env = self._ai_env_context or {}
+        run_data = {
+            "suite_name": suite.get("suite_name"),
+            "base_url": env.get("baseUrl") or env.get("base_url") or "",
+            "execute_time": datetime.now().isoformat(),
+            "summary": summary,
+            "items": result.items,
+        }
+        template_path = self._resolve_report_template_path()
+        output_dir = str(self._resolve_runs_dir())
+        try:
+            generator = ReportGenerator(str(template_path))
+            paths = generator.generate(run_data, output_dir)
+            self._last_report_paths = paths
+            self.right_panel.export_report_button.setEnabled(True)
+            self._append_run_index(run_data, paths)
+        except Exception as exc:
+            QMessageBox.warning(self, "\u62a5\u544a\u751f\u6210\u5931\u8d25", str(exc))
+            paths = {}
+        title = "\u6267\u884c\u5b8c\u6210" if not result.canceled else "\u5df2\u53d6\u6d88"
+        message = f"\u901a\u8fc7\u7387: {rate:.1f}%\n\u603b\u6570: {total}  OK: {ok}  NG: {ng}"
+        if paths:
+            message += f"\nJSON: {paths.get('json', '-')}\nHTML: {paths.get('html', '-')}"
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setWindowTitle(title)
+        box.setText(message)
+        open_button = None
+        html_path = paths.get("html") if isinstance(paths, dict) else None
+        if isinstance(html_path, str) and html_path:
+            open_button = box.addButton("\u6253\u5f00HTML\u62a5\u544a", QMessageBox.ButtonRole.ActionRole)
+        box.addButton(QMessageBox.StandardButton.Ok)
+        box.exec()
+        if open_button is not None and box.clickedButton() == open_button and html_path:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(html_path).resolve())))
+        self._ai_suite_context = None
+        self._ai_env_context = None
 
     def _on_cancel_suite(self) -> None:
         self.right_panel.progress_label.setText("\u53d6\u6d88\u4e2d...")
         self.controller.cancel_suite()
+        if self._suite_worker is not None:
+            self._suite_worker.cancel()
 
     def _apply_request_state(self, state: "RequestRunState") -> None:
         self._request_state = state
@@ -718,9 +991,11 @@ class MainWindow(QMainWindow):
         method = (data.get("method") or "GET").upper()
         duration = None
         status_code = None
+        error_message = None
         if isinstance(result, dict):
             duration = result.get("elapsed_ms")
             status_code = result.get("status_code")
+            error_message = result.get("error_message")
         record = {
             "run_id": run_id,
             "request_name": name,
@@ -729,6 +1004,7 @@ class MainWindow(QMainWindow):
             "status": "SUCCESS" if success else "ERROR",
             "duration_ms": duration if duration is not None else "-",
             "status_code": status_code if status_code is not None else "-",
+            "error_message": error_message if error_message else "",
             "response": result if isinstance(result, dict) else None,
             "request": {
                 "name": name,
@@ -772,38 +1048,197 @@ class MainWindow(QMainWindow):
                 "color: #6b7280; background: #f1f5f9; padding: 3px 8px; border-radius: 10px;"
             )
 
+    def _get_active_env(self) -> dict:
+        if isinstance(self._envs, list):
+            for env in self._envs:
+                if isinstance(env, dict):
+                    return env
+        return {
+            "name": "default",
+            "baseUrl": "",
+            "headers": {},
+            "vars": {},
+        }
+
+    def _resolve_report_template_path(self) -> Path:
+        return Path(__file__).resolve().parents[1] / "app" / "assets" / "templates" / "report.html"
+
+    def _resolve_runs_dir(self) -> Path:
+        root = Path(__file__).resolve().parents[3]
+        return root / "runs"
+
+    def _append_run_index(self, run_data: dict, paths: dict[str, str]) -> None:
+        entry = {
+            "run_id": datetime.now().strftime("run_%Y%m%d_%H%M%S"),
+            "suite_name": run_data.get("suite_name") or "",
+            "execute_time": run_data.get("execute_time"),
+            "summary": run_data.get("summary"),
+            "json_path": paths.get("json"),
+            "html_path": paths.get("html"),
+        }
+        self._runs_index.insert(0, entry)
+        if not isinstance(self._project_state, dict):
+            self._project_state = {}
+        self._project_state["runsIndex"] = self._runs_index
+        self._persist_cases()
+
+    def _on_export_report(self) -> None:
+        if not self._last_report_paths:
+            QMessageBox.warning(self, "\u65e0\u6cd5\u5bfc\u51fa", "\u8bf7\u5148\u6267\u884c\u7528\u4f8b\u96c6\u751f\u6210\u62a5\u544a")
+            return
+        target_dir = QFileDialog.getExistingDirectory(self, "\u9009\u62e9\u5bfc\u51fa\u76ee\u5f55")
+        if not target_dir:
+            return
+        copied = 0
+        try:
+            for key in ("json", "html"):
+                path = self._last_report_paths.get(key)
+                if not path:
+                    continue
+                src = Path(path)
+                if not src.exists():
+                    continue
+                dest = Path(target_dir) / src.name
+                shutil.copy2(src, dest)
+                copied += 1
+        except Exception as exc:
+            QMessageBox.warning(self, "\u5bfc\u51fa\u5931\u8d25", str(exc))
+            return
+        QMessageBox.information(self, "\u5bfc\u51fa\u6210\u529f", f"\u5df2\u5bfc\u51fa {copied} \u4e2a\u62a5\u544a\u6587\u4ef6")
+
+    def _generate_legacy_report(self, result: dict, suite: dict, started_at: float) -> dict[str, str]:
+        cases = result.get("cases") if isinstance(result, dict) else None
+        if not isinstance(cases, list):
+            return {}
+        duration_ms = int((time.monotonic() - started_at) * 1000)
+        summary = result.get("summary", {}) if isinstance(result, dict) else {}
+        total = summary.get("total", 0) or 0
+        passed = summary.get("pass", 0) or 0
+        failed = summary.get("fail", 0) or 0
+        report_summary = {
+            "total": total,
+            "ok": passed,
+            "ng": failed,
+            "pass_rate": round((passed / total) * 100, 2) if total else 0.0,
+            "duration_ms": duration_ms,
+        }
+        items: list[dict] = []
+        for case in cases:
+            if not isinstance(case, dict):
+                continue
+            response = case.get("response") if isinstance(case.get("response"), dict) else {}
+            assertion_results = case.get("assertion_results") if isinstance(case.get("assertion_results"), list) else []
+            assertions = []
+            failure_reason = ""
+            for assertion in assertion_results:
+                if not isinstance(assertion, dict):
+                    continue
+                passed_flag = assertion.get("result") == "PASS"
+                message = assertion.get("message") or assertion.get("reason") or ""
+                assertions.append(
+                    {
+                        "name": assertion.get("type"),
+                        "passed": passed_flag,
+                        "actual": assertion.get("actual"),
+                        "expected": assertion.get("expected"),
+                        "message": message,
+                    }
+                )
+                if not passed_flag and not failure_reason:
+                    failure_reason = message
+            if response.get("success") is False and not failure_reason:
+                failure_reason = response.get("error_message") or "request failed"
+            result_flag = "OK" if case.get("result") == "PASS" else "NG"
+            items.append(
+                {
+                    "case_id": case.get("case_id"),
+                    "name": case.get("name"),
+                    "request": case.get("request"),
+                    "response": response,
+                    "assertions": assertions,
+                    "elapsed_ms": response.get("elapsed_ms"),
+                    "result": result_flag,
+                    "failure_reason": failure_reason,
+                }
+            )
+        run_data = {
+            "suite_name": suite.get("suite_name") if isinstance(suite, dict) else "",
+            "base_url": "",
+            "execute_time": datetime.now().isoformat(),
+            "summary": report_summary,
+            "items": items,
+        }
+        template_path = self._resolve_report_template_path()
+        output_dir = str(self._resolve_runs_dir())
+        try:
+            generator = ReportGenerator(str(template_path))
+            paths = generator.generate(run_data, output_dir)
+            self._last_report_paths = paths
+            self.right_panel.export_report_button.setEnabled(True)
+            self._append_run_index(run_data, paths)
+            return paths
+        except Exception as exc:
+            QMessageBox.warning(self, "\u62a5\u544a\u751f\u6210\u5931\u8d25", str(exc))
+        return {}
     def _build_suite_from_selection(self) -> dict | None:
         self._suite_case_map = {}
         current = self.left_panel.tree_widget.currentItem()
         if current is None:
             return None
         item_type = current.data(0, self.left_panel._TYPE_ROLE)
-        cases: list[dict] = []
+        legacy_cases: list[dict] = []
+        ai_cases: list[dict] = []
         if item_type == "request":
-            case = self._build_case_from_item(current, 1)
-            if case is not None:
-                cases.append(case)
-            suite_name = case.get("name") if case else "default_suite"
+            ai_case = self._build_ai_case_from_item(current)
+            if ai_case is not None:
+                ai_cases.append(ai_case)
+            else:
+                case = self._build_case_from_item(current, 1)
+                if case is not None:
+                    legacy_cases.append(case)
+            suite_name = (
+                ai_cases[0].get("name")
+                if ai_cases
+                else legacy_cases[0].get("name") if legacy_cases else "default_suite"
+            )
         else:
             suite_name = current.data(0, self.left_panel._NAME_ROLE) or current.text(0)
-            self._collect_cases(current, cases)
-        if not cases:
+            self._collect_suite_cases(current, legacy_cases, ai_cases)
+        if not legacy_cases and not ai_cases:
             return None
+        if ai_cases and not legacy_cases:
+            return {
+                "suite_name": suite_name,
+                "cases": ai_cases,
+                "output_dir": "runs",
+                "suite_type": "ai_excel",
+            }
+        if legacy_cases and not ai_cases:
+            return {
+                "suite_name": suite_name,
+                "cases": legacy_cases,
+                "output_dir": "results",
+                "suite_type": "legacy",
+            }
         return {
             "suite_name": suite_name,
-            "cases": cases,
+            "cases": legacy_cases,
             "output_dir": "results",
+            "suite_type": "mixed",
         }
 
-
-    def _collect_cases(self, item, cases: list[dict]) -> None:
+    def _collect_suite_cases(self, item, legacy_cases: list[dict], ai_cases: list[dict]) -> None:
         if item.data(0, self.left_panel._TYPE_ROLE) == "request":
-            case = self._build_case_from_item(item, len(cases) + 1)
+            ai_case = self._build_ai_case_from_item(item)
+            if ai_case is not None:
+                ai_cases.append(ai_case)
+                return
+            case = self._build_case_from_item(item, len(legacy_cases) + 1)
             if case is not None:
-                cases.append(case)
+                legacy_cases.append(case)
             return
         for idx in range(item.childCount()):
-            self._collect_cases(item.child(idx), cases)
+            self._collect_suite_cases(item.child(idx), legacy_cases, ai_cases)
 
     def _build_case_from_item(self, item, index: int) -> dict | None:
         data = self._load_request_data(item) or {}
@@ -831,6 +1266,22 @@ class MainWindow(QMainWindow):
             "postProcessors": post_processors if isinstance(post_processors, list) else [],
         }
 
+    def _build_ai_case_from_item(self, item) -> dict | None:
+        data = self._load_request_data(item) or {}
+        ai_case = data.get("ai_case")
+        if not isinstance(ai_case, dict):
+            return None
+        case_id = str(ai_case.get("case_id") or "").strip()
+        if not case_id:
+            return None
+        case = dict(ai_case)
+        if not case.get("name"):
+            name = data.get("name")
+            if not isinstance(name, str) or not name.strip():
+                name = item.data(0, self.left_panel._NAME_ROLE) or item.text(0)
+            case["name"] = name
+        self._suite_case_map[case_id] = item
+        return case
     def _filter_assertions(self, assertions: list) -> list:
         filtered: list = []
         for assertion in assertions:

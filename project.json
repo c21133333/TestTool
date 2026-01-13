@@ -1,0 +1,101 @@
+{
+  "suites": [],
+  "envs": [
+    {
+      "name": "default",
+      "baseUrl": "",
+      "headers": {},
+      "vars": {}
+    }
+  ],
+  "runsIndex": [
+    {
+      "run_id": "run_20260113_163708",
+      "suite_name": "test",
+      "execute_time": "2026-01-13T16:37:08.544426",
+      "summary": {
+        "total": 2,
+        "ok": 2,
+        "ng": 0,
+        "pass_rate": 100.0,
+        "duration_ms": 1797
+      },
+      "json_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_163708.json",
+      "html_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_163708.html"
+    },
+    {
+      "run_id": "run_20260113_163454",
+      "suite_name": "H5_领取权益接口_测试用例_20260113_导入兼容版",
+      "execute_time": "2026-01-13T16:34:54.700591",
+      "summary": {
+        "total": 41,
+        "ok": 0,
+        "ng": 41,
+        "pass_rate": 0.0,
+        "duration_ms": 32
+      },
+      "json_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_163454.json",
+      "html_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_163454.html"
+    },
+    {
+      "run_id": "run_20260113_163232",
+      "suite_name": "H5_领取权益接口_测试用例_20260113_导入兼容版",
+      "execute_time": "2026-01-13T16:32:32.959941",
+      "summary": {
+        "total": 41,
+        "ok": 0,
+        "ng": 41,
+        "pass_rate": 0.0,
+        "duration_ms": 30
+      },
+      "json_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_163232.json",
+      "html_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_163232.html"
+    },
+    {
+      "run_id": "run_20260113_162035",
+      "suite_name": "H5_领取权益接口_测试用例_20260113_导入兼容版",
+      "execute_time": "2026-01-13T16:20:35.849711",
+      "summary": {
+        "total": 41,
+        "ok": 0,
+        "ng": 41,
+        "pass_rate": 0.0,
+        "duration_ms": 32
+      },
+      "json_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_162035.json",
+      "html_path": "D:\\workSoftw\\somecase\\requesttool\\runs\\run_20260113_162035.html"
+    }
+  ],
+  "ui_state": {
+    "splitter_sizes": [
+      401,
+      370
+    ],
+    "request_panel": {
+      "headers_table_columns": [
+        56,
+        159,
+        1144
+      ],
+      "headers_splitter_sizes": [
+        32,
+        209
+      ],
+      "params_table_columns": [
+        56,
+        257,
+        1123
+      ],
+      "assertion_panel": {
+        "assertion_table_columns": [
+          56,
+          130,
+          220,
+          110,
+          859
+        ]
+      }
+    },
+    "response_panel": {}
+  }
+}

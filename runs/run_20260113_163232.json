@@ -1,0 +1,2206 @@
+{
+  "suite_name": "H5_领取权益接口_测试用例_20260113_导入兼容版",
+  "base_url": "",
+  "execute_time": "2026-01-13T16:32:32.959941",
+  "summary": {
+    "total": 41,
+    "ok": 0,
+    "ng": 41,
+    "pass_rate": 0.0,
+    "duration_ms": 30
+  },
+  "items": [
+    {
+      "case_id": "H5-FUL-001",
+      "name": "PHONE方式领取权益-成功",
+      "category": "正常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": 0,
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": true,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-002",
+      "name": "QQ方式领取权益-成功",
+      "category": "正常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": 0,
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": true,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-003",
+      "name": "PHONE方式必填参数缺失-phoneNum",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-004",
+      "name": "PHONE方式必填参数缺失-phoneCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-005",
+      "name": "PHONE方式必填参数缺失-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-006",
+      "name": "QQ方式必填参数缺失-qq",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-007",
+      "name": "QQ方式必填参数缺失-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-008",
+      "name": "PHONE方式必填参数为空字符串-phoneNum",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-009",
+      "name": "PHONE方式必填参数为空字符串-phoneCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-010",
+      "name": "PHONE方式必填参数为空字符串-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-011",
+      "name": "QQ方式必填参数为空字符串-qq",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-012",
+      "name": "QQ方式必填参数为空字符串-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-013",
+      "name": "PHONE方式必填参数为null-phoneNum",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": null,
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-014",
+      "name": "QQ方式必填参数为null-qq",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": null,
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-015",
+      "name": "type缺失",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-016",
+      "name": "type为空字符串",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": ""
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-017",
+      "name": "type非法枚举值",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "WECHAT"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 15,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 15,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-018",
+      "name": "type=PHONE非法混传-携带qq",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-019",
+      "name": "type=QQ非法混传-携带phoneNum",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-020",
+      "name": "type=QQ非法混传-携带phoneCode",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-021",
+      "name": "type=QQ非法混传-同时携带phoneNum+phoneCode",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-022",
+      "name": "type=PHONE非法混传-仅传qq且缺失phoneNum/phoneCode",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-023",
+      "name": "PHONE手机号格式非法-包含非数字字符",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800A38000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-024",
+      "name": "PHONE手机号长度不足-10位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "1380013800",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-025",
+      "name": "PHONE手机号长度超限-12位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "138001380000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-026",
+      "name": "PHONE验证码格式非法-包含非数字字符",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "12A456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-027",
+      "name": "PHONE验证码长度不足-4位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "1234",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-028",
+      "name": "PHONE验证码长度超限-8位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "12345678",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-029",
+      "name": "QQ号格式非法-包含特殊字符",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "1234#678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-030",
+      "name": "QQ号长度超限-假设最大12位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "1234567890123",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-031",
+      "name": "shortLinkCode包含空格/不可见字符",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "  SLC_VALID_001  ",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败或000000(按实现)",
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-032",
+      "name": "验证码过期-215112",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": 215112,
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-033",
+      "name": "验证码错误-215113",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "000000",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": 215113,
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-034",
+      "name": "权益不存在或已失效-215114",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_NOT_EXIST_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": 215114,
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-035",
+      "name": "订单已申请过权益-重复领取-215116",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": 215116,
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-036",
+      "name": "幂等性验证-同一PHONE请求重复提交",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "215116(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-037",
+      "name": "未授权访问-缺少认证信息(401)",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 15,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 401,
+          "message": "missing status code"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 15,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-038",
+      "name": "无权限访问(403)",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 403,
+          "message": "missing status code"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-039",
+      "name": "接口不存在或路径错误(404)",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 404,
+          "message": "missing status code"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-040",
+      "name": "组合异常-缺失shortLinkCode且混传qq(type=PHONE)",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败(按实现)",
+          "message": "response json is empty"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    },
+    {
+      "case_id": "H5-FUL-041",
+      "name": "组合异常-权益不存在(215114)且参数格式非法",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12#34",
+          "shortLinkCode": "SLC_NOT_EXIST_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": false,
+        "error_type": "RequestException",
+        "error_message": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?",
+        "elapsed_ms": 0,
+        "request_headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": null,
+          "expected": 200,
+          "message": "missing status code"
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": null,
+          "expected": "参数校验失败或215114(按实现)",
+          "message": "response json is empty"
+        }
+      ],
+      "elapsed_ms": 0,
+      "result": "NG",
+      "failure_reason": "Invalid URL '/././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill': No scheme supplied. Perhaps you meant https:///././hnms-facade-osp-mall/api/h5/osp-facade/{version}/orders/fulfill?"
+    }
+  ]
+}

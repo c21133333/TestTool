@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Test Report</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+        margin: 0;
+        padding: 24px;
+      }
+      header {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+      }
+      header h1 {
+        margin: 0 0 6px 0;
+        font-size: 22px;
+      }
+      header .meta {
+        color: #64748b;
+        font-size: 14px;
+      }
+      .summary-card {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .summary-card div {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+      }
+      section {
+        margin-top: 20px;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+      }
+      section h2 {
+        margin: 0 0 12px 0;
+        font-size: 18px;
+      }
+      .failure-item {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 10px 0;
+      }
+      .failure-item:last-child {
+        border-bottom: none;
+      }
+      .failure-item .count {
+        background: #fee2e2;
+        color: #991b1b;
+        border-radius: 999px;
+        padding: 2px 8px;
+        margin-left: 6px;
+        font-size: 12px;
+      }
+      .failure-item .message {
+        color: #475569;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .failure-item .cases {
+        color: #0f172a;
+        font-size: 12px;
+        margin-top: 4px;
+        line-height: 1.5;
+      }
+      .case-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: #f8fafc;
+      }
+      .case-item summary {
+        cursor: pointer;
+        font-weight: 600;
+        list-style: none;
+      }
+      .case-item summary::-webkit-details-marker {
+        display: none;
+      }
+      .badge {
+        padding: 2px 8px;
+        border-radius: 999px;
+        margin-left: 8px;
+        font-size: 12px;
+      }
+      .badge.ok {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge.ng {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 10px;
+        border-radius: 8px;
+        max-height: 280px;
+        overflow: auto;
+        font-size: 12px;
+      }
+      .empty {
+        color: #94a3b8;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>API Test Report</h1>
+      <div class="meta">Suite: $suite_name</div>
+      <div class="meta">Base URL: $base_url</div>
+      <div class="meta">Generated: $execute_time</div>
+      $summary_html
+    </header>
+
+    <section>
+      <h2>Failures</h2>
+      $failure_html
+    </section>
+
+    <section>
+      <h2>Case Details</h2>
+      $items_html
+    </section>
+  </body>
+</html>

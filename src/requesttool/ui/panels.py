@@ -927,6 +927,7 @@ class CaseListPanel(QWidget):
     request_edited = Signal(object)
     import_request_clicked = Signal()
     import_folder_clicked = Signal()
+    import_excel_clicked = Signal()
     export_clicked = Signal()
     run_suite_clicked = Signal()
     tree_changed = Signal()
@@ -1389,11 +1390,14 @@ class CaseListPanel(QWidget):
         menu = QMenu(self)
         import_request_action = menu.addAction("\u5bfc\u5165\u8bf7\u6c42")
         import_folder_action = menu.addAction("\u5bfc\u5165\u6587\u4ef6\u5939")
+        import_excel_action = menu.addAction("\u5bfc\u5165 AI \u7528\u4f8b (Excel)")
         action = menu.exec(self.import_button.mapToGlobal(self.import_button.rect().topLeft()))
         if action == import_request_action:
             self.import_request_clicked.emit()
         elif action == import_folder_action:
             self.import_folder_clicked.emit()
+        elif action == import_excel_action:
+            self.import_excel_clicked.emit()
 
     def _copy_request_item(self, item: QTreeWidgetItem) -> None:
         if item.data(0, self._TYPE_ROLE) != "request":
@@ -1853,6 +1857,10 @@ class RightPanel(QWidget):
         result_row = QHBoxLayout()
         result_row.setSpacing(8)
         self.progress_label = QLabel("\u6279\u91cf\u8fdb\u5ea6: 0/0")
+        self.export_report_button = QPushButton("\u5bfc\u51fa\u62a5\u544a")
+        self.export_report_button.setObjectName("secondaryButton")
+        self.export_report_button.setEnabled(False)
+        result_row.addWidget(self.export_report_button)
         result_row.addStretch(1)
         result_row.addWidget(self.progress_label)
         response_layout.addLayout(result_row)
