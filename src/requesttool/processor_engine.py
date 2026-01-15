@@ -326,6 +326,16 @@ def _apply_processors(processors: list, context: dict, phase: str) -> None:
             break
 
 
+def _join_url(base_url: str, endpoint: str) -> str:
+    if not endpoint:
+        return base_url
+    if endpoint.startswith("http://") or endpoint.startswith("https://"):
+        return endpoint
+    if not base_url:
+        return endpoint
+    return f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+
+
 def _build_request_payload(request_data: dict, variables: dict) -> dict:
     payload = {
         "method": request_data.get("method"),
@@ -335,6 +345,18 @@ def _build_request_payload(request_data: dict, variables: dict) -> dict:
         "timeout": request_data.get("timeout"),
     }
     payload = apply_templates(payload, variables)
+    base_url = request_data.get("base_url") or request_data.get("baseUrl")
+    if isinstance(base_url, str):
+        base_url = render_template(base_url, variables)
+    else:
+        base_url = (
+            variables.get("baseUrl")
+            or variables.get("base_url")
+            or variables.get("baseurl")
+        )
+    url = payload.get("url")
+    if isinstance(url, str) and url:
+        payload["url"] = _join_url(str(base_url or ""), url)
     method = payload.get("method")
     if isinstance(method, str):
         payload["method"] = method.upper()
@@ -355,8 +377,13 @@ def execute_request(
     http_client,
     assertion_engine,
 ) -> tuple[dict, list[dict], dict]:
+    initial_vars = request_data.get("variables") if isinstance(request_data, dict) else None
+    if not isinstance(initial_vars, dict):
+        initial_vars = request_data.get("vars") if isinstance(request_data, dict) else None
+    if not isinstance(initial_vars, dict):
+        initial_vars = {}
     context = {
-        "variables": {},
+        "variables": dict(initial_vars),
         "logs": [],
         "abort": False,
         "processor_results": [],

@@ -6,8 +6,8 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from xml.dom import minidom
 
-from PySide6.QtCore import Qt, Signal, QSize, QPoint, QEvent, QTimer
-from PySide6.QtGui import QFont, QBrush, QColor, QPixmap, QPainter, QPen, QKeySequence, QIntValidator
+from PySide6.QtCore import Qt, Signal, QSize, QPoint, QEvent, QTimer, QUrl
+from PySide6.QtGui import QFont, QBrush, QColor, QPixmap, QPainter, QPen, QKeySequence, QIntValidator, QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -1180,11 +1180,30 @@ class CaseListPanel(QWidget):
     def set_folder_data(self, item: QTreeWidgetItem | None, data: dict | None) -> dict:
         if item is None or item.data(0, self._TYPE_ROLE) != "folder":
             return {}
-        safe_data = {"name": item.text(0), "description": ""}
+        safe_data = {"name": item.text(0), "description": "", "globals": []}
         if isinstance(data, dict):
-            safe_data.update({k: v for k, v in data.items() if isinstance(v, str)})
+            for key, value in data.items():
+                if key in {"name", "description", "suite_type", "suite_id"} and isinstance(value, str):
+                    safe_data[key] = value
+                elif key == "globals" and isinstance(value, list):
+                    safe_data["globals"] = self._sanitize_global_rows(value)
         item.setData(0, self._DATA_ROLE, safe_data)
         return safe_data
+
+    def _sanitize_global_rows(self, rows: list) -> list[dict]:
+        cleaned: list[dict] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            key = str(row.get("key") or "").strip()
+            value = row.get("value")
+            if value is None:
+                value = ""
+            enabled = row.get("enabled", True) is not False
+            if not key and value == "":
+                continue
+            cleaned.append({"enabled": enabled, "key": key, "value": value})
+        return cleaned
 
     def rename_folder(self, item: QTreeWidgetItem | None, new_name: str) -> None:
         if item is None or item.data(0, self._TYPE_ROLE) != "folder":
@@ -1341,6 +1360,8 @@ class CaseListPanel(QWidget):
         copy_action = None
         if item_type == "request":
             copy_action = menu.addAction("\u590d\u5236")
+        copy_path_action = menu.addAction("\u590d\u5236\u7edd\u5bf9\u8def\u5f84")
+        open_folder_action = menu.addAction("\u6253\u5f00\u6587\u4ef6\u5939")
         delete_action = menu.addAction("\u5220\u9664")
         action = menu.exec(self.tree_widget.viewport().mapToGlobal(pos))
         if action is None:
@@ -1355,6 +1376,26 @@ class CaseListPanel(QWidget):
             self.run_suite_clicked.emit()
         elif action == copy_action:
             self._copy_request_item(item)
+        elif action == copy_path_action:
+            path_value = self.get_item_path(item)
+            if not path_value:
+                QMessageBox.warning(self, "\u65e0\u6cd5\u590d\u5236", "\u672a\u627e\u5230\u5bf9\u5e94\u7684\u8def\u5f84")
+                return
+            resolved = Path(path_value).resolve()
+            QApplication.clipboard().setText(str(resolved))
+        elif action == open_folder_action:
+            path_value = self.get_item_path(item)
+            if not path_value:
+                QMessageBox.warning(self, "\u65e0\u6cd5\u6253\u5f00", "\u672a\u627e\u5230\u5bf9\u5e94\u7684\u8def\u5f84")
+                return
+            resolved = Path(path_value).resolve()
+            target = resolved
+            if item_type == "request":
+                target = resolved.parent
+            if not target.exists():
+                QMessageBox.warning(self, "\u65e0\u6cd5\u6253\u5f00", "\u8def\u5f84\u4e0d\u5b58\u5728")
+                return
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
         elif action == delete_action:
             self._delete_item(item)
 
@@ -1797,29 +1838,73 @@ class CollectionPanel(QWidget):
         self.description_input.setFixedHeight(120)
         self.description_input.textChanged.connect(lambda: self.data_changed.emit())
 
+        globals_label = QLabel("\u5168\u5c40\u53d8\u91cf")
+        globals_label.setObjectName("sectionTitle")
+        globals_hint = QLabel("\u4ec5\u5f53\u524d\u6587\u4ef6\u5939\u751f\u6548\uff0c\u4f8b\u5982 baseUrl")
+        globals_hint.setStyleSheet("color: #6b7280; font-size: 9pt;")
+        add_globals_button = QPushButton("\u65b0\u589e")
+        add_globals_button.setObjectName("secondaryButton")
+        add_globals_button.clicked.connect(self._add_global_row)
+        remove_globals_button = QPushButton("\u5220\u9664")
+        remove_globals_button.setObjectName("dangerButton")
+        remove_globals_button.clicked.connect(self._remove_global_row)
+        globals_header = QWidget()
+        globals_header_layout = QHBoxLayout(globals_header)
+        globals_header_layout.setContentsMargins(0, 0, 0, 0)
+        globals_header_layout.addWidget(globals_label)
+        globals_header_layout.addStretch(1)
+        globals_header_layout.addWidget(add_globals_button)
+        globals_header_layout.addWidget(remove_globals_button)
+        globals_header.setFixedHeight(32)
+
+        self.globals_table = ParamsTable(lambda: self.data_changed.emit())
+        self.globals_table.apply_rows([])
+        self.globals_table.setMinimumHeight(220)
+        self.globals_table.setMaximumHeight(520)
+
         layout.addWidget(title)
         layout.addWidget(name_label)
         layout.addWidget(self.name_input)
         layout.addWidget(description_label)
         layout.addWidget(self.description_input)
+        layout.addWidget(globals_header)
+        layout.addWidget(globals_hint)
+        layout.addWidget(self.globals_table, 1)
         layout.addStretch(1)
 
-    def set_data(self, name: str, description: str) -> None:
+    def _add_global_row(self) -> None:
+        self.globals_table.add_row()
+
+    def _remove_global_row(self) -> None:
+        selected = self.globals_table.selectionModel().selectedRows()
+        if selected:
+            for index in sorted(selected, key=lambda idx: idx.row(), reverse=True):
+                self.globals_table.remove_row(index.row())
+            return
+        row = self.globals_table.rowCount()
+        if row > 0:
+            self.globals_table.remove_row(row - 1)
+
+    def set_data(self, name: str, description: str, globals_rows: list[dict] | None = None) -> None:
         block = self.name_input.blockSignals(True)
         self.name_input.setText(name)
         self.name_input.blockSignals(block)
         block = self.description_input.blockSignals(True)
         self.description_input.setPlainText(description)
         self.description_input.blockSignals(block)
+        if globals_rows is None:
+            globals_rows = []
+        self.globals_table.apply_rows(globals_rows if isinstance(globals_rows, list) else [])
 
     def get_data(self) -> dict:
         return {
             "name": self.name_input.text().strip(),
             "description": self.description_input.toPlainText().strip(),
+            "globals": self.globals_table.get_rows(),
         }
 
     def clear(self) -> None:
-        self.set_data("", "")
+        self.set_data("", "", [])
 
 
 class RightPanel(QWidget):

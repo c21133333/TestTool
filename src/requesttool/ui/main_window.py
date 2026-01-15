@@ -287,7 +287,8 @@ class MainWindow(QMainWindow):
         if not name:
             name = folder_item.text(0)
         description = folder_data.get("description") or ""
-        self.right_panel.collection_panel.set_data(name, description)
+        globals_rows = folder_data.get("globals") if isinstance(folder_data.get("globals"), list) else []
+        self.right_panel.collection_panel.set_data(name, description, globals_rows)
         self.right_panel.show_collection_panel()
         self.right_panel.save_status_label.setText("\u7528\u4f8b\u96c6")
         self._update_request_controls()
@@ -299,13 +300,53 @@ class MainWindow(QMainWindow):
         data = self.right_panel.collection_panel.get_data()
         name = data.get("name", "").strip()
         description = data.get("description", "").strip()
+        globals_rows = data.get("globals") if isinstance(data.get("globals"), list) else []
+        existing = self.left_panel.get_folder_data(item)
+        suite_type = existing.get("suite_type") if isinstance(existing, dict) else None
+        suite_id = existing.get("suite_id") if isinstance(existing, dict) else None
         if name:
             self.left_panel.rename_folder(item, name)
-        self.left_panel.set_folder_data(item, {"name": name or item.text(0), "description": description})
+        payload = {"name": name or item.text(0), "description": description, "globals": globals_rows}
+        if isinstance(suite_type, str):
+            payload["suite_type"] = suite_type
+        if isinstance(suite_id, str):
+            payload["suite_id"] = suite_id
+        self.left_panel.set_folder_data(item, payload)
         self.left_panel.tree_changed.emit()
+
+    def _get_parent_folder_item(self, item) -> QTreeWidgetItem | None:
+        current = item.parent() if item is not None else None
+        while current is not None:
+            if current.data(0, self.left_panel._TYPE_ROLE) == "folder":
+                return current
+            current = current.parent()
+        return None
+
+    def _build_global_vars(self, folder_data: dict | None) -> dict:
+        if not isinstance(folder_data, dict):
+            return {}
+        rows = folder_data.get("globals")
+        if not isinstance(rows, list):
+            return {}
+        variables: dict[str, object] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if row.get("enabled", True) is False:
+                continue
+            key = str(row.get("key") or "").strip()
+            if not key:
+                continue
+            value = row.get("value")
+            if value is None:
+                value = ""
+            variables[key] = value
+        return variables
     def _on_save_request(self) -> None:
         item = self.left_panel.get_selected_request_item()
         if item is None:
+            if self._save_collection():
+                return
             return
         data = self.right_panel.request_panel.get_request_data()
         data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
@@ -356,6 +397,106 @@ class MainWindow(QMainWindow):
         path_value = self.left_panel.get_item_path(item)
         if path_value:
             QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", f"\u6587\u4ef6\u5df2\u4fdd\u5b58\u5230:\n{path_value}")
+
+    def _save_collection(self) -> bool:
+        folder_item = self.left_panel.get_selected_folder_item()
+        if folder_item is None:
+            return False
+        data = self.right_panel.collection_panel.get_data()
+        name = data.get("name", "").strip()
+        description = data.get("description", "").strip()
+        globals_rows = data.get("globals") if isinstance(data.get("globals"), list) else []
+        existing = self.left_panel.get_folder_data(folder_item)
+        suite_type = existing.get("suite_type") if isinstance(existing, dict) else None
+        suite_id = existing.get("suite_id") if isinstance(existing, dict) else None
+        if name:
+            self.left_panel.rename_folder(folder_item, name)
+        payload = {"name": name or folder_item.text(0), "description": description, "globals": globals_rows}
+        if isinstance(suite_type, str):
+            payload["suite_type"] = suite_type
+        if isinstance(suite_id, str):
+            payload["suite_id"] = suite_id
+        self.left_panel.set_folder_data(folder_item, payload)
+        folder_path = self._ensure_folder_path(folder_item, name or folder_item.text(0))
+        if folder_path is None:
+            return False
+        self._write_suite_meta(folder_path, payload)
+        self._save_folder_requests(folder_item, folder_path)
+        self._persist_cases()
+        QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", "\u7528\u4f8b\u96c6\u5df2\u4fdd\u5b58")
+        return True
+
+    def _ensure_folder_path(self, folder_item, name: str) -> Path | None:
+        existing = self.left_panel.get_item_path(folder_item)
+        if existing:
+            path = Path(existing)
+            if path.exists():
+                return path
+        base_dir = QFileDialog.getExistingDirectory(self, "\u9009\u62e9\u4fdd\u5b58\u4f4d\u7f6e")
+        if not base_dir:
+            return None
+        folder_path = Path(base_dir) / name
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return None
+        self.left_panel.set_item_path(folder_item, str(folder_path))
+        return folder_path
+
+    def _save_folder_requests(self, folder_item, folder_path: Path) -> None:
+        for idx in range(folder_item.childCount()):
+            child = folder_item.child(idx)
+            item_type = child.data(0, self.left_panel._TYPE_ROLE)
+            if item_type == "folder":
+                child_name = child.data(0, self.left_panel._NAME_ROLE) or child.text(0)
+                child_path = folder_path / str(child_name)
+                try:
+                    child_path.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    continue
+                self.left_panel.set_item_path(child, str(child_path))
+                child_data = self.left_panel.get_folder_data(child)
+                if isinstance(child_data, dict):
+                    self._write_suite_meta(child_path, child_data)
+                self._save_folder_requests(child, child_path)
+                continue
+            if item_type != "request":
+                continue
+            data = self._load_request_data(child) or {}
+            case_name = data.get("name") if isinstance(data.get("name"), str) else child.text(0)
+            self._save_request_file(child, data, case_name or "request")
+
+    def _write_suite_meta(self, folder_path: Path, payload: dict) -> None:
+        meta_path = folder_path / "_suite.json"
+        data = {}
+        if isinstance(payload, dict):
+            for key in ("name", "description", "suite_type", "suite_id"):
+                value = payload.get(key)
+                if isinstance(value, str) and value:
+                    data[key] = value
+            globals_rows = payload.get("globals")
+            if isinstance(globals_rows, list):
+                data["globals"] = globals_rows
+        if not data:
+            return
+        try:
+            meta_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            return
+
+    def _safe_case_filename(self, name: str) -> str:
+        text = str(name or "").strip()
+        if not text:
+            return "request"
+        invalid = '<>:"/\\|?*'
+        cleaned = []
+        for ch in text:
+            if ch in invalid or ord(ch) < 32:
+                cleaned.append("_")
+            else:
+                cleaned.append(ch)
+        safe = "".join(cleaned).strip().strip(".")
+        return safe or "request"
 
     def _parse_method_and_name(self, raw_name: str) -> tuple[str, str]:
         trimmed = raw_name.strip()
@@ -520,6 +661,13 @@ class MainWindow(QMainWindow):
                 continue
             if entry.suffix.lower() != ".json":
                 continue
+            if entry.name in {"_suite.json", ".suite.json"}:
+                data = self._read_request_file(entry)
+                if isinstance(data, dict):
+                    merged = {"name": parent_item.text(0), "description": "", "globals": []}
+                    merged.update({k: v for k, v in data.items() if k in {"name", "description", "globals", "suite_type", "suite_id"}})
+                    self.left_panel.set_folder_data(parent_item, merged)
+                continue
             data = self._read_request_file(entry)
             if data is None:
                 continue
@@ -613,15 +761,16 @@ class MainWindow(QMainWindow):
         existing = self.left_panel.get_item_path(item)
         if existing:
             return Path(existing)
+        safe_name = self._safe_case_filename(name)
         parent = item.parent()
         if parent is not None:
             parent_path = self.left_panel.get_item_path(parent)
             if parent_path:
-                return Path(parent_path) / f"{name}.json"
+                return Path(parent_path) / f"{safe_name}.json"
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "\u4fdd\u5b58\u8bf7\u6c42",
-            f"{name}.json",
+            f"{safe_name}.json",
             "Request (*.json);;All Files (*)",
         )
         if not file_path:
@@ -743,7 +892,14 @@ class MainWindow(QMainWindow):
 
     def _on_send_request(self) -> None:
         request_data = self.right_panel.request_panel.get_request_data()
-        request_data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
+        assertions = self.right_panel.assertion_panel.get_assertion_rows()
+        current = self.left_panel.get_selected_request_item()
+        if current is not None:
+            folder_item = self._get_parent_folder_item(current)
+            folder_data = self.left_panel.get_folder_data(folder_item) if folder_item is not None else {}
+            variables = self._build_global_vars(folder_data)
+            if variables:
+                request_data["variables"] = variables
         if not request_data.get("method") or not request_data.get("url"):
             return
         self._apply_request_state(RequestRunState.RUNNING)
@@ -769,7 +925,7 @@ class MainWindow(QMainWindow):
                 self._append_run_history(current, False, error_result)
             self._apply_request_state(RequestRunState.ERROR)
 
-        self.controller.send_request_async(on_finished, on_error)
+        self.controller.send_request_async(on_finished, on_error, request_data, assertions)
 
     def _on_run_suite(self) -> None:
         suite = self._build_suite_from_selection()
@@ -1251,6 +1407,11 @@ class MainWindow(QMainWindow):
             "headers": data.get("headers") or {},
             "body": data.get("body"),
         }
+        folder_item = self._get_parent_folder_item(item)
+        folder_data = self.left_panel.get_folder_data(folder_item) if folder_item is not None else {}
+        variables = self._build_global_vars(folder_data)
+        if variables:
+            request_data["variables"] = variables
         pre_processors = data.get("preProcessors")
         post_processors = data.get("postProcessors")
         if not request_data.get("method") or not request_data.get("url"):

@@ -34,20 +34,20 @@ class ApiTestController(QObject):
         self._batch_canceled = False
         self._request_thread_active = False
 
-    def send_request(self) -> None:
+    def send_request(self, request_data: dict | None = None, assertions: list | None = None) -> None:
         try:
             print("Request started")
             self.response_panel.clear()
             updater = getattr(self.response_panel, "clear_assertion_results", None)
             if callable(updater):
                 updater()
-            params = self.request_panel.get_request_data()
-            assertions = self._get_assertions()
+            params = request_data if isinstance(request_data, dict) else self.request_panel.get_request_data()
+            assertion_list = assertions if isinstance(assertions, list) else self._get_assertions()
             pre_processors = params.get("preProcessors") if isinstance(params, dict) else []
             post_processors = params.get("postProcessors") if isinstance(params, dict) else []
             response_result, assertion_results, _context = processor_engine.execute_request(
                 params,
-                assertions,
+                assertion_list,
                 pre_processors or [],
                 post_processors or [],
                 http_client,
@@ -69,7 +69,7 @@ class ApiTestController(QObject):
             self.response_panel.update_response(error_result)
             print("Request failed")
 
-    def send_request_async(self, on_finished=None, on_error=None) -> None:
+    def send_request_async(self, on_finished=None, on_error=None, request_data: dict | None = None, assertions: list | None = None) -> None:
         try:
             if self._request_running:
                 return
@@ -81,14 +81,14 @@ class ApiTestController(QObject):
             updater = getattr(self.response_panel, "clear_assertion_results", None)
             if callable(updater):
                 updater()
-            params = self.request_panel.get_request_data()
-            assertions = self._get_assertions()
+            params = request_data if isinstance(request_data, dict) else self.request_panel.get_request_data()
+            assertion_list = assertions if isinstance(assertions, list) else self._get_assertions()
             if callable(append_log):
-                append_log(f"assertions_enabled={len(assertions)}")
+                append_log(f"assertions_enabled={len(assertion_list)}")
             pre_processors = params.get("preProcessors") if isinstance(params, dict) else []
             post_processors = params.get("postProcessors") if isinstance(params, dict) else []
             thread = QThread(self)
-            worker = ApiRequestWorker(params, assertions, pre_processors or [], post_processors or [])
+            worker = ApiRequestWorker(params, assertion_list, pre_processors or [], post_processors or [])
             worker.moveToThread(thread)
             thread.started.connect(worker.run)
 
