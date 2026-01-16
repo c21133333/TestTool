@@ -41,6 +41,7 @@ class ProjectStore:
             "runsIndex": [],
             "ui_state": {},
             "save_dir": "",
+            "recent_collections": [],
         }
 
     def _normalize_project(self, project: dict[str, Any]) -> dict[str, Any]:
@@ -49,10 +50,12 @@ class ProjectStore:
         runs_index = project.get("runsIndex")
         ui_state = project.get("ui_state")
         save_dir = project.get("save_dir")
+        recent_collections = project.get("recent_collections")
         return {
             "suites": suites if isinstance(suites, list) else [],
             "envs": envs if isinstance(envs, list) else [],
             "runsIndex": runs_index if isinstance(runs_index, list) else [],
             "ui_state": ui_state if isinstance(ui_state, dict) else {},
             "save_dir": save_dir if isinstance(save_dir, str) else "",
+            "recent_collections": recent_collections if isinstance(recent_collections, list) else [],
         }

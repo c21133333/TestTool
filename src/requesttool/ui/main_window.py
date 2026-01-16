@@ -118,6 +118,7 @@ class MainWindow(QMainWindow):
         self._runs_index: list[dict] = []
         self._last_report_paths: dict[str, str] = {}
         self._save_dir = ""
+        self._recent_collections: list[str] = []
         self._suite_thread: QThread | None = None
         self._suite_worker: SuiteExecutorWorker | None = None
         self._request_state = RequestRunState.IDLE
@@ -651,6 +652,7 @@ class MainWindow(QMainWindow):
         self._write_suite_meta(folder_path, payload)
         self._save_folder_requests(folder_item, folder_path)
         self._persist_cases()
+        self._remember_collection_path(folder_path)
         QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", "\u7528\u4f8b\u96c6\u5df2\u4fdd\u5b58")
         return True
 
@@ -843,6 +845,7 @@ class MainWindow(QMainWindow):
         self._import_folder_contents(path, root_item)
         self.left_panel.tree_widget.setCurrentItem(root_item)
         self._persist_cases()
+        self._remember_collection_path(path)
         QMessageBox.information(self, "\u5bfc\u5165\u6210\u529f", f"\u5df2\u5bfc\u5165:\n{folder_path}")
 
     def _on_import_excel(self) -> None:
@@ -930,6 +933,7 @@ class MainWindow(QMainWindow):
                         target_path = Path(parent_path)
         if target_path is None:
             target_path = self._project_path.parent
+        self._remember_collection_path(target_path)
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_path.resolve())))
 
     def _on_file_open_recent(self) -> None:
@@ -937,7 +941,7 @@ class MainWindow(QMainWindow):
         if not recent_paths:
             QMessageBox.information(self, "\u6ca1\u6709\u6700\u8fd1\u7528\u4f8b\u96c6", "\u5f53\u524d\u6ca1\u6709\u53ef\u6253\u5f00\u7684\u7528\u4f8b\u96c6\u8bb0\u5f55\u3002")
             return
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(recent_paths[0].resolve())))
+        self._open_recent_collection(recent_paths[0])
 
     def _on_configure_save_dir(self) -> None:
         selected = QFileDialog.getExistingDirectory(
@@ -971,6 +975,28 @@ class MainWindow(QMainWindow):
         self.left_panel.set_save_dir(save_dir)
         self.right_panel.response_panel.set_save_dir(save_dir)
 
+    def _remember_collection_path(self, path: Path | str) -> None:
+        if not path:
+            return
+        try:
+            resolved = Path(path).resolve()
+        except Exception:
+            resolved = Path(path)
+        if not resolved.exists() or not resolved.is_dir():
+            return
+        value = str(resolved)
+        self._recent_collections = [item for item in self._recent_collections if item != value]
+        self._recent_collections.insert(0, value)
+        self._recent_collections = self._recent_collections[:10]
+        if not isinstance(self._project_state, dict):
+            self._project_state = {}
+        self._project_state["recent_collections"] = self._recent_collections
+        self._persist_cases()
+
+    def _open_recent_collection(self, path: Path) -> None:
+        self._remember_collection_path(path)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).resolve())))
+
     def _populate_recent_collections_menu(self) -> None:
         self._recent_collections_menu.clear()
         recent_paths = self._collect_recent_collection_paths()
@@ -982,12 +1008,34 @@ class MainWindow(QMainWindow):
             action = self._recent_collections_menu.addAction(str(path))
             action.setToolTip(str(path))
             action.triggered.connect(
-                lambda _checked=False, target=path: QDesktopServices.openUrl(
-                    QUrl.fromLocalFile(str(target.resolve()))
-                )
+                lambda _checked=False, target=path: self._open_recent_collection(target)
             )
 
     def _collect_recent_collection_paths(self) -> list[Path]:
+        collected: list[Path] = []
+        seen: set[str] = set()
+        for entry in self._recent_collections:
+            if not isinstance(entry, str) or not entry:
+                continue
+            path = Path(entry)
+            try:
+                resolved = str(path.resolve())
+            except Exception:
+                resolved = str(path)
+            if resolved in seen:
+                continue
+            if path.exists() and path.is_dir():
+                collected.append(path)
+                seen.add(resolved)
+        if collected:
+            return collected
+        collected = self._collect_recent_collection_paths_from_tree()
+        if collected:
+            for path in collected:
+                self._remember_collection_path(path)
+        return collected
+
+    def _collect_recent_collection_paths_from_tree(self) -> list[Path]:
         entries: list[tuple[float, Path]] = []
 
         def walk(item) -> None:
@@ -1101,6 +1149,7 @@ class MainWindow(QMainWindow):
         self._write_suite_meta(folder_path, payload)
         self._save_folder_requests_as(folder_item, folder_path)
         self._persist_cases()
+        self._remember_collection_path(folder_path)
         QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", "\u7528\u4f8b\u96c6\u5df2\u4fdd\u5b58")
         return True
 
@@ -1354,6 +1403,11 @@ class MainWindow(QMainWindow):
         self._save_dir = self._project_state.get("save_dir") if isinstance(self._project_state, dict) else ""
         if not isinstance(self._save_dir, str):
             self._save_dir = ""
+        self._recent_collections = (
+            self._project_state.get("recent_collections") if isinstance(self._project_state, dict) else []
+        )
+        if not isinstance(self._recent_collections, list):
+            self._recent_collections = []
         self._apply_save_dir()
         if self._runs_index:
             latest = self._runs_index[0]
@@ -1372,6 +1426,9 @@ class MainWindow(QMainWindow):
         project["envs"] = self._envs if isinstance(self._envs, list) else []
         project["runsIndex"] = self._runs_index if isinstance(self._runs_index, list) else []
         project["save_dir"] = self._save_dir if isinstance(self._save_dir, str) else ""
+        project["recent_collections"] = (
+            self._recent_collections if isinstance(self._recent_collections, list) else []
+        )
         try:
             self._project_store.save_project(self._project_path, project)
             self._project_state = project

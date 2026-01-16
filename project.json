@@ -228,5 +228,9 @@
     },
     "response_panel": {}
   },
-  "save_dir": ""
+  "save_dir": "",
+  "recent_collections": [
+    "D:\\works\\project\\trashFile\\testcase\\H5_领取权益接口_测试用例_20260115",
+    "D:\\works\\project\\ezTest\\TestTool"
+  ]
 }
