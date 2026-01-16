@@ -1,4 +1,5 @@
 import sys
+import sys
 from pathlib import Path
 
 from PySide6.QtGui import QIcon
@@ -16,7 +17,8 @@ def main() -> int:
     from requesttool.ui.main_window import MainWindow
 
     app = QApplication(sys.argv)
-    icon_path = Path(__file__).resolve().parent / "assets" / "lightning.ico"
+    base_dir = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    icon_path = base_dir / "assets" / "lightning.ico"
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))
     style = [

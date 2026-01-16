@@ -34,9 +34,9 @@ class ReportGenerator:
         suite_name = run_data.get("suite_name", "")
         base_url = run_data.get("base_url", "")
         execute_time = run_data.get("execute_time", "")
-        total = summary.get("total", 0)
-        ok = summary.get("ok", 0)
-        ng = summary.get("ng", 0)
+        total = summary.get("total", 0) or 0
+        ok = summary.get("ok", 0) or 0
+        ng = summary.get("ng", 0) or 0
         pass_rate = summary.get("pass_rate", 0)
         duration_ms = summary.get("duration_ms", 0)
 
@@ -51,14 +51,40 @@ class ReportGenerator:
             f"<div><strong>Duration</strong><span>{duration_ms} ms</span></div>"
             f"</div>"
         )
+        chart_html = self._render_chart(total, ok, ng)
         return {
             "suite_name": str(suite_name),
             "base_url": str(base_url),
             "execute_time": str(execute_time),
             "summary_html": summary_html,
+            "chart_html": chart_html,
             "failure_html": failure_html,
             "items_html": items_html,
         }
+
+    def _render_chart(self, total: int, ok: int, ng: int) -> str:
+        if total <= 0:
+            return (
+                "<div class='summary-chart'>"
+                "<div class='chart-title'>Results</div>"
+                "<div class='chart-empty'>No data.</div>"
+                "</div>"
+            )
+        ok_pct = round(ok / total * 100, 1)
+        ng_pct = round(ng / total * 100, 1)
+        return (
+            "<div class='summary-chart'>"
+            "<div class='chart-title'>Results</div>"
+            "<div class='chart-bar'>"
+            f"<div class='chart-seg ok' style='width: {ok_pct}%;'></div>"
+            f"<div class='chart-seg ng' style='width: {ng_pct}%;'></div>"
+            "</div>"
+            "<div class='chart-stats'>"
+            f"<span class='legend ok'>OK {ok} ({ok_pct}%)</span>"
+            f"<span class='legend ng'>NG {ng} ({ng_pct}%)</span>"
+            "</div>"
+            "</div>"
+        )
 
     def _render_failures(self, items: list[dict]) -> str:
         groups: dict[str, dict[str, Any]] = {}

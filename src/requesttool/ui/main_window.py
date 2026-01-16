@@ -1,13 +1,14 @@
 import json
 import logging
 import shutil
+import sys
 import time
 import uuid
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Slot, QUrl
+from PySide6.QtCore import Qt, QThread, Slot, QUrl, QStandardPaths
 from PySide6.QtGui import QDesktopServices, QFont, QIcon, QKeySequence, QShortcut
 from PySide6.QtCore import QObject, QEvent, QTimer
 from PySide6.QtWidgets import (
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMainWindow,
     QMessageBox,
+    QMenuBar,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -92,7 +94,7 @@ class _QtLogHandler(logging.Handler):
 
 from requesttool.controller import ApiTestController
 from requesttool.app.core.case_schema import CaseSchema
-from requesttool.app.core.excel_importer import ExcelImporter
+from requesttool.app.core.excel_importer import ExcelImporter, REQUIRED_HEADERS
 from requesttool.app.core.executor_worker import RunResult, SuiteExecutorWorker
 from requesttool.app.core.project_store import ProjectStore
 from requesttool.app.core.report_generator import ReportGenerator
@@ -115,6 +117,7 @@ class MainWindow(QMainWindow):
         self._envs: list[dict] = []
         self._runs_index: list[dict] = []
         self._last_report_paths: dict[str, str] = {}
+        self._save_dir = ""
         self._suite_thread: QThread | None = None
         self._suite_worker: SuiteExecutorWorker | None = None
         self._request_state = RequestRunState.IDLE
@@ -129,7 +132,7 @@ class MainWindow(QMainWindow):
         self._setup_ui()
 
     def _set_window_icon(self) -> None:
-        icon_path = Path(__file__).resolve().parents[3] / "assets" / "lightning.ico"
+        icon_path = self._resource_root() / "assets" / "lightning.ico"
         if icon_path.exists():
             icon = QIcon(str(icon_path))
             self.setWindowIcon(icon)
@@ -161,6 +164,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 3)
 
         self.setCentralWidget(splitter)
+        self._setup_menu_bar()
 
         self.controller = ApiTestController(
             self.right_panel.request_panel,
@@ -180,6 +184,7 @@ class MainWindow(QMainWindow):
         self.left_panel.import_request_clicked.connect(self._on_import_request)
         self.left_panel.import_folder_clicked.connect(self._on_import_folder)
         self.left_panel.import_excel_clicked.connect(self._on_import_excel)
+        self.left_panel.export_ai_template_clicked.connect(self._on_export_ai_template)
         self.left_panel.export_clicked.connect(self._on_export_cases)
         self.left_panel.run_suite_clicked.connect(self._on_run_suite)
         self.right_panel.export_report_button.clicked.connect(self._on_export_report)
@@ -213,6 +218,50 @@ class MainWindow(QMainWindow):
             "QScrollBar::corner { background: transparent; }"
         )
         app.setStyleSheet(style + scrollbar_style)
+
+    def _setup_menu_bar(self) -> None:
+        menu_bar = QMenuBar(self)
+        menu_bar.setNativeMenuBar(False)
+        menu_bar.setFixedHeight(30)
+        menu_bar.setStyleSheet(
+            "QMenuBar { background: transparent; padding: 2px 6px; font-size: 12px; }"
+            "QMenuBar::item { background: transparent; padding: 4px 8px; border-radius: 4px; }"
+            "QMenuBar::item:selected { background: #e5e7eb; }"
+            "QMenu { background: #ffffff; border: 1px solid #e5e7eb; }"
+            "QMenu::item { padding: 4px 18px; }"
+            "QMenu::item:selected { background: #e5e7eb; }"
+        )
+        self.setMenuBar(menu_bar)
+
+        self._status_label = QLabel("\u7a7a\u95f2")
+        self._status_label.setStyleSheet(
+            "color: #6b7280; background: #f1f5f9; padding: 3px 8px; border-radius: 10px;"
+        )
+        menu_bar.setCornerWidget(self._status_label, Qt.Corner.TopRightCorner)
+
+        file_menu = menu_bar.addMenu("\u6587\u4ef6(&F)")
+        file_menu.addAction("\u6253\u5f00\u6587\u4ef6\u5939", self._on_file_open_folder)
+        self._recent_collections_menu = file_menu.addMenu("\u6253\u5f00\u6700\u8fd1\u7528\u4f8b\u96c6")
+        self._recent_collections_menu.aboutToShow.connect(self._populate_recent_collections_menu)
+        file_menu.addSeparator()
+        file_menu.addAction("\u4fdd\u5b58", self._on_save_request)
+        file_menu.addAction("\u53e6\u5b58\u4e3a", self._on_save_request_as)
+        file_menu.addSeparator()
+        file_menu.addAction("\u5bfc\u5165\u8bf7\u6c42", self._on_import_request)
+        file_menu.addAction("\u5bfc\u5165\u6587\u4ef6\u5939", self._on_import_folder)
+        file_menu.addAction("\u5bfc\u5165 AI \u7528\u4f8b (Excel)", self._on_import_excel)
+        file_menu.addSeparator()
+        file_menu.addAction("\u5bfc\u51fa", self._on_export_cases)
+
+        settings_menu = menu_bar.addMenu("\u8bbe\u7f6e(&S)")
+        settings_menu.addAction("\u914d\u7f6e\u4fdd\u5b58\u5730\u5740", self._on_configure_save_dir)
+
+        help_menu = menu_bar.addMenu("\u5e2e\u52a9(&H)")
+        docs_menu = help_menu.addMenu("\u6587\u6863\u5e2e\u52a9")
+        docs_menu.addAction("\u64cd\u4f5c\u624b\u518c", self._on_help_manual)
+        docs_menu.addAction("ai\u7528\u4f8b\u6a21\u7248", self._on_export_ai_template)
+        docs_menu.addAction("\u8c46\u5305\u751f\u6210ai case\u793a\u4f8b", self._on_help_dbcase)
+        docs_menu.addAction("chatgpt\u751f\u6210ai case\u793a\u4f8b", self._on_help_chatgptcase)
 
     def _set_busy(self, busy: bool, message: str, allow_cancel: bool) -> None:
         self.right_panel.send_button.setEnabled(not busy and self._has_request_selection)
@@ -611,7 +660,11 @@ class MainWindow(QMainWindow):
             path = Path(existing)
             if path.exists():
                 return path
-        base_dir = QFileDialog.getExistingDirectory(self, "\u9009\u62e9\u4fdd\u5b58\u4f4d\u7f6e")
+        base_dir = QFileDialog.getExistingDirectory(
+            self,
+            "\u9009\u62e9\u4fdd\u5b58\u4f4d\u7f6e",
+            self._default_save_dir(),
+        )
         if not base_dir:
             return None
         folder_path = Path(base_dir) / name
@@ -831,6 +884,284 @@ class MainWindow(QMainWindow):
         dialog = ImportResultDialog(len(cases), failures, self)
         dialog.exec()
 
+    def _on_export_ai_template(self) -> None:
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "\u4fdd\u5b58 ai \u7528\u4f8b\u6a21\u7248",
+            self._build_save_path("ai_case_template.xlsx"),
+            "Excel (*.xlsx)",
+        )
+        if not file_path:
+            return
+        path = Path(file_path)
+        if path.suffix.lower() != ".xlsx":
+            path = path.with_suffix(".xlsx")
+        try:
+            from openpyxl import Workbook
+        except Exception as exc:
+            QMessageBox.warning(self, "\u6a21\u677f\u751f\u6210\u5931\u8d25", str(exc))
+            return
+        try:
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.title = ExcelImporter().sheet_name
+            sheet.append(list(REQUIRED_HEADERS))
+            workbook.save(path)
+        except Exception as exc:
+            QMessageBox.warning(self, "\u6a21\u677f\u751f\u6210\u5931\u8d25", str(exc))
+            return
+        QMessageBox.information(self, "\u6a21\u677f\u5df2\u751f\u6210", f"\u5df2\u4fdd\u5b58\u5230:\n{path}")
+
+    def _on_file_open_folder(self) -> None:
+        item = self.left_panel.get_selected_request_item() or self.left_panel.get_selected_folder_item()
+        target_path = None
+        if item is not None:
+            path_value = self.left_panel.get_item_path(item)
+            if path_value:
+                resolved = Path(path_value)
+                if item.data(0, self.left_panel._TYPE_ROLE) == "request" and resolved.is_file():
+                    resolved = resolved.parent
+                target_path = resolved
+            elif item.data(0, self.left_panel._TYPE_ROLE) == "request":
+                parent = self._get_parent_folder_item(item)
+                if parent is not None:
+                    parent_path = self.left_panel.get_item_path(parent)
+                    if parent_path:
+                        target_path = Path(parent_path)
+        if target_path is None:
+            target_path = self._project_path.parent
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_path.resolve())))
+
+    def _on_file_open_recent(self) -> None:
+        recent_paths = self._collect_recent_collection_paths()
+        if not recent_paths:
+            QMessageBox.information(self, "\u6ca1\u6709\u6700\u8fd1\u7528\u4f8b\u96c6", "\u5f53\u524d\u6ca1\u6709\u53ef\u6253\u5f00\u7684\u7528\u4f8b\u96c6\u8bb0\u5f55\u3002")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(recent_paths[0].resolve())))
+
+    def _on_configure_save_dir(self) -> None:
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "\u914d\u7f6e\u4fdd\u5b58\u5730\u5740",
+            self._default_save_dir(),
+        )
+        if not selected:
+            return
+        self._save_dir = selected
+        if not isinstance(self._project_state, dict):
+            self._project_state = {}
+        self._project_state["save_dir"] = self._save_dir
+        self._persist_cases()
+        self._apply_save_dir()
+        QMessageBox.information(self, "\u4fdd\u5b58\u5730\u5740\u5df2\u66f4\u65b0", f"\u5f53\u524d\u4fdd\u5b58\u5730\u5740:\n{self._save_dir}")
+
+    def _default_save_dir(self) -> str:
+        if isinstance(self._save_dir, str) and self._save_dir:
+            path = Path(self._save_dir)
+            if path.exists():
+                return str(path)
+        return ""
+
+    def _build_save_path(self, filename: str) -> str:
+        base_dir = self._default_save_dir()
+        return str(Path(base_dir) / filename) if base_dir else filename
+
+    def _apply_save_dir(self) -> None:
+        save_dir = self._default_save_dir()
+        self.left_panel.set_save_dir(save_dir)
+        self.right_panel.response_panel.set_save_dir(save_dir)
+
+    def _populate_recent_collections_menu(self) -> None:
+        self._recent_collections_menu.clear()
+        recent_paths = self._collect_recent_collection_paths()
+        if not recent_paths:
+            empty_action = self._recent_collections_menu.addAction("\u6682\u65e0\u6700\u8fd1\u7528\u4f8b\u96c6")
+            empty_action.setEnabled(False)
+            return
+        for path in recent_paths[:10]:
+            action = self._recent_collections_menu.addAction(str(path))
+            action.setToolTip(str(path))
+            action.triggered.connect(
+                lambda _checked=False, target=path: QDesktopServices.openUrl(
+                    QUrl.fromLocalFile(str(target.resolve()))
+                )
+            )
+
+    def _collect_recent_collection_paths(self) -> list[Path]:
+        entries: list[tuple[float, Path]] = []
+
+        def walk(item) -> None:
+            if item.data(0, self.left_panel._TYPE_ROLE) == "folder":
+                path_value = self.left_panel.get_item_path(item)
+                if path_value:
+                    folder_path = Path(path_value)
+                    if folder_path.exists():
+                        meta_path = folder_path / "_suite.json"
+                        if not meta_path.exists():
+                            meta_path = folder_path / ".suite.json"
+                        stat_path = meta_path if meta_path.exists() else folder_path
+                        try:
+                            entries.append((stat_path.stat().st_mtime, folder_path))
+                        except Exception:
+                            pass
+            for idx in range(item.childCount()):
+                walk(item.child(idx))
+
+        for idx in range(self.left_panel.tree_widget.topLevelItemCount()):
+            walk(self.left_panel.tree_widget.topLevelItem(idx))
+        entries.sort(key=lambda item: item[0], reverse=True)
+        return [path for _, path in entries]
+
+    def _on_save_request_as(self) -> None:
+        item = self.left_panel.get_selected_request_item()
+        if item is None:
+            self._save_collection_as()
+            return
+        data = self.right_panel.request_panel.get_request_data()
+        data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
+        self._normalize_request_headers_for_save(data)
+        if self._current_case_item is item and isinstance(self._current_case, dict):
+            ai_case = self._current_case.get("ai_case")
+            if ai_case is not None:
+                request_json = ai_case.get("request_json") if isinstance(ai_case.get("request_json"), dict) else {}
+                request_json.update(
+                    {
+                        "headers": data.get("headers") or {},
+                        "params": data.get("params") or {},
+                        "body": data.get("body"),
+                    }
+                )
+                ai_case["request_json"] = request_json
+                data["ai_case"] = ai_case
+        name_value = data.get("name") or self.left_panel._strip_method_prefix(item.text(0))
+        safe_name = self._safe_case_filename(name_value or "request")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "\u53e6\u5b58\u4e3a",
+            self._build_save_path(f"{safe_name}.json"),
+            "Request (*.json);;All Files (*)",
+        )
+        if not file_path:
+            return
+        path = Path(file_path)
+        saved_path = self._save_request_file_to_path(item, data, path)
+        if saved_path is None:
+            QMessageBox.warning(self, "\u4fdd\u5b58\u5931\u8d25", "\u8bf7\u6c42\u4fdd\u5b58\u5931\u8d25")
+            return
+        final_name = data.get("name") if isinstance(data.get("name"), str) else saved_path.stem
+        self.left_panel.set_request_name(item, final_name)
+        self.left_panel.set_request_data(item, data)
+        self.left_panel.set_request_saved(item, True)
+        self._current_case = data
+        self._current_case_item = item
+        self.right_panel.save_status_label.setText("\u5df2\u4fdd\u5b58")
+        self._persist_cases()
+        QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", f"\u6587\u4ef6\u5df2\u4fdd\u5b58\u5230:\n{saved_path}")
+
+    def _save_collection_as(self) -> bool:
+        folder_item = self.left_panel.get_selected_folder_item()
+        if folder_item is None:
+            return False
+        data = self.right_panel.collection_panel.get_data()
+        name = data.get("name", "").strip()
+        description = data.get("description", "").strip()
+        globals_rows = data.get("globals") if isinstance(data.get("globals"), list) else []
+        global_headers_rows = (
+            data.get("global_headers") if isinstance(data.get("global_headers"), list) else []
+        )
+        existing = self.left_panel.get_folder_data(folder_item)
+        suite_type = existing.get("suite_type") if isinstance(existing, dict) else None
+        suite_id = existing.get("suite_id") if isinstance(existing, dict) else None
+        if name:
+            self.left_panel.rename_folder(folder_item, name)
+        base_dir = QFileDialog.getExistingDirectory(
+            self,
+            "\u9009\u62e9\u4fdd\u5b58\u4f4d\u7f6e",
+            self._default_save_dir(),
+        )
+        if not base_dir:
+            return False
+        folder_path = Path(base_dir) / (name or folder_item.text(0))
+        try:
+            folder_path.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return False
+        payload = {
+            "name": name or folder_item.text(0),
+            "description": description,
+            "globals": globals_rows,
+            "global_headers": global_headers_rows,
+        }
+        if isinstance(suite_type, str):
+            payload["suite_type"] = suite_type
+        if isinstance(suite_id, str):
+            payload["suite_id"] = suite_id
+        self.left_panel.set_folder_data(folder_item, payload)
+        self.left_panel.set_item_path(folder_item, str(folder_path))
+        self._write_suite_meta(folder_path, payload)
+        self._save_folder_requests_as(folder_item, folder_path)
+        self._persist_cases()
+        QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", "\u7528\u4f8b\u96c6\u5df2\u4fdd\u5b58")
+        return True
+
+    def _save_folder_requests_as(self, folder_item, folder_path: Path) -> None:
+        for idx in range(folder_item.childCount()):
+            child = folder_item.child(idx)
+            item_type = child.data(0, self.left_panel._TYPE_ROLE)
+            if item_type == "folder":
+                child_name = child.data(0, self.left_panel._NAME_ROLE) or child.text(0)
+                child_path = folder_path / str(child_name)
+                try:
+                    child_path.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    continue
+                self.left_panel.set_item_path(child, str(child_path))
+                child_data = self.left_panel.get_folder_data(child)
+                if isinstance(child_data, dict):
+                    self._write_suite_meta(child_path, child_data)
+                self._save_folder_requests_as(child, child_path)
+                continue
+            if item_type != "request":
+                continue
+            data = self._load_request_data(child) or {}
+            case_name = data.get("name") if isinstance(data.get("name"), str) else child.text(0)
+            safe_name = self._safe_case_filename(case_name or "request")
+            target_path = folder_path / f"{safe_name}.json"
+            self._save_request_file_to_path(child, data, target_path)
+
+    def _save_request_file_to_path(self, item, data: dict, path: Path) -> Path | None:
+        target = path
+        if not target.suffix:
+            target = target.with_suffix(".json")
+        desired_name = data.get("name")
+        normalized_name = desired_name.strip() if isinstance(desired_name, str) else ""
+        if not normalized_name:
+            normalized_name = target.stem
+        data["name"] = normalized_name
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            return None
+        self.left_panel.set_item_path(item, str(target))
+        return target
+
+    def _on_help_manual(self) -> None:
+        self._open_help_doc("\u89c4\u8303\u624b\u518c.docx", "\u64cd\u4f5c\u624b\u518c")
+
+    def _on_help_dbcase(self) -> None:
+        self._open_help_doc("dbcase.xlsx", "\u8c46\u5305\u751f\u6210ai case\u793a\u4f8b")
+
+    def _on_help_chatgptcase(self) -> None:
+        self._open_help_doc("chatgptcase.xlsx", "chatgpt\u751f\u6210ai case\u793a\u4f8b")
+
+    def _open_help_doc(self, filename: str, title: str) -> None:
+        doc_path = self._resolve_doc_path(filename)
+        if not doc_path.exists():
+            QMessageBox.warning(self, title, f"\u672a\u627e\u5230 {doc_path}")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(doc_path.resolve())))
+
     def _import_folder_contents(self, path: Path, parent_item) -> None:
         try:
             entries = sorted(path.iterdir(), key=lambda item: (item.is_file(), item.name.lower()))
@@ -958,20 +1289,42 @@ class MainWindow(QMainWindow):
         file_path, _ = QFileDialog.getSaveFileName(
             self,
             "\u4fdd\u5b58\u8bf7\u6c42",
-            f"{safe_name}.json",
+            self._build_save_path(f"{safe_name}.json"),
             "Request (*.json);;All Files (*)",
         )
         if not file_path:
             return None
         return Path(file_path)
 
+    def _resource_root(self) -> Path:
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            return Path(sys._MEIPASS)
+        return Path(__file__).resolve().parents[3]
+
+    def _resolve_doc_path(self, filename: str) -> Path:
+        root = self._resource_root()
+        candidate = root / "src" / filename
+        if candidate.exists():
+            return candidate
+        return root / filename
+
     def _resolve_data_path(self) -> Path:
-        root = Path(__file__).resolve().parents[3]
-        return root / "project.json"
+        if getattr(sys, "frozen", False):
+            base_dir = Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
+            if not str(base_dir):
+                base_dir = Path.home() / ".eazy_test"
+            base_dir.mkdir(parents=True, exist_ok=True)
+            return base_dir / "project.json"
+        return self._resource_root() / "project.json"
 
     def _resolve_legacy_path(self) -> Path:
-        root = Path(__file__).resolve().parents[3]
-        return root / "requests.json"
+        if getattr(sys, "frozen", False):
+            base_dir = Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
+            if not str(base_dir):
+                base_dir = Path.home() / ".eazy_test"
+            base_dir.mkdir(parents=True, exist_ok=True)
+            return base_dir / "requests.json"
+        return self._resource_root() / "requests.json"
 
     def _load_saved_cases(self) -> None:
         project_path = self._project_path
@@ -998,6 +1351,10 @@ class MainWindow(QMainWindow):
             self.right_panel.apply_ui_state(ui_state)
         self._envs = self._project_state.get("envs") if isinstance(self._project_state, dict) else []
         self._runs_index = self._project_state.get("runsIndex") if isinstance(self._project_state, dict) else []
+        self._save_dir = self._project_state.get("save_dir") if isinstance(self._project_state, dict) else ""
+        if not isinstance(self._save_dir, str):
+            self._save_dir = ""
+        self._apply_save_dir()
         if self._runs_index:
             latest = self._runs_index[0]
             if isinstance(latest, dict):
@@ -1014,6 +1371,7 @@ class MainWindow(QMainWindow):
         project["ui_state"] = self.right_panel.get_ui_state()
         project["envs"] = self._envs if isinstance(self._envs, list) else []
         project["runsIndex"] = self._runs_index if isinstance(self._runs_index, list) else []
+        project["save_dir"] = self._save_dir if isinstance(self._save_dir, str) else ""
         try:
             self._project_store.save_project(self._project_path, project)
             self._project_state = project
@@ -1030,7 +1388,7 @@ class MainWindow(QMainWindow):
             file_path, _ = QFileDialog.getSaveFileName(
                 self,
                 "\u5bfc\u51fa\u8bf7\u6c42",
-                f"{current.text(0)}.json",
+                self._build_save_path(f"{current.text(0)}.json"),
                 "JSON (*.json);;All Files (*)",
             )
             if not file_path:
@@ -1055,7 +1413,11 @@ class MainWindow(QMainWindow):
         if not folder_path:
             QMessageBox.warning(self, "\u5bfc\u51fa\u5931\u8d25", "\u8be5\u6587\u4ef6\u5939\u6ca1\u6709\u5173\u8054\u7684\u786c\u76d8\u8def\u5f84")
             return
-        target_dir = QFileDialog.getExistingDirectory(self, "\u9009\u62e9\u5bfc\u51fa\u76ee\u5f55")
+        target_dir = QFileDialog.getExistingDirectory(
+            self,
+            "\u9009\u62e9\u5bfc\u51fa\u76ee\u5f55",
+            self._default_save_dir(),
+        )
         if not target_dir:
             return
         source_root = Path(folder_path)
@@ -1445,7 +1807,7 @@ class MainWindow(QMainWindow):
             self.right_panel.request_panel.set_request_data(request)
 
     def _update_run_state_badge(self, state: "RequestRunState") -> None:
-        label = self.left_panel.run_state_label
+        label = self._status_label
         if state == RequestRunState.RUNNING:
             label.setText("\u6267\u884c\u4e2d")
             label.setStyleSheet(
@@ -1480,11 +1842,17 @@ class MainWindow(QMainWindow):
         }
 
     def _resolve_report_template_path(self) -> Path:
-        return Path(__file__).resolve().parents[1] / "app" / "assets" / "templates" / "report.html"
+        root = self._resource_root()
+        primary = root / "src" / "requesttool" / "app" / "assets" / "templates" / "report.html"
+        if primary.exists():
+            return primary
+        return root / "requesttool" / "app" / "assets" / "templates" / "report.html"
 
     def _resolve_runs_dir(self) -> Path:
-        root = Path(__file__).resolve().parents[3]
-        return root / "runs"
+        base_dir = self._default_save_dir()
+        if base_dir:
+            return Path(base_dir) / "runs"
+        return self._project_path.parent / "runs"
 
     def _append_run_index(self, run_data: dict, paths: dict[str, str]) -> None:
         entry = {
@@ -1505,7 +1873,11 @@ class MainWindow(QMainWindow):
         if not self._last_report_paths:
             QMessageBox.warning(self, "\u65e0\u6cd5\u5bfc\u51fa", "\u8bf7\u5148\u6267\u884c\u7528\u4f8b\u96c6\u751f\u6210\u62a5\u544a")
             return
-        target_dir = QFileDialog.getExistingDirectory(self, "\u9009\u62e9\u5bfc\u51fa\u76ee\u5f55")
+        target_dir = QFileDialog.getExistingDirectory(
+            self,
+            "\u9009\u62e9\u5bfc\u51fa\u76ee\u5f55",
+            self._default_save_dir(),
+        )
         if not target_dir:
             return
         copied = 0

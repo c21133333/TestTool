@@ -928,6 +928,7 @@ class CaseListPanel(QWidget):
     import_request_clicked = Signal()
     import_folder_clicked = Signal()
     import_excel_clicked = Signal()
+    export_ai_template_clicked = Signal()
     export_clicked = Signal()
     run_suite_clicked = Signal()
     tree_changed = Signal()
@@ -945,6 +946,7 @@ class CaseListPanel(QWidget):
         self._action_buttons: list[QToolButton] = []
         self._history_splitter: QSplitter | None = None
         self._history_cached_height = 180
+        self._save_dir = ""
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -955,20 +957,6 @@ class CaseListPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
-
-        title_block = QWidget()
-        title_layout = QVBoxLayout(title_block)
-        title_layout.setContentsMargins(8, 6, 8, 0)
-        title_layout.setSpacing(2)
-        title_row = QHBoxLayout()
-        title_label = QLabel("\u8bf7\u6c42\u4e2d\u5fc3")
-        title_label.setStyleSheet("font-weight: 600; font-size: 11pt; color: #111827;")
-        self.run_state_label = QLabel("\u7a7a\u95f2")
-        self.run_state_label.setStyleSheet(
-            "color: #6b7280; background: #f1f5f9; padding: 3px 8px; border-radius: 10px;"
-        )
-        title_row.addWidget(title_label)
-        title_row.addStretch(1)
 
         search_block = QWidget()
         search_layout = QHBoxLayout(search_block)
@@ -1020,33 +1008,6 @@ class CaseListPanel(QWidget):
             create_group_style,
         )
         self.new_folder_button.clicked.connect(self._on_add_folder_clicked)
-        self.import_button = self._build_action_button(
-            "\u5bfc\u5165",
-            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown),
-            "\u4ece\u6587\u4ef6\u5bfc\u5165\u7528\u4f8b\uff08JSON / Postman\uff09",
-            data_style,
-        )
-        self.import_button.clicked.connect(self._on_import_clicked)
-        self.export_button = self._build_action_button(
-            "\u5bfc\u51fa",
-            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp),
-            "\u5bfc\u51fa\u9009\u4e2d\u6216\u5168\u90e8\u7528\u4f8b",
-            data_style,
-        )
-        self.export_button.clicked.connect(self.export_clicked.emit)
-
-        title_actions = QWidget()
-        title_actions_layout = QHBoxLayout(title_actions)
-        title_actions_layout.setContentsMargins(0, 0, 0, 0)
-        title_actions_layout.setSpacing(6)
-        title_actions_layout.addWidget(self.import_button)
-        title_actions_layout.addWidget(self.export_button)
-        title_row.addWidget(title_actions)
-        title_row.addWidget(self.run_state_label)
-        subtitle_label = QLabel("Eazy Test")
-        subtitle_label.setStyleSheet("font-size: 9pt; color: #6b7280;")
-        title_layout.addLayout(title_row)
-        title_layout.addWidget(subtitle_label)
 
         actions_block = QWidget()
         actions_layout = QHBoxLayout(actions_block)
@@ -1074,7 +1035,6 @@ class CaseListPanel(QWidget):
             "QTreeView QLineEdit { border: none; background: transparent; padding: 0 2px; }"
         )
 
-        layout.addWidget(title_block)
         layout.addWidget(search_block)
         splitter = QSplitter(Qt.Orientation.Vertical)
         splitter.setHandleWidth(5)
@@ -1085,7 +1045,8 @@ class CaseListPanel(QWidget):
         self.history_group = CollapsibleSection("Run History", collapsed=False)
         clear_history_button = QPushButton("\u6e05\u7a7a\u8bb0\u5f55")
         clear_history_button.setObjectName("secondaryButton")
-        clear_history_button.setFixedHeight(24)
+        clear_history_button.setFixedHeight(26)
+        clear_history_button.setStyleSheet("padding: 2px 8px; font-size: 12px;")
         clear_history_button.clicked.connect(self._clear_history)
         self.history_group.add_header_widget(clear_history_button)
         self.history_group.toggled.connect(self._on_history_toggled)
@@ -1116,11 +1077,15 @@ class CaseListPanel(QWidget):
     ) -> QToolButton:
         button = QToolButton()
         button.setText(text)
-        button.setIcon(icon)
-        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        if icon is not None:
+            button.setIcon(icon)
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        else:
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         button.setToolTip(tooltip)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setIconSize(QSize(14, 14))
+        if icon is not None:
+            button.setIconSize(QSize(14, 14))
         button.setFixedHeight(28)
         button.setStyleSheet(style_sheet)
         self._action_buttons.append(button)
@@ -1439,7 +1404,7 @@ class CaseListPanel(QWidget):
 
     def _on_add_folder_clicked(self) -> None:
         parent_item = self._get_target_parent()
-        base_dir = QFileDialog.getExistingDirectory(self, "\u9009\u62e9\u4fdd\u5b58\u4f4d\u7f6e")
+        base_dir = QFileDialog.getExistingDirectory(self, "\u9009\u62e9\u4fdd\u5b58\u4f4d\u7f6e", self._save_dir)
         if not base_dir:
             return
         name = self._next_name(parent_item, "\u65b0\u5efa\u7528\u4f8b\u96c6")
@@ -1452,18 +1417,8 @@ class CaseListPanel(QWidget):
         self.set_item_path(item, str(folder_path))
         self.tree_widget.setCurrentItem(item)
 
-    def _on_import_clicked(self) -> None:
-        menu = QMenu(self)
-        import_request_action = menu.addAction("\u5bfc\u5165\u8bf7\u6c42")
-        import_folder_action = menu.addAction("\u5bfc\u5165\u6587\u4ef6\u5939")
-        import_excel_action = menu.addAction("\u5bfc\u5165 AI \u7528\u4f8b (Excel)")
-        action = menu.exec(self.import_button.mapToGlobal(self.import_button.rect().topLeft()))
-        if action == import_request_action:
-            self.import_request_clicked.emit()
-        elif action == import_folder_action:
-            self.import_folder_clicked.emit()
-        elif action == import_excel_action:
-            self.import_excel_clicked.emit()
+    def set_save_dir(self, path: str) -> None:
+        self._save_dir = path or ""
 
     def _copy_request_item(self, item: QTreeWidgetItem) -> None:
         if item.data(0, self._TYPE_ROLE) != "request":
@@ -2716,6 +2671,7 @@ class ResponsePanel(QWidget):
         self._tab_index: dict[str, int] = {}
         self._toast_label: QLabel | None = None
         self._toast_timer = None
+        self._save_dir = ""
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -3708,7 +3664,12 @@ class ResponsePanel(QWidget):
     def _save_binary(self) -> None:
         if self._last_result is None:
             return
-        file_path, _ = QFileDialog.getSaveFileName(self, "\u4fdd\u5b58\u4e3a\u6587\u4ef6", "", "All Files (*)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "\u4fdd\u5b58\u4e3a\u6587\u4ef6",
+            self._save_dir,
+            "All Files (*)",
+        )
         if not file_path:
             return
         data = (self._last_result.get("response_text") or "").encode("utf-8", errors="replace")
@@ -3717,6 +3678,9 @@ class ResponsePanel(QWidget):
         except Exception:
             return
         self._show_toast("\u4fdd\u5b58\u6210\u529f")
+
+    def set_save_dir(self, path: str) -> None:
+        self._save_dir = path or ""
 
     def _copy_binary_base64(self) -> None:
         if self._last_result is None:

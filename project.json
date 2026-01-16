@@ -14,6 +14,20 @@
   ],
   "runsIndex": [
     {
+      "run_id": "run_20260116_095408",
+      "suite_name": "H5_领取权益接口_测试用例_20260115",
+      "execute_time": "2026-01-16T09:54:08.001937",
+      "summary": {
+        "total": 41,
+        "ok": 2,
+        "ng": 39,
+        "pass_rate": 4.88,
+        "duration_ms": 66078
+      },
+      "json_path": "D:\\works\\project\\ezTest\\TestTool\\runs\\run_20260116_095408.json",
+      "html_path": "D:\\works\\project\\ezTest\\TestTool\\runs\\run_20260116_095408.html"
+    },
+    {
       "run_id": "run_20260116_094514",
       "suite_name": "H5_领取权益接口_测试用例_20260115",
       "execute_time": "2026-01-16T09:45:14.339800",
@@ -184,8 +198,8 @@
   ],
   "ui_state": {
     "splitter_sizes": [
-      514,
-      474
+      260,
+      240
     ],
     "request_panel": {
       "headers_table_columns": [
@@ -195,7 +209,7 @@
       ],
       "headers_splitter_sizes": [
         32,
-        322
+        360
       ],
       "params_table_columns": [
         56,
@@ -213,5 +227,6 @@
       }
     },
     "response_panel": {}
-  }
+  },
+  "save_dir": ""
 }

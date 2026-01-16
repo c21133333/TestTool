@@ -43,6 +43,50 @@
         justify-content: space-between;
         font-size: 14px;
       }
+      .summary-chart {
+        margin-top: 14px;
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .summary-chart .chart-title {
+        font-size: 13px;
+        color: #475569;
+        margin-bottom: 8px;
+      }
+      .summary-chart .chart-bar {
+        height: 12px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+        display: flex;
+      }
+      .summary-chart .chart-seg {
+        height: 100%;
+      }
+      .summary-chart .chart-seg.ok {
+        background: #22c55e;
+      }
+      .summary-chart .chart-seg.ng {
+        background: #ef4444;
+      }
+      .summary-chart .chart-stats {
+        margin-top: 8px;
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+        color: #475569;
+      }
+      .summary-chart .legend.ok {
+        color: #166534;
+      }
+      .summary-chart .legend.ng {
+        color: #991b1b;
+      }
+      .summary-chart .chart-empty {
+        color: #94a3b8;
+        font-size: 12px;
+      }
       section {
         margin-top: 20px;
         background: #ffffff;
@@ -137,6 +181,7 @@
       <div class="meta">Base URL: $base_url</div>
       <div class="meta">Generated: $execute_time</div>
       $summary_html
+      $chart_html
     </header>
 
     <section>
