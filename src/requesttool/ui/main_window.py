@@ -652,7 +652,6 @@ class MainWindow(QMainWindow):
         self._write_suite_meta(folder_path, payload)
         self._save_folder_requests(folder_item, folder_path)
         self._persist_cases()
-        self._remember_collection_path(folder_path)
         QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", "\u7528\u4f8b\u96c6\u5df2\u4fdd\u5b58")
         return True
 
@@ -845,7 +844,6 @@ class MainWindow(QMainWindow):
         self._import_folder_contents(path, root_item)
         self.left_panel.tree_widget.setCurrentItem(root_item)
         self._persist_cases()
-        self._remember_collection_path(path)
         QMessageBox.information(self, "\u5bfc\u5165\u6210\u529f", f"\u5df2\u5bfc\u5165:\n{folder_path}")
 
     def _on_import_excel(self) -> None:
@@ -918,6 +916,7 @@ class MainWindow(QMainWindow):
     def _on_file_open_folder(self) -> None:
         item = self.left_panel.get_selected_request_item() or self.left_panel.get_selected_folder_item()
         target_path = None
+        record_recent = False
         if item is not None:
             path_value = self.left_panel.get_item_path(item)
             if path_value:
@@ -925,15 +924,18 @@ class MainWindow(QMainWindow):
                 if item.data(0, self.left_panel._TYPE_ROLE) == "request" and resolved.is_file():
                     resolved = resolved.parent
                 target_path = resolved
+                record_recent = True
             elif item.data(0, self.left_panel._TYPE_ROLE) == "request":
                 parent = self._get_parent_folder_item(item)
                 if parent is not None:
                     parent_path = self.left_panel.get_item_path(parent)
                     if parent_path:
                         target_path = Path(parent_path)
+                        record_recent = True
         if target_path is None:
             target_path = self._project_path.parent
-        self._remember_collection_path(target_path)
+        if record_recent:
+            self._remember_collection_path(target_path)
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(target_path.resolve())))
 
     def _on_file_open_recent(self) -> None:
@@ -1027,38 +1029,7 @@ class MainWindow(QMainWindow):
             if path.exists() and path.is_dir():
                 collected.append(path)
                 seen.add(resolved)
-        if collected:
-            return collected
-        collected = self._collect_recent_collection_paths_from_tree()
-        if collected:
-            for path in collected:
-                self._remember_collection_path(path)
         return collected
-
-    def _collect_recent_collection_paths_from_tree(self) -> list[Path]:
-        entries: list[tuple[float, Path]] = []
-
-        def walk(item) -> None:
-            if item.data(0, self.left_panel._TYPE_ROLE) == "folder":
-                path_value = self.left_panel.get_item_path(item)
-                if path_value:
-                    folder_path = Path(path_value)
-                    if folder_path.exists():
-                        meta_path = folder_path / "_suite.json"
-                        if not meta_path.exists():
-                            meta_path = folder_path / ".suite.json"
-                        stat_path = meta_path if meta_path.exists() else folder_path
-                        try:
-                            entries.append((stat_path.stat().st_mtime, folder_path))
-                        except Exception:
-                            pass
-            for idx in range(item.childCount()):
-                walk(item.child(idx))
-
-        for idx in range(self.left_panel.tree_widget.topLevelItemCount()):
-            walk(self.left_panel.tree_widget.topLevelItem(idx))
-        entries.sort(key=lambda item: item[0], reverse=True)
-        return [path for _, path in entries]
 
     def _on_save_request_as(self) -> None:
         item = self.left_panel.get_selected_request_item()
@@ -1149,7 +1120,6 @@ class MainWindow(QMainWindow):
         self._write_suite_meta(folder_path, payload)
         self._save_folder_requests_as(folder_item, folder_path)
         self._persist_cases()
-        self._remember_collection_path(folder_path)
         QMessageBox.information(self, "\u4fdd\u5b58\u6210\u529f", "\u7528\u4f8b\u96c6\u5df2\u4fdd\u5b58")
         return True
 
