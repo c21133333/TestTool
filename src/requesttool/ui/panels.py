@@ -1043,7 +1043,7 @@ class CaseListPanel(QWidget):
         title_actions_layout.addWidget(self.export_button)
         title_row.addWidget(title_actions)
         title_row.addWidget(self.run_state_label)
-        subtitle_label = QLabel("API Test Cases")
+        subtitle_label = QLabel("Eazy Test")
         subtitle_label.setStyleSheet("font-size: 9pt; color: #6b7280;")
         title_layout.addLayout(title_row)
         title_layout.addWidget(subtitle_label)
@@ -1180,13 +1180,15 @@ class CaseListPanel(QWidget):
     def set_folder_data(self, item: QTreeWidgetItem | None, data: dict | None) -> dict:
         if item is None or item.data(0, self._TYPE_ROLE) != "folder":
             return {}
-        safe_data = {"name": item.text(0), "description": "", "globals": []}
+        safe_data = {"name": item.text(0), "description": "", "globals": [], "global_headers": []}
         if isinstance(data, dict):
             for key, value in data.items():
                 if key in {"name", "description", "suite_type", "suite_id"} and isinstance(value, str):
                     safe_data[key] = value
                 elif key == "globals" and isinstance(value, list):
                     safe_data["globals"] = self._sanitize_global_rows(value)
+                elif key == "global_headers" and isinstance(value, list):
+                    safe_data["global_headers"] = self._sanitize_header_rows(value)
         item.setData(0, self._DATA_ROLE, safe_data)
         return safe_data
 
@@ -1203,6 +1205,29 @@ class CaseListPanel(QWidget):
             if not key and value == "":
                 continue
             cleaned.append({"enabled": enabled, "key": key, "value": value})
+        return cleaned
+
+    def _sanitize_header_rows(self, rows: list) -> list[dict]:
+        cleaned: list[dict] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            key = str(row.get("key") or "").strip()
+            value = row.get("value")
+            if value is None:
+                value = ""
+            enabled = row.get("enabled", True) is not False
+            value_type = row.get("value_type") if isinstance(row.get("value_type"), str) else "text"
+            if not key and value == "":
+                continue
+            cleaned.append(
+                {
+                    "enabled": enabled,
+                    "key": key,
+                    "value": value,
+                    "value_type": value_type,
+                }
+            )
         return cleaned
 
     def rename_folder(self, item: QTreeWidgetItem | None, new_name: str) -> None:
@@ -1857,10 +1882,34 @@ class CollectionPanel(QWidget):
         globals_header_layout.addWidget(remove_globals_button)
         globals_header.setFixedHeight(32)
 
-        self.globals_table = ParamsTable(lambda: self.data_changed.emit())
+        self.globals_table = ParamsTable(lambda: self.data_changed.emit(), allow_paste_parse=False)
         self.globals_table.apply_rows([])
         self.globals_table.setMinimumHeight(220)
         self.globals_table.setMaximumHeight(520)
+
+        headers_label = QLabel("\u5168\u5c40\u8bf7\u6c42\u5934")
+        headers_label.setObjectName("sectionTitle")
+        headers_hint = QLabel("\u5f53\u524d\u7528\u4f8b\u96c6\u9ed8\u8ba4\u8bf7\u6c42\u5934\uff0c\u5982\u679c\u7528\u4f8b\u4e2d\u914d\u7f6e\u4e86\u540c\u540d\u8bf7\u6c42\u5934\uff0c\u4ee5\u7528\u4f8b\u4e3a\u51c6")
+        headers_hint.setStyleSheet("color: #6b7280; font-size: 9pt;")
+        add_headers_button = QPushButton("\u65b0\u589e")
+        add_headers_button.setObjectName("secondaryButton")
+        add_headers_button.clicked.connect(self._add_header_row)
+        remove_headers_button = QPushButton("\u5220\u9664")
+        remove_headers_button.setObjectName("dangerButton")
+        remove_headers_button.clicked.connect(self._remove_header_row)
+        headers_header = QWidget()
+        headers_header_layout = QHBoxLayout(headers_header)
+        headers_header_layout.setContentsMargins(0, 0, 0, 0)
+        headers_header_layout.addWidget(headers_label)
+        headers_header_layout.addStretch(1)
+        headers_header_layout.addWidget(add_headers_button)
+        headers_header_layout.addWidget(remove_headers_button)
+        headers_header.setFixedHeight(32)
+
+        self.global_headers_table = HeadersTable(lambda: self.data_changed.emit())
+        self.global_headers_table.apply_rows([])
+        self.global_headers_table.setMinimumHeight(220)
+        self.global_headers_table.setMaximumHeight(520)
 
         layout.addWidget(title)
         layout.addWidget(name_label)
@@ -1870,6 +1919,9 @@ class CollectionPanel(QWidget):
         layout.addWidget(globals_header)
         layout.addWidget(globals_hint)
         layout.addWidget(self.globals_table, 1)
+        layout.addWidget(headers_header)
+        layout.addWidget(headers_hint)
+        layout.addWidget(self.global_headers_table, 1)
         layout.addStretch(1)
 
     def _add_global_row(self) -> None:
@@ -1885,7 +1937,26 @@ class CollectionPanel(QWidget):
         if row > 0:
             self.globals_table.remove_row(row - 1)
 
-    def set_data(self, name: str, description: str, globals_rows: list[dict] | None = None) -> None:
+    def _add_header_row(self) -> None:
+        self.global_headers_table.add_row()
+
+    def _remove_header_row(self) -> None:
+        selected = self.global_headers_table.selectionModel().selectedRows()
+        if selected:
+            for index in sorted(selected, key=lambda idx: idx.row(), reverse=True):
+                self.global_headers_table.remove_row(index.row())
+            return
+        row = self.global_headers_table.rowCount()
+        if row > 0:
+            self.global_headers_table.remove_row(row - 1)
+
+    def set_data(
+        self,
+        name: str,
+        description: str,
+        globals_rows: list[dict] | None = None,
+        global_headers_rows: list[dict] | None = None,
+    ) -> None:
         block = self.name_input.blockSignals(True)
         self.name_input.setText(name)
         self.name_input.blockSignals(block)
@@ -1895,16 +1966,22 @@ class CollectionPanel(QWidget):
         if globals_rows is None:
             globals_rows = []
         self.globals_table.apply_rows(globals_rows if isinstance(globals_rows, list) else [])
+        if global_headers_rows is None:
+            global_headers_rows = []
+        self.global_headers_table.apply_rows(
+            global_headers_rows if isinstance(global_headers_rows, list) else []
+        )
 
     def get_data(self) -> dict:
         return {
             "name": self.name_input.text().strip(),
             "description": self.description_input.toPlainText().strip(),
             "globals": self.globals_table.get_rows(),
+            "global_headers": self.global_headers_table.get_rows(),
         }
 
     def clear(self) -> None:
-        self.set_data("", "", [])
+        self.set_data("", "", [], [])
 
 
 class RightPanel(QWidget):
@@ -3602,10 +3679,13 @@ class ResponsePanel(QWidget):
         error_type = self._last_result.get("error_type")
         error_message = self._last_result.get("error_message")
         request_headers = self._last_result.get("request_headers") or {}
+        request_url = self._last_result.get("request_url") or self._last_result.get("url")
         log_lines = [
             f"[{executed_at}] Request finished",
             f"status_code={status} elapsed_ms={elapsed}",
         ]
+        if request_url:
+            log_lines.append(f"request_url={request_url}")
         if isinstance(request_headers, dict) and request_headers:
             log_lines.append(f"request_headers={json.dumps(request_headers, ensure_ascii=False)}")
         if error_type or error_message:
@@ -3776,9 +3856,10 @@ class ResponsePanel(QWidget):
 
 
 class ParamsTable(StableTableWidget):
-    def __init__(self, on_changed, parent: QWidget | None = None) -> None:
+    def __init__(self, on_changed, parent: QWidget | None = None, *, allow_paste_parse: bool = True) -> None:
         super().__init__(0, 3, parent)
         self._on_changed = on_changed
+        self._allow_paste_parse = allow_paste_parse
         self._resizing = False
         self._column_constraints = {0: (48, 70)}
         self.setHorizontalHeaderLabels(["\u542f\u7528", "\u53c2\u6570\u540d", "\u503c"])
@@ -3906,6 +3987,8 @@ class ParamsTable(StableTableWidget):
         return super().eventFilter(obj, event)
 
     def _handle_paste(self) -> bool:
+        if not self._allow_paste_parse:
+            return False
         text = QApplication.clipboard().text()
         if not text:
             return False
@@ -4655,6 +4738,7 @@ class AssertionPanel(QWidget):
         self._update_operator(row, type_value, row_data.get("operator"), row_data.get("expected"))
 
         self._update_placeholders(row, type_value)
+        self._update_target_state(row, type_value)
         self.table.setRowHeight(row, 44)
         self._apply_row_state(row, row == self.table.currentRow())
 
@@ -4673,6 +4757,7 @@ class AssertionPanel(QWidget):
         current_expected = self._get_expected(row)
         self._update_operator(row, assertion_type, None, current_expected)
         self._update_placeholders(row, assertion_type)
+        self._update_target_state(row, assertion_type)
         self._emit_changed()
 
     def _update_operator(
@@ -4726,6 +4811,15 @@ class AssertionPanel(QWidget):
         if not isinstance(target_input, QLineEdit):
             return
         target_input.setPlaceholderText(self._target_placeholder_for(assertion_type))
+
+    def _update_target_state(self, row: int, assertion_type: str) -> None:
+        target_input = self.table.cellWidget(row, 2)
+        if not isinstance(target_input, QLineEdit):
+            return
+        disabled = assertion_type == "status_code"
+        target_input.setEnabled(not disabled)
+        if disabled:
+            target_input.clear()
 
     def _target_placeholder_for(self, assertion_type: str) -> str:
         return self.TARGET_PLACEHOLDERS.get(assertion_type, '')

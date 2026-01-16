@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -40,8 +41,15 @@ def assert_jsonpath_equals(json_data: Any, path: str, expected: Any, name: str) 
     if not matches:
         return build_result(name, False, None, expected, f"path not found: {path}")
     actual = matches[0] if len(matches) == 1 else matches
-    passed = actual == expected
-    message = "" if passed else f"{path} {actual} != {expected}"
+    expected_value = _normalize_expected(expected)
+    passed = actual == expected_value
+    if not passed:
+        expected_number = _to_number(expected_value)
+        if expected_number is not None:
+            actual_number = _to_number(actual)
+            if actual_number is not None:
+                passed = actual_number == expected_number
+    message = "" if passed else f"{path} {actual} != {expected_value}"
     return build_result(name, passed, actual, expected, message)
 
 
@@ -58,3 +66,29 @@ def parse_success_expectation(text: str) -> bool | None:
         if "true" in normalized or "1" in normalized:
             return True
     return None
+
+
+def _to_number(value: Any) -> float | None:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return float(text) if "." in text else float(int(text))
+        except ValueError:
+            return None
+    return None
+
+
+def _normalize_expected(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    if not text:
+        return value
+    try:
+        return json.loads(text)
+    except Exception:
+        return value

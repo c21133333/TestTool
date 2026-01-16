@@ -96,6 +96,12 @@ class AssertionEngine:
         if operator in {"==", "equals"}:
             expected_value = self._normalize_expected(expected)
             passed = actual == expected_value
+            if not passed:
+                expected_number = self._to_number(expected_value)
+                if expected_number is not None:
+                    actual_number = self._to_number(actual)
+                    if actual_number is not None:
+                        passed = actual_number == expected_number
             message = (
                 "" if passed else f"{path} {self._stringify_for_message(actual)} != {self._stringify_for_message(expected_value)}"
             )

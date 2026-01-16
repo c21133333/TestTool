@@ -96,6 +96,7 @@ from requesttool.app.core.excel_importer import ExcelImporter
 from requesttool.app.core.executor_worker import RunResult, SuiteExecutorWorker
 from requesttool.app.core.project_store import ProjectStore
 from requesttool.app.core.report_generator import ReportGenerator
+from requesttool.app.core.assertions import parse_success_expectation
 from requesttool.app.ui.dialogs.import_result_dialog import ImportResultDialog
 from requesttool.ui.panels import CaseListPanel, RightPanel
 
@@ -104,7 +105,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self._set_window_icon()
-        self.setWindowTitle("API \u63a5\u53e3\u6d4b\u8bd5\u5de5\u5177")
+        self.setWindowTitle("Eazy Test")
         self.resize(1200, 800)
         self.setFont(QFont("Segoe UI", 10))
         self._has_request_selection = False
@@ -264,14 +265,28 @@ class MainWindow(QMainWindow):
         if not isinstance(data.get("url"), str):
             data["url"] = ""
         self.right_panel.request_panel.set_request_data(data)
-        self.right_panel.assertion_panel.set_assertions(data.get("assertions") if isinstance(data, dict) else None)
+        assertions = data.get("assertions") if isinstance(data, dict) else None
+        ai_case = data.get("ai_case") if isinstance(data, dict) else None
+        if ai_case:
+            ai_rows = self._build_ai_assertion_rows(ai_case)
+            combined = self._merge_assertion_rows(assertions, ai_rows)
+            self.right_panel.assertion_panel.set_assertions(combined)
+            data["assertions"] = combined
+        else:
+            self.right_panel.assertion_panel.set_assertions(assertions)
         status = "\u5df2\u4fdd\u5b58" if self.left_panel.is_request_saved(item) else "\u672a\u4fdd\u5b58"
         self.right_panel.save_status_label.setText(status)
         cached_response = self.left_panel.get_request_response(item)
         if cached_response is not None:
             self.right_panel.response_panel.update_response(cached_response)
+            assertion_results = cached_response.get("assertion_results") if isinstance(cached_response, dict) else None
+            if isinstance(assertion_results, list):
+                self.right_panel.response_panel.update_assertion_results(assertion_results)
+            else:
+                self.right_panel.response_panel.clear_assertion_results()
         else:
             self.right_panel.response_panel.clear()
+            self.right_panel.response_panel.clear_assertion_results()
         self.right_panel.show_content()
         self._update_request_controls()
 
@@ -288,7 +303,10 @@ class MainWindow(QMainWindow):
             name = folder_item.text(0)
         description = folder_data.get("description") or ""
         globals_rows = folder_data.get("globals") if isinstance(folder_data.get("globals"), list) else []
-        self.right_panel.collection_panel.set_data(name, description, globals_rows)
+        global_headers_rows = (
+            folder_data.get("global_headers") if isinstance(folder_data.get("global_headers"), list) else []
+        )
+        self.right_panel.collection_panel.set_data(name, description, globals_rows, global_headers_rows)
         self.right_panel.show_collection_panel()
         self.right_panel.save_status_label.setText("\u7528\u4f8b\u96c6")
         self._update_request_controls()
@@ -301,12 +319,20 @@ class MainWindow(QMainWindow):
         name = data.get("name", "").strip()
         description = data.get("description", "").strip()
         globals_rows = data.get("globals") if isinstance(data.get("globals"), list) else []
+        global_headers_rows = (
+            data.get("global_headers") if isinstance(data.get("global_headers"), list) else []
+        )
         existing = self.left_panel.get_folder_data(item)
         suite_type = existing.get("suite_type") if isinstance(existing, dict) else None
         suite_id = existing.get("suite_id") if isinstance(existing, dict) else None
         if name:
             self.left_panel.rename_folder(item, name)
-        payload = {"name": name or item.text(0), "description": description, "globals": globals_rows}
+        payload = {
+            "name": name or item.text(0),
+            "description": description,
+            "globals": globals_rows,
+            "global_headers": global_headers_rows,
+        }
         if isinstance(suite_type, str):
             payload["suite_type"] = suite_type
         if isinstance(suite_id, str):
@@ -342,6 +368,141 @@ class MainWindow(QMainWindow):
                 value = ""
             variables[key] = value
         return variables
+
+    def _build_global_headers(self, folder_data: dict | None) -> dict:
+        if not isinstance(folder_data, dict):
+            return {}
+        rows = folder_data.get("global_headers")
+        if not isinstance(rows, list):
+            return {}
+        headers: dict[str, object] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            if row.get("enabled", True) is False:
+                continue
+            key = str(row.get("key") or "").strip()
+            if not key:
+                continue
+            value = row.get("value")
+            if value is None:
+                value = ""
+            headers[key] = value
+        return headers
+
+    def _build_ai_assertion_rows(self, ai_case: dict) -> list[dict]:
+        rows: list[dict] = []
+        expected_status = ai_case.get("expected_http_status")
+        if expected_status is not None:
+            rows.append(
+                {
+                    "enabled": True,
+                    "type": "status_code",
+                    "operator": "==",
+                    "expected": expected_status,
+                }
+            )
+        expected_code = ai_case.get("expected_business_code")
+        if expected_code not in (None, "", "N/A", "n/a"):
+            rows.append(
+                {
+                    "enabled": True,
+                    "type": "json_path",
+                    "operator": "==",
+                    "expected": expected_code,
+                    "path": "$.code",
+                }
+            )
+        success_expected = parse_success_expectation(ai_case.get("assertion_points") or "")
+        if success_expected is not None:
+            rows.append(
+                {
+                    "enabled": True,
+                    "type": "json_path",
+                    "operator": "==",
+                    "expected": success_expected,
+                    "path": "$.success",
+                }
+            )
+        return rows
+
+    def _merge_assertion_rows(self, manual_rows: object, ai_rows: list[dict]) -> list[dict]:
+        merged: list[dict] = []
+        seen: set[tuple] = set()
+        if isinstance(manual_rows, list):
+            for row in manual_rows:
+                if not isinstance(row, dict):
+                    continue
+                signature = self._assertion_signature(row)
+                if signature in seen:
+                    continue
+                seen.add(signature)
+                merged.append(row)
+        for row in ai_rows:
+            signature = self._assertion_signature(row)
+            if signature in seen:
+                continue
+            seen.add(signature)
+            merged.append(row)
+        return merged
+
+    def _assertion_signature(self, row: dict) -> tuple:
+        expected = self._normalize_assertion_expected(row.get("expected"))
+        return (
+            row.get("type"),
+            row.get("operator"),
+            expected,
+            row.get("path") or "",
+            row.get("header") or "",
+            row.get("target") or "",
+        )
+
+    def _normalize_assertion_expected(self, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        text = value.strip()
+        if not text:
+            return value
+        lowered = text.lower()
+        if lowered in {"true", "false"}:
+            return lowered == "true"
+        if lowered.isdigit():
+            try:
+                return int(lowered)
+            except ValueError:
+                return value
+        try:
+            return json.loads(text)
+        except Exception:
+            return value
+
+    def _normalize_request_headers_for_save(self, data: dict) -> None:
+        headers = data.get("headers")
+        if not isinstance(headers, dict):
+            headers = {}
+        detail = data.get("headers_detail")
+        detail_headers: dict[str, object] = {}
+        if isinstance(detail, list):
+            for row in detail:
+                if not isinstance(row, dict):
+                    continue
+                if row.get("enabled", True) is False:
+                    continue
+                key = str(row.get("key") or "").strip()
+                if not key:
+                    continue
+                value = row.get("value")
+                if value is None:
+                    value = ""
+                detail_headers[key] = value
+        if detail_headers and not headers:
+            headers = detail_headers
+        if headers and not detail_headers:
+            data["headers_detail"] = [
+                {"enabled": True, "key": key, "value": value, "value_type": "text"}
+                for key, value in headers.items()
+            ]
+        data["headers"] = headers
     def _on_save_request(self) -> None:
         item = self.left_panel.get_selected_request_item()
         if item is None:
@@ -350,9 +511,19 @@ class MainWindow(QMainWindow):
             return
         data = self.right_panel.request_panel.get_request_data()
         data["assertions"] = self.right_panel.assertion_panel.get_assertion_rows()
+        self._normalize_request_headers_for_save(data)
         if self._current_case_item is item and isinstance(self._current_case, dict):
             ai_case = self._current_case.get("ai_case")
             if ai_case is not None:
+                request_json = ai_case.get("request_json") if isinstance(ai_case.get("request_json"), dict) else {}
+                request_json.update(
+                    {
+                        "headers": data.get("headers") or {},
+                        "params": data.get("params") or {},
+                        "body": data.get("body"),
+                    }
+                )
+                ai_case["request_json"] = request_json
                 data["ai_case"] = ai_case
         name_value = data.get("name")
         raw_name = name_value.strip() if isinstance(name_value, str) else ""
@@ -406,12 +577,20 @@ class MainWindow(QMainWindow):
         name = data.get("name", "").strip()
         description = data.get("description", "").strip()
         globals_rows = data.get("globals") if isinstance(data.get("globals"), list) else []
+        global_headers_rows = (
+            data.get("global_headers") if isinstance(data.get("global_headers"), list) else []
+        )
         existing = self.left_panel.get_folder_data(folder_item)
         suite_type = existing.get("suite_type") if isinstance(existing, dict) else None
         suite_id = existing.get("suite_id") if isinstance(existing, dict) else None
         if name:
             self.left_panel.rename_folder(folder_item, name)
-        payload = {"name": name or folder_item.text(0), "description": description, "globals": globals_rows}
+        payload = {
+            "name": name or folder_item.text(0),
+            "description": description,
+            "globals": globals_rows,
+            "global_headers": global_headers_rows,
+        }
         if isinstance(suite_type, str):
             payload["suite_type"] = suite_type
         if isinstance(suite_id, str):
@@ -477,6 +656,9 @@ class MainWindow(QMainWindow):
             globals_rows = payload.get("globals")
             if isinstance(globals_rows, list):
                 data["globals"] = globals_rows
+            global_headers_rows = payload.get("global_headers")
+            if isinstance(global_headers_rows, list):
+                data["global_headers"] = global_headers_rows
         if not data:
             return
         try:
@@ -665,7 +847,13 @@ class MainWindow(QMainWindow):
                 data = self._read_request_file(entry)
                 if isinstance(data, dict):
                     merged = {"name": parent_item.text(0), "description": "", "globals": []}
-                    merged.update({k: v for k, v in data.items() if k in {"name", "description", "globals", "suite_type", "suite_id"}})
+                    merged.update(
+                        {
+                            k: v
+                            for k, v in data.items()
+                            if k in {"name", "description", "globals", "global_headers", "suite_type", "suite_id"}
+                        }
+                    )
                     self.left_panel.set_folder_data(parent_item, merged)
                 continue
             data = self._read_request_file(entry)
@@ -892,7 +1080,7 @@ class MainWindow(QMainWindow):
 
     def _on_send_request(self) -> None:
         request_data = self.right_panel.request_panel.get_request_data()
-        assertions = self.right_panel.assertion_panel.get_assertion_rows()
+        assertions = self.right_panel.assertion_panel.get_assertions()
         current = self.left_panel.get_selected_request_item()
         if current is not None:
             folder_item = self._get_parent_folder_item(current)
@@ -900,6 +1088,11 @@ class MainWindow(QMainWindow):
             variables = self._build_global_vars(folder_data)
             if variables:
                 request_data["variables"] = variables
+            global_headers = self._build_global_headers(folder_data)
+            if global_headers:
+                merged = dict(global_headers)
+                merged.update(request_data.get("headers") or {})
+                request_data["headers"] = merged
         if not request_data.get("method") or not request_data.get("url"):
             return
         self._apply_request_state(RequestRunState.RUNNING)
@@ -1021,6 +1214,25 @@ class MainWindow(QMainWindow):
         self._set_busy(True, "\u6267\u884c\u4e2d...", allow_cancel=False)
         self.right_panel.export_report_button.setEnabled(False)
         env = self._get_active_env()
+        folder_item = suite.get("folder_item")
+        if folder_item is not None:
+            folder_data = self.left_panel.get_folder_data(folder_item)
+            globals_vars = self._build_global_vars(folder_data)
+            if globals_vars:
+                env_vars = env.get("vars") if isinstance(env.get("vars"), dict) else {}
+                merged_vars = dict(env_vars)
+                merged_vars.update(globals_vars)
+                env["vars"] = merged_vars
+                for key in ("baseUrl", "base_url", "baseurl"):
+                    if key in globals_vars and globals_vars.get(key):
+                        env["baseUrl"] = globals_vars.get(key)
+                        break
+            global_headers = self._build_global_headers(folder_data)
+            if global_headers:
+                env_headers = env.get("headers") if isinstance(env.get("headers"), dict) else {}
+                merged_headers = dict(env_headers)
+                merged_headers.update(global_headers)
+                env["headers"] = merged_headers
         self._ai_suite_context = suite
         self._ai_env_context = env
         worker = SuiteExecutorWorker(suite, env)
@@ -1060,10 +1272,19 @@ class MainWindow(QMainWindow):
         if item is None:
             return
         response = case_result.get("response")
+        assertion_results = self._convert_ai_assertions(case_result.get("assertions"))
         if isinstance(response, dict):
+            if assertion_results is not None:
+                response["assertion_results"] = assertion_results
+            else:
+                response["assertion_results"] = []
             self.left_panel.set_request_response(item, response)
             if item == self.left_panel.get_selected_request_item():
                 self.right_panel.response_panel.update_response(response)
+                if assertion_results is not None:
+                    self.right_panel.response_panel.update_assertion_results(assertion_results)
+                else:
+                    self.right_panel.response_panel.clear_assertion_results()
         success = case_result.get("result") == "OK"
         self._append_run_history(item, success, response if isinstance(response, dict) else None)
         self.left_panel.set_case_result_icon(item, success)
@@ -1173,10 +1394,52 @@ class MainWindow(QMainWindow):
         self._global_history.insert(0, record)
         self.left_panel.append_global_history(record)
 
+    def _convert_ai_assertions(self, assertions: object) -> list[dict] | None:
+        if not isinstance(assertions, list):
+            return None
+        converted: list[dict] = []
+        for item in assertions:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name") or ""
+            passed = bool(item.get("passed"))
+            expected = item.get("expected")
+            actual = item.get("actual")
+            message = item.get("message") or ""
+            assertion_type = ""
+            path = ""
+            if name == "http_status":
+                assertion_type = "status_code"
+            elif name == "business_code":
+                assertion_type = "json_path"
+                path = "$.code"
+            elif name == "success":
+                assertion_type = "json_path"
+                path = "$.success"
+            if not assertion_type:
+                continue
+            converted.append(
+                {
+                    "type": assertion_type,
+                    "result": "PASS" if passed else "FAIL",
+                    "expected": expected,
+                    "actual": actual,
+                    "message": message,
+                    "operator": "==",
+                    "path": path,
+                }
+            )
+        return converted
+
     def _on_history_selected(self, record: dict) -> None:
         response = record.get("response")
         if isinstance(response, dict):
             self.right_panel.response_panel.update_response(response)
+            assertion_results = response.get("assertion_results") if isinstance(response, dict) else None
+            if isinstance(assertion_results, list):
+                self.right_panel.response_panel.update_assertion_results(assertion_results)
+            else:
+                self.right_panel.response_panel.clear_assertion_results()
         request = record.get("request")
         if isinstance(request, dict):
             self.right_panel.request_panel.set_request_data(request)
@@ -1342,6 +1605,7 @@ class MainWindow(QMainWindow):
         if current is None:
             return None
         item_type = current.data(0, self.left_panel._TYPE_ROLE)
+        suite_folder_item = current if item_type == "folder" else self._get_parent_folder_item(current)
         legacy_cases: list[dict] = []
         ai_cases: list[dict] = []
         if item_type == "request":
@@ -1368,6 +1632,7 @@ class MainWindow(QMainWindow):
                 "cases": ai_cases,
                 "output_dir": "runs",
                 "suite_type": "ai_excel",
+                "folder_item": suite_folder_item,
             }
         if legacy_cases and not ai_cases:
             return {
@@ -1412,6 +1677,11 @@ class MainWindow(QMainWindow):
         variables = self._build_global_vars(folder_data)
         if variables:
             request_data["variables"] = variables
+        global_headers = self._build_global_headers(folder_data)
+        if global_headers:
+            merged = dict(global_headers)
+            merged.update(request_data.get("headers") or {})
+            request_data["headers"] = merged
         pre_processors = data.get("preProcessors")
         post_processors = data.get("postProcessors")
         if not request_data.get("method") or not request_data.get("url"):
@@ -1441,6 +1711,19 @@ class MainWindow(QMainWindow):
             if not isinstance(name, str) or not name.strip():
                 name = item.data(0, self.left_panel._NAME_ROLE) or item.text(0)
             case["name"] = name
+        assertions = data.get("assertions")
+        if isinstance(assertions, list):
+            case["assertions"] = assertions
+        folder_item = self._get_parent_folder_item(item)
+        folder_data = self.left_panel.get_folder_data(folder_item) if folder_item is not None else {}
+        global_headers = self._build_global_headers(folder_data)
+        if global_headers:
+            request_json = case.get("request_json") if isinstance(case.get("request_json"), dict) else {}
+            headers = request_json.get("headers") if isinstance(request_json.get("headers"), dict) else {}
+            merged = dict(global_headers)
+            merged.update(headers)
+            request_json["headers"] = merged
+            case["request_json"] = request_json
         self._suite_case_map[case_id] = item
         return case
     def _filter_assertions(self, assertions: list) -> list:

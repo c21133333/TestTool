@@ -1,0 +1,4487 @@
+{
+  "suite_name": "H5_领取权益接口_测试用例_20260115",
+  "base_url": "https://hynex-osp.reachstar.com",
+  "execute_time": "2026-01-16T09:45:14.339800",
+  "summary": {
+    "total": 41,
+    "ok": 2,
+    "ng": 39,
+    "pass_rate": 4.88,
+    "duration_ms": 67141
+  },
+  "items": [
+    {
+      "case_id": "H5-FUL-037",
+      "name": "HTTP 401 未授权-缺少认证信息",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:10 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=lGqFozzJF3hyg6x-XYi7cMb8PAOychiT-35Ai1qM; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527850065,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527850065,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1860,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "FAIL",
+            "expected": 401,
+            "actual": 200,
+            "message": "status 200 != 401",
+            "operator": "==",
+            "path": ""
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": 200,
+          "expected": 401,
+          "message": "status 200 != 401"
+        }
+      ],
+      "elapsed_ms": 1860,
+      "result": "NG",
+      "failure_reason": "status 200 != 401"
+    },
+    {
+      "case_id": "H5-FUL-038",
+      "name": "HTTP 403 无权限访问",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:11 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=sNRMf4WTwrfWPe0xXUbC4ENVo-9PU1K9cwVn-NR2; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527851708,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527851708,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1639,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "FAIL",
+            "expected": 403,
+            "actual": 200,
+            "message": "status 200 != 403",
+            "operator": "==",
+            "path": ""
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": 200,
+          "expected": 403,
+          "message": "status 200 != 403"
+        }
+      ],
+      "elapsed_ms": 1639,
+      "result": "NG",
+      "failure_reason": "status 200 != 403"
+    },
+    {
+      "case_id": "H5-FUL-039",
+      "name": "HTTP 404 路径/版本错误",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:13 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=ODFleLJ2s-XHgCEfi-RoahjHmLAzEi4WjwpfKbVx; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527853296,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527853296,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1593,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "FAIL",
+            "expected": 404,
+            "actual": 200,
+            "message": "status 200 != 404",
+            "operator": "==",
+            "path": ""
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": false,
+          "actual": 200,
+          "expected": 404,
+          "message": "status 200 != 404"
+        }
+      ],
+      "elapsed_ms": 1593,
+      "result": "NG",
+      "failure_reason": "status 200 != 404"
+    },
+    {
+      "case_id": "H5-FUL-013",
+      "name": "PHONE必填参数为null-phoneNum",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": null,
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:14 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=THxu_d79xzlCn9e6Y_kUmrtlRQ8JBKH-o-cF9mfq; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527854912,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527854912,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1608,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": null,
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1608,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-009",
+      "name": "PHONE必填参数为空字符串-phoneCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:16 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=rxZiYw8JcpgVbh5-2RPleDw8PAcpj6aXwewhVNXo; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527856518,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527856518,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1593,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1593,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-008",
+      "name": "PHONE必填参数为空字符串-phoneNum",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:18 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=voH17A66yKoPDLpcToT1uj7u62f1mqig5rOoVCyz; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527858209,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527858209,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1672,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1672,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-010",
+      "name": "PHONE必填参数为空字符串-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:19 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=8pDdgDZAoF3metniOy8N27vxo6jMsTLql4P4W0_R; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527859792,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527859792,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1561,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215112",
+            "message": "$.code 215112 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215112 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1561,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-004",
+      "name": "PHONE必填参数缺失-phoneCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:21 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=o75aXXQM3xS9ePh3EChLkgfuvySg-5qvddNU3mYa; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527861408,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527861408,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1608,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1608,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-003",
+      "name": "PHONE必填参数缺失-phoneNum",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:23 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=U5Ayg9tMPBmfsJN8qbPAuVeKeqD1O9-XUWb79OpH; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527863011,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527863011,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1593,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1593,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-005",
+      "name": "PHONE必填参数缺失-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:24 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=0zhaIrhrMKcwBmI8dYDjuVAclY3DMv9nRzMkIz-4; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"订单短链不能为空\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"shortLinkCode\",\"rejectedValue\":null,\"message\":\"订单短链不能为空\"}],\"responseTime\":1768527864610}",
+        "response_json": {
+          "code": "104010",
+          "description": "订单短链不能为空",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "shortLinkCode",
+              "rejectedValue": null,
+              "message": "订单短链不能为空"
+            }
+          ],
+          "responseTime": 1768527864610
+        },
+        "elapsed_ms": 1578,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1578,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-023",
+      "name": "PHONE手机号格式非法-包含非数字字符",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800A38000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:26 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=npguRO9n6e5P1IAbqq8EafnBMzkLhdv6uhEnXesQ; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"手机号格式不正确\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"phoneNum\",\"rejectedValue\":\"13800A38000\",\"message\":\"手机号格式不正确\"}],\"responseTime\":1768527866194}",
+        "response_json": {
+          "code": "104010",
+          "description": "手机号格式不正确",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "phoneNum",
+              "rejectedValue": "13800A38000",
+              "message": "手机号格式不正确"
+            }
+          ],
+          "responseTime": 1768527866194
+        },
+        "elapsed_ms": 1562,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800A38000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1562,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-024",
+      "name": "PHONE手机号长度不足-10位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "1380013800",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:27 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=zz7d8ptyEgjsKA3BPv7y3Pu7kbE1J1lb12seHivW; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"手机号格式不正确\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"phoneNum\",\"rejectedValue\":\"1380013800\",\"message\":\"手机号格式不正确\"}],\"responseTime\":1768527867819}",
+        "response_json": {
+          "code": "104010",
+          "description": "手机号格式不正确",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "phoneNum",
+              "rejectedValue": "1380013800",
+              "message": "手机号格式不正确"
+            }
+          ],
+          "responseTime": 1768527867819
+        },
+        "elapsed_ms": 1625,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "1380013800",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1625,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-025",
+      "name": "PHONE手机号长度超限-12位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "138001380000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:29 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=N1v7o6oBKo6JNq0AbHeGrM53_IC8h8rTZHDpUTrd; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"手机号格式不正确\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"phoneNum\",\"rejectedValue\":\"138001380000\",\"message\":\"手机号格式不正确\"}],\"responseTime\":1768527869379}",
+        "response_json": {
+          "code": "104010",
+          "description": "手机号格式不正确",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "phoneNum",
+              "rejectedValue": "138001380000",
+              "message": "手机号格式不正确"
+            }
+          ],
+          "responseTime": 1768527869379
+        },
+        "elapsed_ms": 1562,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "138001380000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1562,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-001",
+      "name": "PHONE方式领取权益-成功",
+      "category": "正常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:31 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=eulEWlnHpQxxsqb8iiBjQ62_qG1WDQezkyoOeo2k; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527870996,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527870996,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1625,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": 0,
+            "actual": "215112",
+            "message": "$.code 215112 != 0",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": true,
+            "actual": false,
+            "message": "$.success False != True",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": 0,
+          "message": "$.code 215112 != 0"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": false,
+          "expected": true,
+          "message": "$.success False != True"
+        }
+      ],
+      "elapsed_ms": 1625,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 0"
+    },
+    {
+      "case_id": "H5-FUL-026",
+      "name": "PHONE验证码格式非法-包含非数字字符",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "12A456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:32 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=NE-XVlUbbm0OhmNhjDqYARXCQXQV-y8XPlM5hZTu; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527872586,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527872586,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1577,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "12A456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215112",
+            "message": "$.code 215112 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215112 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1577,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-027",
+      "name": "PHONE验证码长度不足-4位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "1234",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:34 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=TLjzyuBrP2DNssXd7fDCGf6Y_D-5V-jcbXHlTsuR; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527874195,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527874195,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1593,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "1234",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215112",
+            "message": "$.code 215112 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215112 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1593,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-028",
+      "name": "PHONE验证码长度超限-8位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "12345678",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:35 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=Eo_MhylpQjkykLqVPe7F5N1tTZ9mfovGFMc2sCEL; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527875745,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527875745,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1531,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "12345678",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215112",
+            "message": "$.code 215112 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215112 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1531,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-029",
+      "name": "QQ号格式非法-包含特殊字符",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "1234#678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:37 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=6JnxX32e5blcZTotVSfVB9owArDb8-2InwUoclWq; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"QQ号格式不正确\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"qq\",\"rejectedValue\":\"1234#678\",\"message\":\"QQ号格式不正确\"}],\"responseTime\":1768527877798}",
+        "response_json": {
+          "code": "104010",
+          "description": "QQ号格式不正确",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "qq",
+              "rejectedValue": "1234#678",
+              "message": "QQ号格式不正确"
+            }
+          ],
+          "responseTime": 1768527877798
+        },
+        "elapsed_ms": 2030,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "1234#678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 2030,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-030",
+      "name": "QQ号长度超限-假设最大12位",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "1234567890123",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:39 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=rzLu3Me4PWRVvveg8IWBsNTTAwto733kqWJ0ex16; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"QQ号格式不正确\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"qq\",\"rejectedValue\":\"1234567890123\",\"message\":\"QQ号格式不正确\"}],\"responseTime\":1768527879402}",
+        "response_json": {
+          "code": "104010",
+          "description": "QQ号格式不正确",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "qq",
+              "rejectedValue": "1234567890123",
+              "message": "QQ号格式不正确"
+            }
+          ],
+          "responseTime": 1768527879402
+        },
+        "elapsed_ms": 1608,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "1234567890123",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1608,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-014",
+      "name": "QQ必填参数为null-qq",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": null,
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:40 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=BribQNZVRtVRh38t6XAPrArHIKSp9rOW2SaeGcze; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527880940,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527880940,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1516,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": null,
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1516,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-011",
+      "name": "QQ必填参数为空字符串-qq",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:42 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=1HxpOmgxocM8kysMaRAmuC8EZWoADTNo7Cv5mDv5; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527882529,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527882529,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1577,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1577,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-012",
+      "name": "QQ必填参数为空字符串-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:44 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=YaP9ODaPYc61dv5X29IHkucrI7Ng50juujhh5Von; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527884192,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527884192,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1641,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215114",
+            "message": "$.code 215114 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215114",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215114 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1641,
+      "result": "NG",
+      "failure_reason": "$.code 215114 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-006",
+      "name": "QQ必填参数缺失-qq",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:45 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=Un1ww2sXanjY0l94z0-rOhFrkkqtWq0y29J0v2lu; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527885792,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527885792,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1577,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1577,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-007",
+      "name": "QQ必填参数缺失-shortLinkCode",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:47 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=jh7dmtOd2pnPPKkCvo9mlTO5UH34DwA-cAyF--sq; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"订单短链不能为空\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"shortLinkCode\",\"rejectedValue\":null,\"message\":\"订单短链不能为空\"}],\"responseTime\":1768527887354}",
+        "response_json": {
+          "code": "104010",
+          "description": "订单短链不能为空",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "shortLinkCode",
+              "rejectedValue": null,
+              "message": "订单短链不能为空"
+            }
+          ],
+          "responseTime": 1768527887354
+        },
+        "elapsed_ms": 1547,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1547,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-002",
+      "name": "QQ方式领取权益-成功",
+      "category": "正常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:48 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=8qQC2pvrgFS04jqmMmVwOOAfq47tvpZ3WcBOaosQ; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527888962,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527888962,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1608,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": 0,
+            "actual": "215114",
+            "message": "$.code 215114 != 0",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": true,
+            "actual": false,
+            "message": "$.success False != True",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215114",
+          "expected": 0,
+          "message": "$.code 215114 != 0"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": false,
+          "expected": true,
+          "message": "$.success False != True"
+        }
+      ],
+      "elapsed_ms": 1608,
+      "result": "NG",
+      "failure_reason": "$.code 215114 != 0"
+    },
+    {
+      "case_id": "H5-FUL-031",
+      "name": "shortLinkCode前后包含空格",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "  SLC_VALID_001  ",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:50 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=A2ch3vLOsSWrjba8lwmeNb2d-mWlpgNShKvhSYSw; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527890603,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527890603,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1625,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "  SLC_VALID_001  ",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败或000000(按实现)",
+            "actual": "215114",
+            "message": "$.code 215114 != 参数校验失败或000000(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215114",
+          "expected": "参数校验失败或000000(按实现)",
+          "message": "$.code 215114 != 参数校验失败或000000(按实现)"
+        }
+      ],
+      "elapsed_ms": 1625,
+      "result": "NG",
+      "failure_reason": "$.code 215114 != 参数校验失败或000000(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-022",
+      "name": "type=PHONE非法混传-仅传qq且缺失PHONE必填",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:52 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=9luuTNPNbf1jHH6hd3UpHbjMYL2fgoWfiQJOWlAP; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527892182,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527892182,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1562,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1562,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-018",
+      "name": "type=PHONE非法混传-携带qq",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:53 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=kOUq6tjJTrg_7cjxV5J1GfmJFezS_HlIszwFmpDA; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527893791,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527893791,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1625,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215112",
+            "message": "$.code 215112 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215112 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1625,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-021",
+      "name": "type=QQ非法混传-同时携带phoneNum+phoneCode",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:55 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=iFu7eDbuWu211Dgh4cMXyy-PJkcvXJMDJW8SSjv3; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527895408,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527895408,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1592,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215114",
+            "message": "$.code 215114 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215114",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215114 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1592,
+      "result": "NG",
+      "failure_reason": "$.code 215114 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-020",
+      "name": "type=QQ非法混传-携带phoneCode",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:57 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=NZnJY0f0qAa5RbQWj27plq4mLlGcjrv7bZDNZq2u; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527896998,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527896998,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1578,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215114",
+            "message": "$.code 215114 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215114",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215114 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1578,
+      "result": "NG",
+      "failure_reason": "$.code 215114 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-019",
+      "name": "type=QQ非法混传-携带phoneNum",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:44:59 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=M1x0tZvhx4DDKIFL6jBHrxk6-e2f9-4T7s0Y-GJf; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527899141,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527899141,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 2140,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215114",
+            "message": "$.code 215114 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215114",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215114 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 2140,
+      "result": "NG",
+      "failure_reason": "$.code 215114 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-016",
+      "name": "type为空字符串",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": ""
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:00 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=FHsJKvoXjEK6XGuPz6fzWvRKUEhTzphFAGH3ekT6; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527900798,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527900798,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1672,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": ""
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1672,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-015",
+      "name": "type缺失",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:02 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=HR0r8hQFNFtFCHuCRAj2aMHeqotKmoieyNxivVCw; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"领取类型不能为空\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"type\",\"rejectedValue\":null,\"message\":\"领取类型不能为空\"}],\"responseTime\":1768527902395}",
+        "response_json": {
+          "code": "104010",
+          "description": "领取类型不能为空",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "type",
+              "rejectedValue": null,
+              "message": "领取类型不能为空"
+            }
+          ],
+          "responseTime": 1768527902395
+        },
+        "elapsed_ms": 1562,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1562,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-017",
+      "name": "type非法枚举值",
+      "category": "参数异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "WECHAT"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:03 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=_2fJ683cKpxLEWa-Wjd1zsFSSGq1DQIC14i2DWzJ; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215111\",\"description\":\"参数错误\",\"responseTime\":1768527903946,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215111",
+          "description": "参数错误",
+          "responseTime": 1768527903946,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1547,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "WECHAT"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "215111",
+            "message": "$.code 215111 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215111",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 215111 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1547,
+      "result": "NG",
+      "failure_reason": "$.code 215111 != 参数校验失败(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-034",
+      "name": "业务异常-权益不存在或已失效(215114)",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_NOT_EXIST_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:05 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=zYPb2OSevX-1bNKreWR1f4W49n2fm-8PTgGRd9hq; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527905632,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527905632,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1687,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_NOT_EXIST_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": 215114,
+            "actual": "215114",
+            "message": "",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": true,
+          "actual": "215114",
+          "expected": 215114,
+          "message": ""
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1687,
+      "result": "OK",
+      "failure_reason": ""
+    },
+    {
+      "case_id": "H5-FUL-035",
+      "name": "业务异常-重复领取/已申请过权益(215116)",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:07 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=5y5WpAdf9arVHpb-7h5nwaBWH-eHeH_jtDN6iscT; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215114\",\"description\":\"权益不存在或者已过期\",\"responseTime\":1768527907336,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215114",
+          "description": "权益不存在或者已过期",
+          "responseTime": 1768527907336,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1703,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12345678",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": 215116,
+            "actual": "215114",
+            "message": "$.code 215114 != 215116",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215114",
+          "expected": 215116,
+          "message": "$.code 215114 != 215116"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1703,
+      "result": "NG",
+      "failure_reason": "$.code 215114 != 215116"
+    },
+    {
+      "case_id": "H5-FUL-032",
+      "name": "业务异常-验证码过期(215112)",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:08 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=oqVObxho7kDbP2flDXdEzqpQvj-sWIEE-gPsL89v; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527908958,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527908958,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1593,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": 215112,
+            "actual": "215112",
+            "message": "",
+            "operator": "==",
+            "path": "$.code"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": true,
+          "actual": "215112",
+          "expected": 215112,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1593,
+      "result": "OK",
+      "failure_reason": ""
+    },
+    {
+      "case_id": "H5-FUL-033",
+      "name": "业务异常-验证码错误(215113)",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "000000",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:10 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=XK7q74Bc0af6HM5Rl__IZ37hQjxj3xCLJ5ngoPiA; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527910531,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527910531,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1577,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "000000",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": 215113,
+            "actual": "215112",
+            "message": "$.code 215112 != 215113",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "PASS",
+            "expected": false,
+            "actual": false,
+            "message": "",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": 215113,
+          "message": "$.code 215112 != 215113"
+        },
+        {
+          "name": "success",
+          "passed": true,
+          "actual": false,
+          "expected": false,
+          "message": ""
+        }
+      ],
+      "elapsed_ms": 1577,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 215113"
+    },
+    {
+      "case_id": "H5-FUL-036",
+      "name": "幂等性-同一PHONE请求重复提交",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:12 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=slz38Th3wtFIYowScPFMlnChd0McSq9WeqEh0C1_; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"215112\",\"description\":\"验证码已过期，请重新获取\",\"responseTime\":1768527912171,\"responseBody\":null,\"error\":true,\"success\":false,\"ok\":false}",
+        "response_json": {
+          "code": "215112",
+          "description": "验证码已过期，请重新获取",
+          "responseTime": 1768527912171,
+          "responseBody": null,
+          "error": true,
+          "success": false,
+          "ok": false
+        },
+        "elapsed_ms": 1625,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "shortLinkCode": "SLC_VALID_001",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "215116(按实现)",
+            "actual": "215112",
+            "message": "$.code 215112 != 215116(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "215112",
+          "expected": "215116(按实现)",
+          "message": "$.code 215112 != 215116(按实现)"
+        }
+      ],
+      "elapsed_ms": 1625,
+      "result": "NG",
+      "failure_reason": "$.code 215112 != 215116(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-041",
+      "name": "组合异常-shortLinkCode不存在(215114)且qq格式非法",
+      "category": "业务异常",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "qq": "12#34",
+          "shortLinkCode": "SLC_NOT_EXIST_001",
+          "type": "QQ"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:13 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=YkLSNRugoS360R8HozWxSBZ_2ru-cqFPE0GPXkFy; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"QQ号格式不正确\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"qq\",\"rejectedValue\":\"12#34\",\"message\":\"QQ号格式不正确\"}],\"responseTime\":1768527913779}",
+        "response_json": {
+          "code": "104010",
+          "description": "QQ号格式不正确",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "qq",
+              "rejectedValue": "12#34",
+              "message": "QQ号格式不正确"
+            }
+          ],
+          "responseTime": 1768527913779
+        },
+        "elapsed_ms": 1593,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "qq": "12#34",
+          "shortLinkCode": "SLC_NOT_EXIST_001",
+          "type": "QQ"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败或215114(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败或215114(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败或215114(按实现)",
+          "message": "$.code 104010 != 参数校验失败或215114(按实现)"
+        }
+      ],
+      "elapsed_ms": 1593,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败或215114(按实现)"
+    },
+    {
+      "case_id": "H5-FUL-040",
+      "name": "组合异常-缺失shortLinkCode且混传qq(type=PHONE)",
+      "category": "非法混传",
+      "request": {
+        "method": "POST",
+        "url": "https://hynex-osp.reachstar.com/hnms-facade-osp-mall/api/h5/osp-facade/v1/orders/fulfill",
+        "headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "params": null,
+        "body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "type": "PHONE"
+        },
+        "timeout": 20
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Fri, 16 Jan 2026 01:45:15 GMT",
+          "Content-Type": "application/json",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "Set-Cookie": "JSESSIONID=mpDYPAmRvc56uQ9f4tIN1usvbuRnRXKBRrHvX0Qj; path=/",
+          "Access-Control-Allow-Origin": "https://static-hkrtd.reachstar.com",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+          "Access-Control-Expose-Headers": "Content-Length,Content-Range",
+          "Access-Control-Allow-Credentials": "true"
+        },
+        "response_text": "{\"code\":\"104010\",\"description\":\"订单短链不能为空\",\"tips\":[{\"object\":\"h5FulFillParam\",\"field\":\"shortLinkCode\",\"rejectedValue\":null,\"message\":\"订单短链不能为空\"}],\"responseTime\":1768527915350}",
+        "response_json": {
+          "code": "104010",
+          "description": "订单短链不能为空",
+          "tips": [
+            {
+              "object": "h5FulFillParam",
+              "field": "shortLinkCode",
+              "rejectedValue": null,
+              "message": "订单短链不能为空"
+            }
+          ],
+          "responseTime": 1768527915350
+        },
+        "elapsed_ms": 1563,
+        "request_headers": {
+          "Authorization": "Basic YWRtaW46MTIzNDU2",
+          "Content-Type": "application/json"
+        },
+        "request_body": {
+          "phoneCode": "123456",
+          "phoneNum": "13800138000",
+          "qq": "12345678",
+          "type": "PHONE"
+        },
+        "assertion_results": [
+          {
+            "type": "status_code",
+            "result": "PASS",
+            "expected": 200,
+            "actual": 200,
+            "message": "",
+            "operator": "==",
+            "path": ""
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": "参数校验失败(按实现)",
+            "actual": "104010",
+            "message": "$.code 104010 != 参数校验失败(按实现)",
+            "operator": "==",
+            "path": "$.code"
+          },
+          {
+            "type": "json_path",
+            "result": "FAIL",
+            "expected": false,
+            "actual": null,
+            "message": "path not found: $.success",
+            "operator": "==",
+            "path": "$.success"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "name": "http_status",
+          "passed": true,
+          "actual": 200,
+          "expected": 200,
+          "message": ""
+        },
+        {
+          "name": "business_code",
+          "passed": false,
+          "actual": "104010",
+          "expected": "参数校验失败(按实现)",
+          "message": "$.code 104010 != 参数校验失败(按实现)"
+        },
+        {
+          "name": "success",
+          "passed": false,
+          "actual": null,
+          "expected": false,
+          "message": "path not found: $.success"
+        }
+      ],
+      "elapsed_ms": 1563,
+      "result": "NG",
+      "failure_reason": "$.code 104010 != 参数校验失败(按实现)"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +100,7 @@ class ExcelImporter:
         request_json = self._parse_request_json(request_json_value, row_idx, failures)
         expected_status = self._parse_status(expected_http_status, row_idx, failures)
         if case_id and case_id in existing_ids:
-            failures.append(self._failure(row_idx, "用例ID", "duplicate case id"))
+            case_id = self._ensure_unique_case_id(case_id, existing_ids)
 
         if failures:
             return None, failures
@@ -199,6 +200,17 @@ class ExcelImporter:
         if isinstance(value, str):
             return value.strip()
         return str(value).strip()
+
+    def _ensure_unique_case_id(self, base: str, existing_ids: set[str]) -> str:
+        candidate = base.strip()
+        if not candidate:
+            candidate = uuid.uuid4().hex
+        index = 1
+        unique = candidate
+        while unique in existing_ids:
+            unique = f"{candidate}_{index}"
+            index += 1
+        return unique
 
     def _failure(self, row_idx: int, field: str, reason: str) -> dict:
         return {

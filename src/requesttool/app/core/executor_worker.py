@@ -111,16 +111,17 @@ def _send_request(payload: dict) -> dict:
             "response_json": response_json,
             "elapsed_ms": elapsed_ms,
             "request_headers": headers,
+            "request_body": body,
         }
     except requests.exceptions.Timeout as exc:
-        return _build_error("Timeout", str(exc), headers, start)
+        return _build_error("Timeout", str(exc), headers, body, start)
     except requests.exceptions.ConnectionError as exc:
-        return _build_error("ConnectionError", str(exc), headers, start)
+        return _build_error("ConnectionError", str(exc), headers, body, start)
     except requests.RequestException as exc:
-        return _build_error("RequestException", str(exc), headers, start)
+        return _build_error("RequestException", str(exc), headers, body, start)
 
 
-def _build_error(error_type: str, message: str, headers: dict, start: float) -> dict:
+def _build_error(error_type: str, message: str, headers: dict, body: object, start: float) -> dict:
     elapsed_ms = int((time.monotonic() - start) * 1000)
     return {
         "success": False,
@@ -128,13 +129,51 @@ def _build_error(error_type: str, message: str, headers: dict, start: float) -> 
         "error_message": message,
         "elapsed_ms": elapsed_ms,
         "request_headers": headers,
+        "request_body": body,
     }
+
+def _is_ai_assertion_enabled(
+    assertions: object,
+    assertion_type: str,
+    path: str | None = None,
+    expected: object | None = None,
+    operator: str | None = "==",
+) -> bool:
+    if not isinstance(assertions, list):
+        return True
+    matched = False
+    normalized_expected = _normalize_expected(expected)
+    for row in assertions:
+        if not isinstance(row, dict):
+            continue
+        if row.get("type") != assertion_type:
+            continue
+        target = row.get("path") or row.get("target") or row.get("header") or ""
+        if path and target and target != path:
+            continue
+        if operator:
+            row_operator = row.get("operator") or "=="
+            if row_operator != operator:
+                continue
+        if expected is not None:
+            row_expected = _normalize_expected(row.get("expected"))
+            if row_expected != normalized_expected:
+                continue
+        matched = True
+        if row.get("enabled", True) is True:
+            return True
+    if matched:
+        return False
+    return False
 
 
 def _build_assertions(case: dict, response: dict) -> list[dict]:
     results: list[dict] = []
+    assertion_rows = case.get("assertions")
     expected_status = case.get("expected_http_status")
-    if expected_status is not None:
+    if expected_status is not None and _is_ai_assertion_enabled(
+        assertion_rows, "status_code", expected=expected_status
+    ):
         try:
             expected_status_value = int(expected_status)
         except (TypeError, ValueError):
@@ -147,7 +186,9 @@ def _build_assertions(case: dict, response: dict) -> list[dict]:
                 )
             )
     expected_code = _normalize_expected(case.get("expected_business_code"))
-    if expected_code not in (None, "", "N/A", "n/a"):
+    if expected_code not in (None, "", "N/A", "n/a") and _is_ai_assertion_enabled(
+        assertion_rows, "json_path", "$.code", expected=expected_code
+    ):
         results.append(
             assertion_core.assert_jsonpath_equals(
                 response.get("response_json"),
@@ -157,7 +198,9 @@ def _build_assertions(case: dict, response: dict) -> list[dict]:
             )
         )
     success_expected = assertion_core.parse_success_expectation(case.get("assertion_points") or "")
-    if success_expected is not None:
+    if success_expected is not None and _is_ai_assertion_enabled(
+        assertion_rows, "json_path", "$.success", expected=success_expected
+    ):
         results.append(
             assertion_core.assert_jsonpath_equals(
                 response.get("response_json"),
