@@ -1,4 +1,4 @@
-from assertions import AssertionEngine
+from requesttool.shared.assertions import AssertionEngine
 
 
 def test_status_code_pass_fail():

@@ -1,1 +1,1 @@
-"""Core utilities for project storage, imports, execution, and reporting."""
+"""Core utilities shared by the web runtime."""

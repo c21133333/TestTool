@@ -1,0 +1,112 @@
+:root {
+  color-scheme: dark;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 24%),
+    #090d12;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.loading-screen,
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.login-card {
+  width: min(460px, 100%);
+  background: linear-gradient(180deg, rgba(16, 21, 28, 0.96), rgba(10, 14, 20, 0.92));
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.35);
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.app-shell__sider {
+  background: linear-gradient(180deg, rgba(14, 19, 26, 0.96), rgba(9, 13, 18, 0.98)) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app-shell__header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  background: rgba(7, 11, 16, 0.62) !important;
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app-shell__content {
+  padding: 28px;
+  background: transparent;
+}
+
+.brand-panel {
+  padding: 24px 20px 18px;
+}
+
+.brand-panel h3 {
+  margin-top: 10px !important;
+  color: #fff !important;
+}
+
+.brand-panel__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #fb923c;
+}
+
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.page-hero {
+  padding: 8px 2px 6px;
+}
+
+.page-hero h1,
+.page-hero h2 {
+  margin-bottom: 8px !important;
+}
+
+.glass-card,
+.metric-card {
+  background: linear-gradient(180deg, rgba(18, 24, 33, 0.92), rgba(10, 14, 20, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.24);
+}
+
+.row-line {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 1100px) {
+  .app-shell__content {
+    padding: 18px;
+  }
+}

@@ -11,10 +11,22 @@ dist/
 # Virtual environments
 .venv/
 venv/
+.env
 
 # Testing
 .pytest_cache/
 .coverage
+
+# Frontend / web runtime
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+web_runs/
+web_eazytest.db
+runs/
+results/
+project.json
+requests.json
 
 # IDE
 .vscode/

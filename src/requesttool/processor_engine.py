@@ -6,7 +6,6 @@ import random
 import re
 import shutil
 import subprocess
-import sys
 import time
 import uuid
 from pathlib import Path
@@ -111,20 +110,13 @@ def _execute_js_script(code: str, variables: dict, timeout_ms: int) -> dict:
 
 def _find_node_binary() -> str | None:
     binary = "node.exe" if os.name == "nt" else "node"
-    candidates = []
-    exe_dir = Path(sys.executable).resolve().parent
-    candidates.append(exe_dir / binary)
-    module_dir = Path(__file__).resolve().parent
-    candidates.append(module_dir / binary)
-    candidates.append(module_dir.parent / binary)
-    candidates.append(module_dir.parents[1] / binary)
-    project_root = module_dir.parents[2] if len(module_dir.parents) > 2 else module_dir.parent
-    candidates.append(project_root / "third_party" / "node" / binary)
-    candidates.append(Path.cwd() / binary)
-    for candidate in candidates:
-        if candidate.exists():
-            return str(candidate)
-    return shutil.which("node")
+    configured = (os.getenv("REQUESTTOOL_NODE_BIN") or os.getenv("NODE_BINARY") or "").strip()
+    if configured:
+        configured_path = Path(configured)
+        if configured_path.exists():
+            return str(configured_path)
+        return shutil.which(configured)
+    return shutil.which(binary) or shutil.which("node")
 
 
 @registry.register("set_variable")
