@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies.auth import require_authenticated_user, require_roles
 from backend.app.core.database import session_scope
-from backend.app.core.responses import ApiResponse
+from backend.app.core.responses import ApiResponse, PageData
 from backend.app.models.user import User
 from backend.app.models.user import UserRole
 from backend.app.schemas.workspace import ProjectCreate, ProjectRead
@@ -15,13 +15,21 @@ from backend.app.services.workspace_service import WorkspaceService
 router = APIRouter()
 
 
-@router.get("", response_model=ApiResponse[list[ProjectRead]])
+@router.get("", response_model=ApiResponse[PageData[ProjectRead]])
 def list_projects(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=200),
     _: User = Depends(require_authenticated_user),
     session: Session = Depends(session_scope),
-) -> ApiResponse[list[ProjectRead]]:
-    projects = WorkspaceService(session).list_projects()
-    return ApiResponse.ok(data=[ProjectRead.model_validate(project) for project in projects], message="Projects loaded.")
+) -> ApiResponse[PageData[ProjectRead]]:
+    projects, total = WorkspaceService(session).list_projects_page(page=page, page_size=page_size)
+    return ApiResponse.paginated(
+        items=[ProjectRead.model_validate(project) for project in projects],
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="Projects loaded.",
+    )
 
 
 @router.post("", response_model=ApiResponse[ProjectRead])

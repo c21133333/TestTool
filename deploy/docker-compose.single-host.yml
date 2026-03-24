@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: eazytest
+      POSTGRES_USER: eazytest
+      POSTGRES_PASSWORD: eazytest
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eazytest -d eazytest"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: eazytest-web:local
+    restart: unless-stopped
+    env_file:
+      - ./env/production.env.example
+    environment:
+      EAZYTEST_DATABASE_URL: postgresql://eazytest:eazytest@db:5432/eazytest
+    command: ["python", "-m", "requesttool", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - reports_data:/var/lib/eazytest/reports
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    image: eazytest-web:local
+    restart: unless-stopped
+    env_file:
+      - ./env/production.env.example
+    environment:
+      EAZYTEST_DATABASE_URL: postgresql://eazytest:eazytest@db:5432/eazytest
+    command: ["python", "-m", "requesttool", "worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    volumes:
+      - reports_data:/var/lib/eazytest/reports
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/eazytest.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  postgres_data:
+  reports_data:

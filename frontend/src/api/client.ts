@@ -1,9 +1,31 @@
-import type { ApiResponse } from './types';
+import type { ApiErrorResponse, ApiResponse } from './types';
 
 const API_PREFIX = '/api/v1';
 
 export class ApiClient {
   constructor(private token: string | null) {}
+
+  async readErrorMessage(response: Response, fallback = '请求失败。'): Promise<string> {
+    const contentType = response.headers.get('Content-Type') ?? '';
+    if (!contentType.includes('application/json')) {
+      return fallback;
+    }
+    try {
+      const payload = (await response.json()) as ApiErrorResponse | { detail?: string; message?: string };
+      if ('error' in payload && payload.error) {
+        return payload.message || fallback;
+      }
+      if ('detail' in payload && payload.detail) {
+        return payload.detail;
+      }
+      if ('message' in payload && payload.message) {
+        return payload.message;
+      }
+    } catch {
+      return fallback;
+    }
+    return fallback;
+  }
 
   async request<T>(path: string, init?: RequestInit): Promise<T> {
     const headers = new Headers(init?.headers);
@@ -17,8 +39,11 @@ export class ApiClient {
       ...init,
       headers,
     });
-    const payload = (await response.json()) as ApiResponse<T> | { detail?: string };
+    const payload = (await response.json()) as ApiResponse<T> | ApiErrorResponse | { detail?: string };
     if (!response.ok) {
+      if ('error' in payload && payload.error) {
+        throw new Error(payload.message || '请求失败。');
+      }
       throw new Error('detail' in payload ? payload.detail ?? '请求失败。' : '请求失败。');
     }
     return (payload as ApiResponse<T>).data;

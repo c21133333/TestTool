@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.models.api_case import ApiCase
@@ -16,6 +16,13 @@ class WorkspaceRepository:
     def list_projects(self) -> list[Project]:
         stmt = select(Project).options(selectinload(Project.suites), selectinload(Project.environments)).order_by(Project.name)
         return list(self._session.scalars(stmt).unique().all())
+
+    def list_projects_page(self, *, page: int, page_size: int) -> tuple[list[Project], int]:
+        stmt = select(Project).options(selectinload(Project.suites), selectinload(Project.environments)).order_by(Project.name)
+        count_stmt = select(func.count(Project.id)).select_from(Project)
+        total = int(self._session.scalar(count_stmt) or 0)
+        paged_stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        return list(self._session.scalars(paged_stmt).unique().all()), total
 
     def get_project(self, project_id: int) -> Project | None:
         stmt = (
@@ -47,6 +54,16 @@ class WorkspaceRepository:
             stmt = stmt.where(Suite.project_id == project_id)
         return list(self._session.scalars(stmt).unique().all())
 
+    def list_suites_page(self, *, page: int, page_size: int, project_id: int | None = None) -> tuple[list[Suite], int]:
+        stmt = select(Suite).options(selectinload(Suite.cases)).order_by(Suite.name)
+        count_stmt = select(func.count(Suite.id)).select_from(Suite)
+        if project_id is not None:
+            stmt = stmt.where(Suite.project_id == project_id)
+            count_stmt = count_stmt.where(Suite.project_id == project_id)
+        total = int(self._session.scalar(count_stmt) or 0)
+        paged_stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        return list(self._session.scalars(paged_stmt).unique().all()), total
+
     def get_suite(self, suite_id: int) -> Suite | None:
         stmt = select(Suite).where(Suite.id == suite_id).options(selectinload(Suite.cases))
         return self._session.scalar(stmt)
@@ -70,6 +87,16 @@ class WorkspaceRepository:
             stmt = stmt.where(ApiCase.suite_id == suite_id)
         return list(self._session.scalars(stmt).all())
 
+    def list_cases_page(self, *, page: int, page_size: int, suite_id: int | None = None) -> tuple[list[ApiCase], int]:
+        stmt = select(ApiCase).order_by(ApiCase.created_at.desc())
+        count_stmt = select(func.count(ApiCase.id)).select_from(ApiCase)
+        if suite_id is not None:
+            stmt = stmt.where(ApiCase.suite_id == suite_id)
+            count_stmt = count_stmt.where(ApiCase.suite_id == suite_id)
+        total = int(self._session.scalar(count_stmt) or 0)
+        paged_stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        return list(self._session.scalars(paged_stmt).all()), total
+
     def get_case(self, case_id: int) -> ApiCase | None:
         return self._session.get(ApiCase, case_id)
 
@@ -91,6 +118,22 @@ class WorkspaceRepository:
         if project_id is not None:
             stmt = stmt.where(Environment.project_id == project_id)
         return list(self._session.scalars(stmt).all())
+
+    def list_environments_page(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        project_id: int | None = None,
+    ) -> tuple[list[Environment], int]:
+        stmt = select(Environment).order_by(Environment.name)
+        count_stmt = select(func.count(Environment.id)).select_from(Environment)
+        if project_id is not None:
+            stmt = stmt.where(Environment.project_id == project_id)
+            count_stmt = count_stmt.where(Environment.project_id == project_id)
+        total = int(self._session.scalar(count_stmt) or 0)
+        paged_stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        return list(self._session.scalars(paged_stmt).all()), total
 
     def get_environment(self, environment_id: int) -> Environment | None:
         return self._session.get(Environment, environment_id)

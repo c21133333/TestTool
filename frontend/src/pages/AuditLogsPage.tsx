@@ -5,8 +5,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { createApi } from '../api/services';
 import type { AuditLog } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { formatDateTime } from '../utils/display';
 
 type DateRangeValue = [Dayjs | null, Dayjs | null] | null;
+
+function roleLabel(role: AuditLog['actor_role']) {
+  if (role === 'admin') return '管理员';
+  if (role === 'tester') return '测试';
+  if (role === 'developer') return '开发';
+  return '系统';
+}
 
 export function AuditLogsPage() {
   const { token } = useAuth();
@@ -146,7 +154,7 @@ export function AuditLogsPage() {
             setPageSize(pagination.pageSize ?? 10);
           }}
           columns={[
-            { title: '时间', dataIndex: 'created_at', width: 190 },
+            { title: '时间', dataIndex: 'created_at', width: 190, render: (value: string) => formatDateTime(value) },
             {
               title: '操作人',
               width: 220,
@@ -163,7 +171,7 @@ export function AuditLogsPage() {
             {
               title: '角色',
               width: 110,
-              render: (_, row) => (row.actor_role ? <Tag>{row.actor_role}</Tag> : <Tag>system</Tag>),
+              render: (_, row) => <Tag>{roleLabel(row.actor_role)}</Tag>,
             },
             { title: '动作', dataIndex: 'action', width: 170, render: (value) => <Tag color="processing">{value}</Tag> },
             { title: '资源', render: (_, row) => `${row.resource_type}#${row.resource_id}` },

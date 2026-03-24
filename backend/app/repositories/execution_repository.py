@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -73,3 +75,30 @@ class ExecutionRepository:
             .order_by(Execution.created_at.asc())
         )
         return self._session.scalar(stmt)
+
+    def list_stale_running_executions(self, *, started_before: datetime) -> list[Execution]:
+        stmt = (
+            select(Execution)
+            .where(
+                Execution.scope == ExecutionScope.suite,
+                Execution.status == ExecutionStatus.running,
+                Execution.started_at.is_not(None),
+                Execution.started_at < started_before,
+            )
+            .options(selectinload(Execution.items), selectinload(Execution.reports))
+            .order_by(Execution.started_at.asc(), Execution.id.asc())
+        )
+        return list(self._session.scalars(stmt).unique().all())
+
+    def list_metric_rows(self) -> list[dict[str, object]]:
+        stmt = select(Execution.status, Execution.summary_json, Execution.created_at)
+        rows: list[dict[str, object]] = []
+        for status, summary_json, created_at in self._session.execute(stmt).all():
+            rows.append(
+                {
+                    "status": status.value if isinstance(status, ExecutionStatus) else str(status),
+                    "summary": summary_json if isinstance(summary_json, dict) else {},
+                    "created_at": created_at,
+                }
+            )
+        return rows

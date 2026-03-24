@@ -1,0 +1,14 @@
+.git
+.github
+.pytest_cache
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+web_runs
+frontend/node_modules
+frontend/dist
+tests
+docs/plans

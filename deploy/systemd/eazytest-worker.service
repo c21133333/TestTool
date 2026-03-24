@@ -1,0 +1,14 @@
+[Unit]
+Description=Eazy Test Web Worker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/eazytest
+EnvironmentFile=/opt/eazytest/.env
+ExecStart=/opt/eazytest/.venv/bin/python -m requesttool worker
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

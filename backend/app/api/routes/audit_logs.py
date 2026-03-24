@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("", response_model=ApiResponse[AuditLogListData])
 def list_audit_logs(
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=200),
     search: str | None = Query(default=None),
     action: str | None = Query(default=None),
     actor: str | None = Query(default=None),

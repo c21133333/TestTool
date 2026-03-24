@@ -14,6 +14,11 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.tester
 
 
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+    reason: str = ""
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

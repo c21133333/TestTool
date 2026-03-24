@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import uuid
 from datetime import datetime
@@ -12,11 +13,14 @@ from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
+from backend.app.core.observability import get_logger, log_event
 from backend.app.models.execution import Execution, ExecutionItem, ExecutionScope, ExecutionStatus
 from backend.app.models.report import Report
 from backend.app.schemas.workspace import EnvironmentCreate
 from backend.app.schemas.workspace import ApiCaseCreate, SuiteCreate
 from backend.app.services.workspace_service import WorkspaceService
+
+logger = get_logger("import")
 
 
 class ImportService:
@@ -38,6 +42,7 @@ class ImportService:
 
     def import_excel(self, project_id: int, file_path: str | Path) -> dict[str, Any]:
         path = Path(file_path)
+        log_event(logger, "import.excel.started", project_id=project_id, file_path=path)
         workbook = load_workbook(path, data_only=True)
         sheet = workbook[workbook.sheetnames[0]]
         headers = [str(cell.value).strip() if cell.value is not None else "" for cell in sheet[1]]
@@ -57,21 +62,34 @@ class ImportService:
                 created_cases += 1
             except Exception as exc:
                 failures.append({"row": row_index, "reason": str(exc)})
-        return {
+        result = {
             "suite_id": suite.id,
             "suite_name": suite.name,
             "created_cases": created_cases,
             "failures": failures,
         }
+        log_event(
+            logger,
+            "import.excel.completed",
+            level=logging.WARNING if failures else logging.INFO,
+            project_id=project_id,
+            suite_id=suite.id,
+            created_cases=created_cases,
+            failure_count=len(failures),
+        )
+        return result
 
     def import_legacy_project(self, project_id: int, file_path: str | Path) -> dict[str, Any]:
         self._workspace.get_project(project_id)
         path = Path(file_path)
+        log_event(logger, "import.legacy.started", project_id=project_id, file_path=path)
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
+            log_event(logger, "import.legacy.failed", level=logging.ERROR, project_id=project_id, reason="invalid_json", message=str(exc))
             raise ValueError(f"Invalid JSON file: {exc}") from exc
         if not isinstance(payload, dict):
+            log_event(logger, "import.legacy.failed", level=logging.ERROR, project_id=project_id, reason="invalid_payload")
             raise ValueError("Legacy project payload must be a JSON object.")
 
         created_environments = self._import_legacy_environments(project_id, payload.get("envs"))
@@ -121,7 +139,7 @@ class ImportService:
         created_reports += report_count
         skipped_runs += skipped_count
 
-        return {
+        result = {
             "project_id": project_id,
             "created_environments": created_environments,
             "created_suites": created_suites,
@@ -130,6 +148,19 @@ class ImportService:
             "created_reports": created_reports,
             "skipped_runs": skipped_runs,
         }
+        log_event(
+            logger,
+            "import.legacy.completed",
+            level=logging.WARNING if skipped_runs else logging.INFO,
+            project_id=project_id,
+            created_environments=created_environments,
+            created_suites=created_suites,
+            created_cases=created_cases,
+            created_executions=created_executions,
+            created_reports=created_reports,
+            skipped_runs=skipped_runs,
+        )
+        return result
 
     def _build_index_map(self, headers: list[str]) -> dict[str, int]:
         index_map: dict[str, int] = {}

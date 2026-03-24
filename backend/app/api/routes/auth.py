@@ -20,12 +20,12 @@ def login(payload: LoginRequest, session: Session = Depends(session_scope)) -> A
     auth_service = AuthService(session)
     user = auth_service.authenticate(payload.username, payload.password)
     result = auth_service.build_session(user)
-    return ApiResponse.ok(data=result, message="登录成功。")
+    return ApiResponse.ok(data=result, message="Login succeeded.")
 
 
 @router.get("/me", response_model=ApiResponse[UserRead])
 def current_user(current_actor: User = Depends(require_authenticated_user)) -> ApiResponse[UserRead]:
-    return ApiResponse.ok(data=UserRead.model_validate(current_actor), message="已获取当前用户。")
+    return ApiResponse.ok(data=UserRead.model_validate(current_actor), message="Current user loaded.")
 
 
 @router.post("/logout", response_model=ApiResponse[None])
@@ -35,4 +35,4 @@ def logout(
 ) -> ApiResponse[None]:
     if credentials is not None and credentials.scheme.lower() == "bearer":
         AuthService(session).revoke_access_token(credentials.credentials)
-    return ApiResponse.ok(message="已退出登录。")
+    return ApiResponse.ok(message="Logged out.")

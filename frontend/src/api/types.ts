@@ -4,6 +4,25 @@ export type ApiResponse<T> = {
   data: T;
 };
 
+export type ApiErrorResponse = {
+  success: false;
+  message: string;
+  error: {
+    code: string;
+    status: number;
+    details?: unknown;
+    request_id?: string | null;
+  };
+  data: null;
+};
+
+export type PaginatedResult<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export type User = {
   id: number;
   username: string;
@@ -16,7 +35,9 @@ export type User = {
 export type AuthSession = {
   access_token: string;
   token_type: string;
+  issued_at: string;
   expires_at: string;
+  expires_in_seconds: number;
   user: User;
 };
 
@@ -94,12 +115,7 @@ export type Execution = {
   items: ExecutionItem[];
 };
 
-export type ExecutionListResult = {
-  items: Execution[];
-  total: number;
-  page: number;
-  page_size: number;
-};
+export type ExecutionListResult = PaginatedResult<Execution>;
 
 export type Report = {
   id: number;
@@ -124,9 +140,19 @@ export type AuditLog = {
   created_at: string;
 };
 
-export type AuditLogListResult = {
-  items: AuditLog[];
-  total: number;
-  page: number;
-  page_size: number;
+export type AuditLogListResult = PaginatedResult<AuditLog>;
+
+export type LegacyImportPolicy = {
+  mode: string;
+  status: 'migration_only' | 'sunset_scheduled' | 'disabled' | 'expired';
+  legacy_imports_enabled: boolean;
+  sunset_date: string | null;
+  rules: string[];
+  capabilities: Array<{
+    id: string;
+    label: string;
+    status: string;
+    target: string;
+  }>;
+  retirement_plan: string[];
 };

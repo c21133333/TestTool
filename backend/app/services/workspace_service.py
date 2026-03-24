@@ -19,6 +19,9 @@ class WorkspaceService:
     def list_projects(self) -> list[Project]:
         return self._workspace.list_projects()
 
+    def list_projects_page(self, *, page: int = 1, page_size: int = 20) -> tuple[list[Project], int]:
+        return self._workspace.list_projects_page(page=page, page_size=page_size)
+
     def create_project(self, payload: ProjectCreate) -> Project:
         project = Project(name=payload.name.strip(), description=payload.description.strip())
         return self._workspace.create_project(project)
@@ -41,6 +44,15 @@ class WorkspaceService:
 
     def list_suites(self, project_id: int | None = None) -> list[Suite]:
         return self._workspace.list_suites(project_id)
+
+    def list_suites_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        project_id: int | None = None,
+    ) -> tuple[list[Suite], int]:
+        return self._workspace.list_suites_page(page=page, page_size=page_size, project_id=project_id)
 
     def create_suite(self, payload: SuiteCreate) -> Suite:
         self.get_project(payload.project_id)
@@ -67,6 +79,15 @@ class WorkspaceService:
 
     def list_cases(self, suite_id: int | None = None) -> list[ApiCase]:
         return self._workspace.list_cases(suite_id)
+
+    def list_cases_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        suite_id: int | None = None,
+    ) -> tuple[list[ApiCase], int]:
+        return self._workspace.list_cases_page(page=page, page_size=page_size, suite_id=suite_id)
 
     def create_case(self, payload: ApiCaseCreate) -> ApiCase:
         self.get_suite(payload.suite_id)
@@ -113,6 +134,15 @@ class WorkspaceService:
 
     def list_environments(self, project_id: int | None = None) -> list[Environment]:
         return self._workspace.list_environments(project_id)
+
+    def list_environments_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        project_id: int | None = None,
+    ) -> tuple[list[Environment], int]:
+        return self._workspace.list_environments_page(page=page, page_size=page_size, project_id=project_id)
 
     def create_environment(self, payload: EnvironmentCreate) -> Environment:
         self.get_project(payload.project_id)

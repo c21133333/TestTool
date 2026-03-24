@@ -1,4 +1,7 @@
-import { App as AntdApp, ConfigProvider, Spin, theme } from 'antd';
+import { App as AntdApp, ConfigProvider, Space, Spin, Typography, theme } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
@@ -15,26 +18,36 @@ const ReportsPage = lazy(async () => ({ default: (await import('./pages/ReportsP
 const UsersPage = lazy(async () => ({ default: (await import('./pages/UsersPage')).UsersPage }));
 const WorkspacePage = lazy(async () => ({ default: (await import('./pages/WorkspacePage')).WorkspacePage }));
 
+dayjs.locale('zh-cn');
+
 const appTheme = {
-  algorithm: theme.darkAlgorithm,
+  algorithm: theme.defaultAlgorithm,
   token: {
-    colorPrimary: '#f97316',
-    colorInfo: '#fb923c',
-    colorSuccess: '#22c55e',
-    colorError: '#ef4444',
-    colorBgBase: '#0c1117',
-    colorBgContainer: 'rgba(18, 24, 33, 0.88)',
-    colorTextBase: '#f8fafc',
-    colorTextSecondary: '#9ca3af',
+    colorPrimary: '#a14c2f',
+    colorInfo: '#315d7a',
+    colorSuccess: '#3f6a45',
+    colorWarning: '#b7791f',
+    colorError: '#b4473a',
+    colorBgBase: '#f3eadb',
+    colorBgLayout: '#efe4d0',
+    colorBgContainer: '#fffaf2',
+    colorTextBase: '#2f241c',
+    colorTextSecondary: '#766455',
+    colorBorder: '#d6c4ae',
+    colorSplit: '#e6d9c7',
     borderRadius: 18,
     fontFamily: '"IBM Plex Sans", "Segoe UI", sans-serif',
+    boxShadow: '0 18px 40px rgba(102, 74, 38, 0.08)',
   },
 };
 
 function RouteLoadingScreen() {
   return (
     <div className="loading-screen">
-      <Spin size="large" />
+      <Space direction="vertical" align="center" size="middle">
+        <Spin size="large" />
+        <Typography.Text type="secondary">正在装载页面资源...</Typography.Text>
+      </Space>
     </div>
   );
 }
@@ -96,7 +109,7 @@ function AuthenticatedApp() {
 
 export default function App() {
   return (
-    <ConfigProvider theme={appTheme}>
+    <ConfigProvider theme={appTheme} locale={zhCN}>
       <AntdApp>
         <AuthProvider>
           <AuthenticatedApp />

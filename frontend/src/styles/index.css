@@ -1,24 +1,47 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 24%),
-    #090d12;
+    radial-gradient(circle at top left, rgba(161, 76, 47, 0.14), transparent 20%),
+    radial-gradient(circle at top right, rgba(49, 93, 122, 0.1), transparent 22%),
+    linear-gradient(180deg, #f7f0e4 0%, #f1e6d4 46%, #eadcc8 100%);
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: transparent;
-}
-
+html,
+body,
 #root {
   min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+  color: #2f241c;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 18%, rgba(122, 97, 66, 0.04) 100%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(115, 92, 65, 0.025) 0,
+      rgba(115, 92, 65, 0.025) 1px,
+      transparent 1px,
+      transparent 15px
+    );
+  opacity: 0.75;
+}
+
+a {
+  color: inherit;
 }
 
 .loading-screen,
@@ -29,10 +52,65 @@ body {
   padding: 32px;
 }
 
+.loading-screen {
+  position: relative;
+}
+
+.login-screen {
+  position: relative;
+  overflow: hidden;
+}
+
+.login-screen::before,
+.login-screen::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(8px);
+}
+
+.login-screen::before {
+  width: 420px;
+  height: 420px;
+  top: -120px;
+  left: -120px;
+  background: radial-gradient(circle, rgba(161, 76, 47, 0.22), transparent 68%);
+}
+
+.login-screen::after {
+  width: 520px;
+  height: 520px;
+  right: -160px;
+  bottom: -220px;
+  background: radial-gradient(circle, rgba(49, 93, 122, 0.16), transparent 68%);
+}
+
 .login-card {
-  width: min(460px, 100%);
-  background: linear-gradient(180deg, rgba(16, 21, 28, 0.96), rgba(10, 14, 20, 0.92));
-  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.35);
+  position: relative;
+  z-index: 1;
+  width: min(540px, 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(248, 241, 230, 0.98));
+  border: 1px solid rgba(120, 95, 67, 0.18);
+  box-shadow:
+    0 24px 60px rgba(104, 76, 44, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.login-card::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(161, 76, 47, 0.12);
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.login-card__notice {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(161, 76, 47, 0.05);
+  border: 1px solid rgba(161, 76, 47, 0.12);
 }
 
 .app-shell {
@@ -40,73 +118,337 @@ body {
   background: transparent;
 }
 
+.app-shell > .ant-layout {
+  background: transparent;
+}
+
 .app-shell__sider {
-  background: linear-gradient(180deg, rgba(14, 19, 26, 0.96), rgba(9, 13, 18, 0.98)) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background:
+    linear-gradient(180deg, rgba(248, 242, 232, 0.94), rgba(239, 229, 214, 0.98)) !important;
+  border-right: 1px solid rgba(120, 95, 67, 0.12);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.55);
 }
 
 .app-shell__header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
-  background: rgba(7, 11, 16, 0.62) !important;
-  backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 20px;
+  padding-inline: 28px !important;
+  background: rgba(248, 242, 232, 0.84) !important;
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(120, 95, 67, 0.12);
+}
+
+.app-shell__header-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-shell__section-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-shell__header-side {
+  align-items: center;
+}
+
+.app-shell__nav-trigger {
+  color: #3d2e23 !important;
+}
+
+.app-shell__nav-trigger:hover {
+  background: rgba(161, 76, 47, 0.08) !important;
+}
+
+.app-shell__section-eyebrow,
+.brand-panel__eyebrow {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #a14c2f !important;
+}
+
+.app-shell__user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 250, 242, 0.8);
+  border: 1px solid rgba(120, 95, 67, 0.12);
+}
+
+.app-shell__role-tag {
+  margin-inline-end: 0;
+  border-radius: 999px;
+}
+
+.app-shell__logout.ant-btn {
+  border-color: rgba(161, 76, 47, 0.2);
+  box-shadow: 0 10px 20px rgba(161, 76, 47, 0.12);
 }
 
 .app-shell__content {
-  padding: 28px;
+  padding: 32px;
   background: transparent;
 }
 
+.app-shell__menu {
+  background: transparent !important;
+  border-inline-end: 0 !important;
+  padding: 8px 12px 16px;
+}
+
+.app-shell__menu.ant-menu .ant-menu-item,
+.app-shell__menu.ant-menu .ant-menu-submenu-title {
+  height: 46px;
+  line-height: 46px;
+  margin-block: 6px;
+  border-radius: 14px;
+  color: #4a3a2b;
+}
+
+.app-shell__menu.ant-menu .ant-menu-item:hover {
+  background: rgba(161, 76, 47, 0.08);
+  color: #7f3f28;
+}
+
+.app-shell__menu.ant-menu .ant-menu-item-selected {
+  background: linear-gradient(90deg, rgba(161, 76, 47, 0.14), rgba(161, 76, 47, 0.04));
+  color: #7f3f28;
+  font-weight: 600;
+}
+
+.app-shell__menu.ant-menu .ant-menu-item-selected::after {
+  display: none;
+}
+
 .brand-panel {
-  padding: 24px 20px 18px;
+  padding: 28px 22px 18px;
+}
+
+.brand-panel h3,
+.page-hero h1,
+.page-hero h2,
+.app-shell__header h4,
+.login-card h1,
+.login-card h2 {
+  font-family: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+  letter-spacing: 0.01em;
+  color: #2f241c !important;
 }
 
 .brand-panel h3 {
   margin-top: 10px !important;
-  color: #fff !important;
 }
 
-.brand-panel__eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: #fb923c;
+.brand-panel .ant-typography,
+.page-hero .ant-typography,
+.app-shell__section-meta .ant-typography,
+.login-card .ant-typography {
+  color: #2f241c;
 }
 
 .page-stack {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
 }
 
 .page-hero {
-  padding: 8px 2px 6px;
+  position: relative;
+  padding: 8px 2px 14px;
+}
+
+.page-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(161, 76, 47, 0.3), rgba(161, 76, 47, 0));
+}
+
+.page-hero__main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.page-hero__headline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.page-hero__actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .page-hero h1,
 .page-hero h2 {
-  margin-bottom: 8px !important;
+  margin: 0 !important;
 }
 
 .glass-card,
 .metric-card {
-  background: linear-gradient(180deg, rgba(18, 24, 33, 0.92), rgba(10, 14, 20, 0.88));
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.24);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 251, 244, 0.96), rgba(248, 240, 230, 0.98));
+  border: 1px solid rgba(120, 95, 67, 0.14);
+  box-shadow:
+    0 16px 32px rgba(102, 74, 38, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.row-line {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 16px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+.glass-card::before,
+.metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 22px;
+  width: 72px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #a14c2f, rgba(161, 76, 47, 0));
+}
+
+.glass-card .ant-card-head,
+.metric-card .ant-card-head {
+  border-bottom: 1px solid rgba(120, 95, 67, 0.1);
+}
+
+.metric-card .ant-statistic {
+  position: relative;
+}
+
+.metric-card .ant-statistic-title {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #846956;
+}
+
+.metric-card .ant-statistic-content {
+  color: #2f241c;
+}
+
+.state-panel {
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 248, 238, 0.92);
+  border: 1px dashed rgba(161, 76, 47, 0.24);
+}
+
+.state-panel .ant-empty,
+.state-panel .ant-result,
+.state-panel .ant-skeleton {
+  filter: saturate(0.82);
+}
+
+.list-side-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.report-frame {
+  width: 100%;
+  min-height: 78vh;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.code-block {
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  border-radius: 14px;
+  background: rgba(246, 239, 229, 0.95);
+  border: 1px solid rgba(120, 95, 67, 0.12);
+  color: #3c2e23;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ant-layout,
+.ant-layout * {
+  scrollbar-color: rgba(120, 95, 67, 0.45) transparent;
+}
+
+.ant-btn-link {
+  color: #8d442a;
+}
+
+.ant-btn-link:not(:disabled):hover {
+  color: #6e311e !important;
+}
+
+.ant-progress .ant-progress-bg {
+  border-radius: 999px;
+}
+
+.ant-list .ant-list-item {
+  border-block-end-color: rgba(120, 95, 67, 0.1);
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: rgba(161, 76, 47, 0.05);
+  color: #4a3a2b;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  border-bottom-color: rgba(120, 95, 67, 0.08);
 }
 
 @media (max-width: 1100px) {
   .app-shell__content {
-    padding: 18px;
+    padding: 20px;
+  }
+
+  .app-shell__header {
+    padding-inline: 18px !important;
+  }
+
+  .page-hero__headline {
+    flex-direction: column;
+  }
+
+  .page-hero__actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell__header {
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto !important;
+    padding-block: 14px !important;
+  }
+
+  .app-shell__header-side,
+  .app-shell__user-meta {
+    align-items: flex-start;
+  }
+
+  .login-screen {
+    padding: 20px;
   }
 }

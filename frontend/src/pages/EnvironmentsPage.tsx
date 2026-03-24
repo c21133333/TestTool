@@ -127,7 +127,7 @@ export function EnvironmentsPage() {
       <div className="page-hero">
         <Typography.Title>环境管理</Typography.Title>
         <Typography.Paragraph>
-          在这里维护 Base URL、公共请求头和环境变量。测试与管理员可编辑，开发角色默认只读查看。
+          在这里维护基础 URL、公共请求头和环境变量。测试与管理员可编辑，开发角色默认只读查看。
         </Typography.Paragraph>
       </div>
       <Row gutter={[18, 18]}>
@@ -140,7 +140,7 @@ export function EnvironmentsPage() {
               <Form.Item name="name" label="环境名称" rules={[{ required: true, message: '请输入环境名称。' }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="base_url" label="Base URL">
+              <Form.Item name="base_url" label="基础 URL">
                 <Input placeholder="https://api.example.com" />
               </Form.Item>
               <Form.Item name="description" label="说明">
@@ -184,7 +184,7 @@ export function EnvironmentsPage() {
               columns={[
                 { title: '名称', dataIndex: 'name' },
                 { title: '项目 ID', dataIndex: 'project_id' },
-                { title: 'Base URL', dataIndex: 'base_url' },
+                { title: '基础 URL', dataIndex: 'base_url' },
                 { title: '请求头数', render: (_, row) => Object.keys(row.headers_json ?? {}).length },
                 { title: '变量数', render: (_, row) => Object.keys(row.variables_json ?? {}).length },
                 {

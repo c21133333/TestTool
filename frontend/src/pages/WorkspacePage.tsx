@@ -624,7 +624,7 @@ export function WorkspacePage() {
                         <Input />
                       </Form.Item>
                       <Space.Compact block>
-                        <Form.Item name="method" label="Method" initialValue="GET" style={{ width: 160 }}>
+                        <Form.Item name="method" label="请求方法" initialValue="GET" style={{ width: 160 }}>
                           <Select options={['GET', 'POST', 'PUT', 'DELETE'].map((method) => ({ value: method, label: method }))} />
                         </Form.Item>
                         <Form.Item name="url" label="URL" rules={[{ required: true }]} style={{ flex: 1 }}>
@@ -743,7 +743,7 @@ export function WorkspacePage() {
                       dataSource={cases}
                       columns={[
                         { title: '用例', dataIndex: 'name' },
-                        { title: 'Method', dataIndex: 'method' },
+                        { title: '请求方法', dataIndex: 'method' },
                         { title: 'URL', dataIndex: 'url' },
                         { title: '断言数', render: (_, apiCase) => apiCase.assertions_json.length },
                         { title: '前置', render: (_, apiCase) => apiCase.pre_processors_json.length },

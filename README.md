@@ -112,12 +112,11 @@ TestTool/
 
 - `web_runs/`
 
-默认开发态会自动创建 bootstrap admin：
+bootstrap admin 默认关闭。
 
-- username: `admin`
-- password: `admin123`
-
-只建议本地开发使用。非本地环境必须通过环境变量覆盖，至少替换数据库地址和默认管理员密码。
+- 如需本地初始化管理员，必须显式设置 `EAZYTEST_BOOTSTRAP_ADMIN_ENABLED=true`
+- 同时必须显式提供 `EAZYTEST_BOOTSTRAP_ADMIN_USERNAME` 和强密码 `EAZYTEST_BOOTSTRAP_ADMIN_PASSWORD`
+- `production` 环境禁止启用 bootstrap admin
 
 ## 快速开始
 
@@ -229,11 +228,16 @@ python -m pytest
 
 常用配置：
 
+- `EAZYTEST_DEPLOYMENT_ENV`
 - `EAZYTEST_DATABASE_URL`
 - `EAZYTEST_DATABASE_AUTO_MIGRATE`
 - `EAZYTEST_APP_NAME`
+- `EAZYTEST_APP_VERSION`
 - `EAZYTEST_API_PREFIX`
+- `EAZYTEST_LOG_LEVEL`
 - `EAZYTEST_AUTH_TOKEN_TTL_HOURS`
+- `EAZYTEST_AUTH_MAX_ACTIVE_TOKENS_PER_USER`
+- `EAZYTEST_USER_PASSWORD_MIN_LENGTH`
 - `EAZYTEST_BOOTSTRAP_ADMIN_ENABLED`
 - `EAZYTEST_BOOTSTRAP_ADMIN_USERNAME`
 - `EAZYTEST_BOOTSTRAP_ADMIN_PASSWORD`
@@ -290,7 +294,7 @@ python -m pytest
 - 默认开发环境仍使用 SQLite，生产环境应切到 PostgreSQL
 - 仍保留桌面时代的导入兼容逻辑
 - 历史导入能力是迁移桥，不是最终主数据模型
-- 默认管理员账号密码仅适合本地开发
+- bootstrap admin 仅适合本地显式初始化，不适合共享或生产环境
 - 运行产物 `web_eazytest.db` 和 `web_runs/` 应视为本地运行数据，不应作为产品源码的一部分管理
 
 ## 文档
@@ -299,6 +303,64 @@ python -m pytest
 
 - `docs/plans/2026-03-23-web-migration-design.md`
 - `docs/plans/2026-03-23-desktop-decommission-plan.md`
+
+## Security Baseline
+
+- Bootstrap admin is disabled by default and requires explicit credentials when enabled for local development.
+- `EAZYTEST_DEPLOYMENT_ENV=production` rejects `EAZYTEST_BOOTSTRAP_ADMIN_ENABLED=true`.
+- Access tokens use a fixed TTL from `EAZYTEST_AUTH_TOKEN_TTL_HOURS` and a per-user live-token cap from `EAZYTEST_AUTH_MAX_ACTIVE_TOKENS_PER_USER`.
+- Only `admin` can manage users or change account active state. `developer` remains read-only for execution write operations.
+- See `docs/security/permissions-matrix.md` for the current permission matrix and account-state rules.
+
+## Configuration Governance
+
+- `development`: can use SQLite and `EAZYTEST_DATABASE_AUTO_MIGRATE=true`.
+- `test`: should use isolated config and avoid sharing long-lived data with development.
+- `production`: must use PostgreSQL (or equivalent) and `EAZYTEST_DATABASE_AUTO_MIGRATE=false`.
+- API and worker now fail fast on dangerous runtime defaults such as SQLite in production, auto-migrate in production, or missing report template paths.
+- See `docs/manuals/environment-governance.md` for the full environment matrix and rollout guidance.
+
+## Deployment Topology
+
+- The standard topology is `nginx + api + worker + postgresql`.
+- The backend image builds `frontend/dist` and serves it directly, so the minimal production deployment does not need a separate frontend runtime.
+- Use [deployment-topology.md](D:/works/project/ezTest/TestTool/docs/manuals/deployment-topology.md) together with `deploy/docker-compose.single-host.yml` for the single-host baseline.
+
+## Execution Reliability
+
+- Suite executions now recover stale `running` tasks before worker consumption continues.
+- Transient request failures (`timeout`, `request_error`) support bounded automatic retry via `EAZYTEST_EXECUTION_RETRY_LIMIT`.
+- Execution summaries now include `failure_breakdown`, `first_failure`, and retry metadata for faster diagnosis.
+- See [execution-reliability.md](D:/works/project/ezTest/TestTool/docs/manuals/execution-reliability.md) for the current reliability rules and boundaries.
+
+## Observability
+
+- API and worker now emit structured JSON logs with a shared event format.
+- HTTP responses include `X-Request-ID`, and the same request id is written into request logs for traceability.
+- `GET /api/v1/health` now exposes dependency status plus a minimal execution metrics snapshot.
+- See [observability.md](D:/works/project/ezTest/TestTool/docs/manuals/observability.md) for the current logging and health-check baseline.
+
+## API Contract
+
+- JSON success responses use a consistent `success / message / data` envelope.
+- JSON errors now use a standard `success=false + error{code,status,details,request_id}` envelope instead of relying on ad hoc `detail`.
+- Main list endpoints now share a paginated `items / total / page / page_size` shape.
+- See [api-contract.md](D:/works/project/ezTest/TestTool/docs/manuals/api-contract.md) for the current API contract and error model.
+
+## Legacy Compatibility Retirement
+
+- Legacy imports are now explicitly treated as a migration bridge instead of a long-term product surface.
+- `GET /api/v1/imports/policy` exposes the current compatibility policy, capability inventory, and planned retirement path.
+- `EAZYTEST_LEGACY_IMPORTS_ENABLED=false` disables migration imports at runtime, and disabled routes return `410 Gone`.
+- `EAZYTEST_LEGACY_IMPORTS_SUNSET_DATE` can be used to publish a retirement date before the final removal phase.
+- See [legacy-compatibility-retirement.md](D:/works/project/ezTest/TestTool/docs/manuals/legacy-compatibility-retirement.md) for the full exit strategy.
+
+## CI/CD Governance
+
+- `.github/workflows/ci.yml` now runs three minimum gates: backend tests, frontend build, and API/worker startup smoke.
+- `scripts/ci_smoke.py` validates that the API can start and answer `/api/v1/health`, and that the worker can complete a `run_once()` bootstrap path.
+- `.github/release-template.md` is the release-note template for each `v1.x.y` delivery.
+- See [release-governance.md](D:/works/project/ezTest/TestTool/docs/manuals/release-governance.md) for versioning, release checklist, and rollback rules.
 
 ## 开发建议
 

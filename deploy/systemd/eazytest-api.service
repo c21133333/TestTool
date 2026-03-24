@@ -1,0 +1,14 @@
+[Unit]
+Description=Eazy Test Web API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/eazytest
+EnvironmentFile=/opt/eazytest/.env
+ExecStart=/opt/eazytest/.venv/bin/python -m requesttool serve --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

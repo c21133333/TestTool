@@ -13,5 +13,7 @@ class LoginRequest(BaseModel):
 class AuthSessionRead(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    issued_at: str
     expires_at: str
+    expires_in_seconds: int
     user: UserRead

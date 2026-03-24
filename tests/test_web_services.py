@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import create_engine
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from backend.app.api.dependencies.auth import require_roles
 from backend.app.models import AccessToken, ApiCase, Environment, Execution, Project, Report, Suite, User
 from backend.app.models.base import Base
+from backend.app.models.execution import ExecutionStatus
 from backend.app.models.user import UserRole
 from backend.app.schemas.audit_log import AuditLogRead
 from backend.app.services.audit_log_service import AuditLogService
@@ -245,6 +247,136 @@ def test_execution_service_can_retry_case_execution(monkeypatch):
 
     assert original.id != retried.id
     assert retried.status.value == "success"
+
+
+def test_execution_service_retries_transient_case_failure(monkeypatch):
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Retry Timeout", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Retry Suite", description=""))
+    case = workspace.create_case(ApiCaseCreate(suite_id=suite.id, name="Retry Case", method="GET", url="/retry-timeout"))
+    session.commit()
+
+    attempts = {"count": 0}
+
+    def fake_execute_case_payload(payload):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            return {
+                "name": payload["name"],
+                "request": payload["request"],
+                "response": {"success": False, "error_type": "Timeout", "error_message": "request timed out"},
+                "assertion_results": [],
+                "result": "FAIL",
+            }
+        return {
+            "name": payload["name"],
+            "request": payload["request"],
+            "response": {"success": True, "status_code": 200, "elapsed_ms": 7, "response_json": {"ok": True}},
+            "assertion_results": [],
+            "result": "PASS",
+        }
+
+    monkeypatch.setattr("backend.app.services.execution_service.settings.execution_retry_limit", 1)
+    monkeypatch.setattr("backend.app.services.execution_service.execute_case_payload", fake_execute_case_payload)
+    monkeypatch.setattr("backend.app.services.execution_service.ReportService.build_execution_report", lambda self, execution: [])
+
+    execution = ExecutionService(session).run_case_now(case.id, None, None)
+
+    assert execution.status.value == "success"
+    assert attempts["count"] == 2
+    assert execution.summary_json["retry_stats"]["total_retries"] == 1
+    assert execution.items[0].response_json["execution_meta"]["attempts"] == 2
+    assert len(execution.items[0].response_json["execution_meta"]["retry_history"]) == 1
+
+
+def test_execution_service_marks_timeout_failure_category(monkeypatch):
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Timeout Failure", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Timeout Suite", description=""))
+    case = workspace.create_case(ApiCaseCreate(suite_id=suite.id, name="Timeout Case", method="GET", url="/timeout"))
+    session.commit()
+
+    monkeypatch.setattr("backend.app.services.execution_service.settings.execution_retry_limit", 0)
+    monkeypatch.setattr(
+        "backend.app.services.execution_service.execute_case_payload",
+        lambda payload: {
+            "name": payload["name"],
+            "request": payload["request"],
+            "response": {"success": False, "error_type": "Timeout", "error_message": "request timed out"},
+            "assertion_results": [],
+            "result": "FAIL",
+        },
+    )
+    monkeypatch.setattr("backend.app.services.execution_service.ReportService.build_execution_report", lambda self, execution: [])
+
+    execution = ExecutionService(session).run_case_now(case.id, None, None)
+
+    assert execution.status.value == "failed"
+    assert execution.summary_json["failure_breakdown"]["timeout"] == 1
+    assert execution.summary_json["first_failure"]["category"] == "timeout"
+
+
+def test_execution_service_rejects_retry_for_non_terminal_execution():
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Retry Guard", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Retry Suite", description=""))
+    workspace.create_case(ApiCaseCreate(suite_id=suite.id, name="Guard Case", method="GET", url="/guard"))
+    session.commit()
+
+    queued = ExecutionService(session).queue_suite_execution(suite.id, None, None)
+
+    try:
+        ExecutionService(session).retry_execution(queued.id, None)
+    except HTTPException as exc:
+        assert exc.status_code == 400
+        assert "completed" in exc.detail.lower()
+    else:
+        raise AssertionError("Pending execution should not be retried.")
+
+
+def test_process_next_pending_execution_recovers_stale_running_execution(monkeypatch):
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Recovery", description=""))
+    stale_suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Stale Suite", description=""))
+    next_suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Next Suite", description=""))
+    workspace.create_case(ApiCaseCreate(suite_id=stale_suite.id, name="Stale Case", method="GET", url="/stale"))
+    workspace.create_case(ApiCaseCreate(suite_id=next_suite.id, name="Next Case", method="GET", url="/next"))
+    session.commit()
+
+    stale_execution = ExecutionService(session).queue_suite_execution(stale_suite.id, None, None)
+    pending_execution = ExecutionService(session).queue_suite_execution(next_suite.id, None, None)
+    stale_record = ExecutionService(session).get_execution(stale_execution.id)
+    stale_record.status = ExecutionStatus.running
+    stale_record.started_at = datetime(2026, 3, 20, 10, 0, 0)
+    session.commit()
+
+    monkeypatch.setattr("backend.app.services.execution_service.settings.execution_stale_timeout_seconds", 60)
+    monkeypatch.setattr("backend.app.services.execution_service._utc_now", lambda: datetime(2026, 3, 24, 10, 0, 0))
+    monkeypatch.setattr(
+        "backend.app.services.execution_service.execute_case_payload",
+        lambda payload: {
+            "name": payload["name"],
+            "request": payload["request"],
+            "response": {"success": True, "status_code": 200, "elapsed_ms": 8, "response_json": {"ok": True}},
+            "assertion_results": [],
+            "result": "PASS",
+        },
+    )
+    monkeypatch.setattr("backend.app.services.execution_service.ReportService.build_execution_report", lambda self, execution: [])
+
+    processed = ExecutionService(session).process_next_pending_execution()
+    stale_after = ExecutionService(session).get_execution(stale_execution.id)
+    pending_after = ExecutionService(session).get_execution(pending_execution.id)
+
+    assert processed is not None
+    assert processed.id == pending_execution.id
+    assert pending_after.status.value == "success"
+    assert stale_after.status.value == "failed"
+    assert stale_after.summary_json["_control"]["worker_stale"] is True
 
 
 def test_execution_service_lists_filtered_paginated_executions(monkeypatch):

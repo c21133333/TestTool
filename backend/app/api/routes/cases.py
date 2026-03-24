@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies.auth import require_authenticated_user, require_roles
 from backend.app.core.database import session_scope
-from backend.app.core.responses import ApiResponse
+from backend.app.core.responses import ApiResponse, PageData
 from backend.app.models.user import User
 from backend.app.models.user import UserRole
 from backend.app.schemas.workspace import ApiCaseCreate, ApiCaseRead
@@ -15,14 +15,22 @@ from backend.app.services.workspace_service import WorkspaceService
 router = APIRouter()
 
 
-@router.get("", response_model=ApiResponse[list[ApiCaseRead]])
+@router.get("", response_model=ApiResponse[PageData[ApiCaseRead]])
 def list_cases(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=200),
     suite_id: int | None = Query(default=None),
     _: User = Depends(require_authenticated_user),
     session: Session = Depends(session_scope),
-) -> ApiResponse[list[ApiCaseRead]]:
-    cases = WorkspaceService(session).list_cases(suite_id)
-    return ApiResponse.ok(data=[ApiCaseRead.model_validate(case) for case in cases], message="Cases loaded.")
+) -> ApiResponse[PageData[ApiCaseRead]]:
+    cases, total = WorkspaceService(session).list_cases_page(page=page, page_size=page_size, suite_id=suite_id)
+    return ApiResponse.paginated(
+        items=[ApiCaseRead.model_validate(case) for case in cases],
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="Cases loaded.",
+    )
 
 
 @router.post("", response_model=ApiResponse[ApiCaseRead])

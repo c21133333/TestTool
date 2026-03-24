@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies.auth import require_authenticated_user
 from backend.app.core.database import session_scope
-from backend.app.core.responses import ApiResponse
+from backend.app.core.responses import ApiResponse, PageData
 from backend.app.models.user import User
 from backend.app.schemas.report import ReportRead
 from backend.app.services.report_service import ReportService
@@ -16,13 +16,21 @@ from backend.app.services.report_service import ReportService
 router = APIRouter()
 
 
-@router.get("", response_model=ApiResponse[list[ReportRead]])
+@router.get("", response_model=ApiResponse[PageData[ReportRead]])
 def list_reports(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=200),
     _: User = Depends(require_authenticated_user),
     session: Session = Depends(session_scope),
-) -> ApiResponse[list[ReportRead]]:
-    reports = ReportService(session).list_reports()
-    return ApiResponse.ok(data=[ReportRead.model_validate(report) for report in reports], message="Reports loaded.")
+) -> ApiResponse[PageData[ReportRead]]:
+    reports, total = ReportService(session).list_reports_page(page=page, page_size=page_size)
+    return ApiResponse.paginated(
+        items=[ReportRead.model_validate(report) for report in reports],
+        total=total,
+        page=page,
+        page_size=page_size,
+        message="Reports loaded.",
+    )
 
 
 @router.get("/{report_id}/content", include_in_schema=False)

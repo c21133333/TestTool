@@ -3,12 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from backend.app.api.dependencies.auth import require_authenticated_user
+from backend.app.api.dependencies.auth import require_authenticated_user, require_roles
 from backend.app.core.database import session_scope
 from backend.app.core.responses import ApiResponse
 from backend.app.models.execution import ExecutionScope
 from backend.app.models.execution import ExecutionStatus
-from backend.app.models.user import User
+from backend.app.models.user import User, UserRole
 from backend.app.schemas.execution import ExecutionCreateRequest, ExecutionListData, ExecutionRead
 from backend.app.services.audit_log_service import AuditLogService
 from backend.app.services.execution_service import ExecutionService
@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get("", response_model=ApiResponse[ExecutionListData])
 def list_executions(
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=200),
     status: ExecutionStatus | None = Query(default=None),
     scope: ExecutionScope | None = Query(default=None),
     search: str | None = Query(default=None),
@@ -59,7 +59,7 @@ def get_execution(
 @router.post("", response_model=ApiResponse[ExecutionRead])
 def create_execution(
     payload: ExecutionCreateRequest,
-    current_user: User = Depends(require_authenticated_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.tester)),
     session: Session = Depends(session_scope),
 ) -> ApiResponse[ExecutionRead]:
     service = ExecutionService(session)
@@ -89,7 +89,7 @@ def create_execution(
 @router.post("/{execution_id}/cancel", response_model=ApiResponse[ExecutionRead])
 def cancel_execution(
     execution_id: int,
-    current_user: User = Depends(require_authenticated_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.tester)),
     session: Session = Depends(session_scope),
 ) -> ApiResponse[ExecutionRead]:
     execution = ExecutionService(session).cancel_execution(execution_id)
@@ -107,7 +107,7 @@ def cancel_execution(
 @router.post("/{execution_id}/retry", response_model=ApiResponse[ExecutionRead])
 def retry_execution(
     execution_id: int,
-    current_user: User = Depends(require_authenticated_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.tester)),
     session: Session = Depends(session_scope),
 ) -> ApiResponse[ExecutionRead]:
     execution = ExecutionService(session).retry_execution(execution_id, current_user)
