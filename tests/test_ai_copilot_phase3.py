@@ -13,6 +13,7 @@ from backend.app.schemas.ai_copilot import (
     AiMockApplyRequest,
     AiMockPreviewRequest,
     AiMockResult,
+    AiTestPointResult,
     AiTestDataApplyRequest,
     AiTestDataPreviewRequest,
     AiTestDataResult,
@@ -25,6 +26,7 @@ from backend.app.services.ai_mock_service import AiMockService
 from backend.app.services.ai_mock_template_seed_service import AiMockTemplateSeedService
 from backend.app.services.ai_test_data_service import AiTestDataService
 from backend.app.services.ai_test_data_seed_service import AiTestDataSeedService
+from backend.app.services.ai_test_point_service import AiTestPointService
 from backend.app.services.workspace_service import WorkspaceService
 
 
@@ -132,12 +134,69 @@ class _FakeMockLlmService:
         )
 
 
+class _FakeTestPointLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 64,
+            "failure_category": "",
+            "trace_json": {"request_id": "test-point-phase3-trace"},
+        }
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_points(self, *, runtime, input_snapshot, baseline_points, markdown_text, prompt_hints, has_rule_baseline):
+        if not has_rule_baseline:
+            return (
+                [
+                    {
+                        "id": "tp_post_orders_happy_path",
+                        "title": "POST /orders happy_path",
+                        "category": "happy_path",
+                        "risk_level": "high",
+                        "reason": "Low-confidence draft point inferred from the provided design context.",
+                        "covered_by_existing_cases": False,
+                        "suggested_case_count": 1,
+                        "confidence": 0.71,
+                    }
+                ],
+                ["Low confidence draft output. Please review before generating drafts."],
+            )
+        return (
+            [
+                *baseline_points,
+                {
+                    "id": "tp_get_profile_negative_path",
+                    "title": "GET /profile negative_path",
+                    "category": "negative_path",
+                    "risk_level": "medium",
+                    "reason": "Token expiry and permission failures are worth keeping visible in regression coverage.",
+                    "covered_by_existing_cases": True,
+                    "suggested_case_count": 2,
+                    "confidence": 0.91,
+                },
+            ],
+            [],
+        )
+
+
 def _make_test_data_service(session: Session) -> AiTestDataService:
     return AiTestDataService(session, llm_service=_FakeTestDataLlmService())
 
 
 def _make_mock_service(session: Session) -> AiMockService:
     return AiMockService(session, llm_service=_FakeMockLlmService())
+
+
+def _make_test_point_service(session: Session) -> AiTestPointService:
+    return AiTestPointService(session, llm_service=_FakeTestPointLlmService())
 
 
 def _make_session() -> Session:
@@ -256,6 +315,65 @@ def test_ai_copilot_capability_enum_includes_test_data_and_mock():
 
     assert "test_data" in capability_values
     assert "mock" in capability_values
+
+
+def test_ai_test_point_preview_merges_rule_baseline_with_llm_guidance():
+    session = _make_session()
+    service = _make_test_point_service(session)
+
+    result = service.generate_preview(
+        {
+            "capability": "test_point",
+            "target_type": "suite",
+            "target_id": 1,
+            "enable_llm": True,
+            "markdown_text": "GET /profile",
+            "prompt_hints": "Keep auth-adjacent risks visible.",
+            "input_snapshot": {
+                "case_summary": {
+                    "unique_endpoints": [{"method": "GET", "path": "/profile"}],
+                },
+                "cases": [
+                    {
+                        "method": "GET",
+                        "url": "/profile",
+                        "metadata_json": {"category": "negative_path"},
+                    }
+                ],
+            },
+        }
+    )
+
+    payload = AiTestPointResult.model_validate(result["result"])
+    point = next(item for item in payload.test_points if item.id == "tp_get_profile_negative_path")
+
+    assert result["call_trace"]["call_mode"] == "llm"
+    assert point.confidence == 0.91
+    assert "Token expiry" in point.reason
+
+
+def test_ai_test_point_preview_marks_draft_points_low_confidence_without_rule_baseline():
+    session = _make_session()
+    service = _make_test_point_service(session)
+
+    result = service.generate_preview(
+        {
+            "capability": "test_point",
+            "target_type": "suite",
+            "target_id": 999,
+            "enable_llm": True,
+            "markdown_text": "",
+            "prompt_hints": "Focus on a tiny draft.",
+            "input_snapshot": {},
+        }
+    )
+
+    payload = AiTestPointResult.model_validate(result["result"])
+
+    assert len(payload.test_points) == 1
+    assert payload.test_points[0].confidence <= 0.62
+    assert "low-confidence" in payload.test_points[0].reason
+    assert any("low confidence" in warning.lower() for warning in result["warnings"])
 
 
 def test_ai_test_data_preview_response_contract():

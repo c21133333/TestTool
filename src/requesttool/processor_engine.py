@@ -412,6 +412,7 @@ def execute_request(
     response["request_headers"] = payload.get("headers") or {}
     response["request_body"] = payload.get("body")
     response["request_url"] = payload.get("url")
+    response["runtime_variables"] = dict(context.get("variables", {}))
     response["processor_results"] = context.get("processor_results", [])
     return response, assertion_results, context
 

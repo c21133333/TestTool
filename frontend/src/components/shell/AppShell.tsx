@@ -17,6 +17,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../auth/AuthContext';
 import { canManageUsers, canViewAuditLogs } from '../../auth/permissions';
+import { AiChatLauncher } from '../ai-copilot/AiChatLauncher';
 
 const { Header, Content, Sider } = Layout;
 
@@ -113,6 +114,7 @@ export function AppShell() {
         <Content className="app-shell__content">
           <Outlet />
         </Content>
+        <AiChatLauncher />
       </Layout>
     </Layout>
   );

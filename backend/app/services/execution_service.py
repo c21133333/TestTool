@@ -267,6 +267,7 @@ class ExecutionService:
         log_event(logger, "execution.suite.started", execution_id=execution.id, suite_id=execution.suite_id, case_count=len(suite.cases))
 
         results: list[dict[str, Any]] = []
+        shared_variables = self._build_initial_suite_variables(environment)
         try:
             for index, case in enumerate(suite.cases, start=1):
                 if self._is_cancel_requested(execution):
@@ -282,9 +283,15 @@ class ExecutionService:
                     )
                     return self.get_execution(execution.id)
                 preparation = self._preparation_service.build_case_preparation(case_id=case.id, selection=None)
-                result = self._execute_case_with_retries(case, environment, preparation=preparation)
+                result = self._execute_case_with_retries(
+                    case,
+                    environment,
+                    preparation=preparation,
+                    suite_variables=shared_variables,
+                )
                 self._append_item(execution, case.id, index, result)
                 results.append(result)
+                shared_variables = self._extract_runtime_variables(result, fallback=shared_variables)
                 self._session.commit()
             self._finalize_execution(execution, results)
             self._session.commit()
@@ -310,11 +317,23 @@ class ExecutionService:
             )
         return self.get_execution(execution.id)
 
-    def _execute_case_with_retries(self, case, environment, *, preparation) -> dict[str, Any]:
+    def _execute_case_with_retries(
+        self,
+        case,
+        environment,
+        *,
+        preparation,
+        suite_variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         retry_history: list[dict[str, Any]] = []
         max_attempts = settings.execution_retry_limit + 1
         for attempt in range(1, max_attempts + 1):
-            payload = self._build_case_payload(case, environment, preparation=preparation)
+            payload = self._build_case_payload(
+                case,
+                environment,
+                preparation=preparation,
+                suite_variables=suite_variables,
+            )
             try:
                 result = execute_case_payload(payload)
             except Exception as exc:  # noqa: BLE001
@@ -340,7 +359,14 @@ class ExecutionService:
             return enriched
         return enriched
 
-    def _build_case_payload(self, case, environment, *, preparation) -> dict[str, Any]:
+    def _build_case_payload(
+        self,
+        case,
+        environment,
+        *,
+        preparation,
+        suite_variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         metadata = case.metadata_json if isinstance(case.metadata_json, dict) else {}
         configured_timeout = metadata.get("timeout_seconds") or metadata.get("timeout")
         try:
@@ -348,6 +374,10 @@ class ExecutionService:
         except Exception:
             timeout_seconds = settings.execution_request_timeout_seconds
 
+        merged_variables = self._build_request_variables(
+            environment.variables_json if environment is not None else None,
+            suite_variables,
+        )
         request_payload = {
             "method": case.method,
             "url": case.url,
@@ -355,9 +385,10 @@ class ExecutionService:
             "body": preparation.request_body,
             "timeout": timeout_seconds,
         }
+        if merged_variables:
+            request_payload["variables"] = merged_variables
         if environment is not None:
             request_payload["base_url"] = environment.base_url
-            request_payload["variables"] = environment.variables_json or {}
             merged_headers = dict(environment.headers_json or {})
             merged_headers.update(case.headers_json or {})
             request_payload["headers"] = merged_headers
@@ -370,6 +401,33 @@ class ExecutionService:
             "postProcessors": case.post_processors_json or [],
             "aiPreparation": preparation.summary,
         }
+
+    def _build_initial_suite_variables(self, environment) -> dict[str, Any]:
+        return self._build_request_variables(environment.variables_json if environment is not None else None, None)
+
+    def _build_request_variables(
+        self,
+        environment_variables: dict[str, Any] | None,
+        suite_variables: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        merged_variables: dict[str, Any] = {}
+        if isinstance(environment_variables, dict):
+            merged_variables.update(environment_variables)
+        if isinstance(suite_variables, dict):
+            merged_variables.update(suite_variables)
+        return merged_variables
+
+    def _extract_runtime_variables(
+        self,
+        result: dict[str, Any],
+        *,
+        fallback: dict[str, Any],
+    ) -> dict[str, Any]:
+        response = result.get("response") or {}
+        runtime_variables = response.get("runtime_variables") if isinstance(response, dict) else None
+        if not isinstance(runtime_variables, dict):
+            return dict(fallback)
+        return dict(runtime_variables)
 
     def _append_item(self, execution: Execution, case_id: int | None, order_index: int, result: dict[str, Any]) -> None:
         response = result.get("response") or {}

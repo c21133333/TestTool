@@ -1,6 +1,8 @@
 from backend.app.services.ai_artifact_service import AiArtifactService
 from backend.app.services.ai_artifact_lineage_service import AiArtifactLineageService
 from backend.app.services.ai_client_service import AiClientService
+from backend.app.services.ai_chat_context_service import AiChatContextService
+from backend.app.services.ai_chat_service import AiChatService
 from backend.app.services.ai_assertion_llm_service import AiAssertionLlmService
 from backend.app.services.ai_assertion_service import AiAssertionService
 from backend.app.services.ai_coverage_llm_service import AiCoverageLlmService
@@ -20,6 +22,7 @@ from backend.app.services.ai_test_data_llm_service import AiTestDataLlmService
 from backend.app.services.ai_execution_preparation_service import AiExecutionPreparationService
 from backend.app.services.ai_test_data_service import AiTestDataService
 from backend.app.services.ai_test_data_seed_service import AiTestDataSeedService
+from backend.app.services.ai_test_point_llm_service import AiTestPointLlmService
 from backend.app.services.ai_test_point_service import AiTestPointService
 from backend.app.services.ai_test_point_draft_service import AiTestPointDraftService
 from backend.app.services.audit_log_service import AuditLogService
@@ -33,6 +36,8 @@ __all__ = [
     "AiArtifactService",
     "AiArtifactLineageService",
     "AiClientService",
+    "AiChatContextService",
+    "AiChatService",
     "AiAssertionLlmService",
     "AiAssertionService",
     "AiCoverageLlmService",
@@ -52,6 +57,7 @@ __all__ = [
     "AiTestDataLlmService",
     "AiTestDataService",
     "AiTestDataSeedService",
+    "AiTestPointLlmService",
     "AiTestPointDraftService",
     "AiTestPointService",
     "AuditLogService",

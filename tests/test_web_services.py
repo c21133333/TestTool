@@ -268,6 +268,85 @@ def test_execution_worker_processes_pending_suite(monkeypatch):
     assert processed.summary_json["ok"] == 1
 
 
+def test_execution_worker_propagates_extracted_variables_between_suite_cases(monkeypatch):
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Suite Variables", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Chained Suite", description=""))
+    workspace.create_case(
+        ApiCaseCreate(
+            suite_id=suite.id,
+            name="Login",
+            method="POST",
+            url="/login",
+            body_json={"username": "demo"},
+            post_processors_json=[
+                {
+                    "type": "jsonpath_extract",
+                    "enabled": True,
+                    "config": {"path": "$.token", "target": "authToken"},
+                }
+            ],
+        )
+    )
+    workspace.create_case(
+        ApiCaseCreate(
+            suite_id=suite.id,
+            name="Profile",
+            method="GET",
+            url="/profile",
+            headers_json={"Authorization": "Bearer {{authToken}}"},
+        )
+    )
+    environment = workspace.create_environment(
+        EnvironmentCreate(project_id=project.id, name="dev", base_url="https://example.com")
+    )
+    session.commit()
+
+    request_log: list[dict[str, object]] = []
+
+    class _FakeElapsed:
+        def __init__(self, milliseconds: int) -> None:
+            self._milliseconds = milliseconds
+
+        def total_seconds(self) -> float:
+            return self._milliseconds / 1000
+
+    class _FakeResponse:
+        def __init__(self, status_code: int, payload: dict[str, object], milliseconds: int = 8) -> None:
+            self.status_code = status_code
+            self._payload = payload
+            self.headers = {"Content-Type": "application/json"}
+            self.encoding = "utf-8"
+            self.apparent_encoding = "utf-8"
+            self.elapsed = _FakeElapsed(milliseconds)
+            self.text = json.dumps(payload)
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    def fake_requests_request(**kwargs):
+        request_log.append(dict(kwargs))
+        if kwargs["url"] == "https://example.com/login":
+            return _FakeResponse(200, {"token": "abc123"})
+        if kwargs["url"] == "https://example.com/profile":
+            return _FakeResponse(200, {"ok": True})
+        raise AssertionError(f"unexpected request: {kwargs}")
+
+    monkeypatch.setattr("requesttool.http_client.requests.request", fake_requests_request)
+    monkeypatch.setattr("backend.app.services.execution_service.ReportService.build_execution_report", lambda self, execution: [])
+
+    queued = ExecutionService(session).queue_suite_execution(suite.id, environment.id, None)
+    processed = ExecutionService(session).process_execution(queued.id)
+
+    assert processed.status.value == "success"
+    assert [item.case_name for item in processed.items] == ["Login", "Profile"]
+    assert len(request_log) == 2
+    assert request_log[1]["headers"]["Authorization"] == "Bearer abc123"
+    assert processed.items[0].response_json["runtime_variables"]["authToken"] == "abc123"
+    assert processed.items[1].response_json["request_headers"]["Authorization"] == "Bearer abc123"
+
+
 def test_report_service_get_report_raises_for_missing():
     session = _make_session()
     service = ReportService(session)

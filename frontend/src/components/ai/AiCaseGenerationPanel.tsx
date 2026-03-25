@@ -132,6 +132,7 @@ function normalizeHistoryTestPoints(outputJson: Record<string, unknown>): AiTest
       reason: String(entry.reason ?? ''),
       covered_by_existing_cases: Boolean(entry.covered_by_existing_cases),
       suggested_case_count: Number(entry.suggested_case_count ?? 1),
+      confidence: Number(entry.confidence ?? 0.85),
     });
     return result;
   }, []);

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -128,6 +128,7 @@ class AiTestPointRead(BaseModel):
     reason: str
     covered_by_existing_cases: bool = False
     suggested_case_count: int = 0
+    confidence: float = 0.85
 
 
 class AiTestPointResult(BaseModel):
@@ -218,3 +219,16 @@ class AiReportSummaryPreviewRequest(BaseModel):
 
 class AiReportSummaryApplyRequest(BaseModel):
     pass
+
+
+class AiChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = ""
+
+
+class AiChatStreamRequest(BaseModel):
+    chat_mode: Literal["project", "free"] = "project"
+    project_id: int | None = None
+    page_path: str = ""
+    page_title: str = ""
+    messages: list[AiChatMessage] = Field(default_factory=list)

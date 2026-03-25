@@ -307,6 +307,7 @@ export type AiTestPoint = {
   reason: string;
   covered_by_existing_cases: boolean;
   suggested_case_count: number;
+  confidence: number;
 };
 
 export type AiTestPointResult = {

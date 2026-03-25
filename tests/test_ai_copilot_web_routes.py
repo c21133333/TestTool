@@ -11,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from backend.app.core.database import session_scope
 from backend.app.main import create_application
+from backend.app.models.api_case import ApiCase
 from backend.app.models.ai_artifact import AiArtifact
 from backend.app.models.base import Base
 from backend.app.models.execution import Execution, ExecutionItem, ExecutionScope, ExecutionStatus
@@ -102,6 +103,39 @@ def _mock_coverage_llm(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         "backend.app.services.ai_coverage_llm_service.AiCoverageLlmService.analyze_coverage",
+        _analyze,
+    )
+
+
+def _mock_test_point_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _analyze(self, *, runtime, input_snapshot, baseline_points, markdown_text, prompt_hints, has_rule_baseline):
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 61,
+            "failure_category": "",
+            "trace_json": {"request_id": "test-point-route-trace"},
+        }
+        merged = list(baseline_points)
+        if merged:
+            merged[0] = {
+                **merged[0],
+                "reason": "LLM refined point rationale for route smoke coverage.",
+                "confidence": 0.92,
+            }
+        return merged, []
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_test_point_llm_service.AiTestPointLlmService.resolve_runtime",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai_test_point_llm_service.AiTestPointLlmService.analyze_points",
         _analyze,
     )
 
@@ -294,6 +328,62 @@ def _mock_mock_llm(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "backend.app.services.ai_mock_llm_service.AiMockLlmService.analyze_templates",
         _analyze,
+    )
+
+
+def _mock_chat_stream(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "backend.app.services.ai_provider_registry.AiProviderRegistry.resolve_runtime",
+        lambda self: object(),
+    )
+
+    def _stream_text(self, *, runtime, system_prompt, messages):
+        assert "system tables" in system_prompt
+        assert messages
+        prompt = messages[-1]["content"]
+        assert "Bearer secret" not in prompt
+        assert "remove-me" not in prompt
+        assert "Read-only project context" in prompt or "Free chat context" in prompt
+        return (
+            iter([]),
+            {
+                "call_mode": "llm",
+                "provider": {
+                    "provider": "openai_compatible",
+                    "model": "gpt-5.4",
+                    "base_url": "https://example.com",
+                    "timeout_seconds": 30,
+                },
+                "latency_ms": None,
+                "failure_category": "",
+                "trace_json": {"request_id": "chat-stream-route-trace"},
+            },
+        )
+
+    def _generate_text(self, *, runtime, system_prompt, messages):
+        return (
+            "基于当前项目快照，最近失败执行主要集中在权限与鉴权相关场景。",
+            {
+                "call_mode": "llm",
+                "provider": {
+                    "provider": "openai_compatible",
+                    "model": "gpt-5.4",
+                    "base_url": "https://example.com",
+                    "timeout_seconds": 30,
+                },
+                "latency_ms": 320,
+                "failure_category": "",
+                "trace_json": {"request_id": "chat-fallback-route-trace"},
+            },
+        )
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_client_service.AiClientService.stream_text",
+        _stream_text,
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai_client_service.AiClientService.generate_text",
+        _generate_text,
     )
 
 
@@ -682,6 +772,7 @@ def test_ai_copilot_coverage_routes_support_project_target(monkeypatch: pytest.M
 
 
 def test_ai_copilot_test_point_preview_route_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_test_point_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     _, suite_id = _seed_coverage_suite(factory)
     token = _issue_token(factory, "tester-ai-test-point", "Tester", "Tester#AITestPoint2026", UserRole.tester)
@@ -709,6 +800,7 @@ def test_ai_copilot_test_point_preview_route_smoke(monkeypatch: pytest.MonkeyPat
 
 
 def test_ai_copilot_test_points_generate_drafts_route(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_test_point_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     project_id, suite_id = _seed_coverage_suite(factory)
     token = _issue_token(factory, "tester-ai-point-draft", "Tester", "Tester#AIPointDraft2026", UserRole.tester)
@@ -765,6 +857,7 @@ def test_ai_copilot_test_points_generate_drafts_route(monkeypatch: pytest.Monkey
 
 def test_ai_copilot_project_test_point_to_draft_mainline(monkeypatch: pytest.MonkeyPatch) -> None:
     _mock_coverage_llm(monkeypatch)
+    _mock_test_point_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     project_id, _ = _seed_coverage_suite(factory)
     token = _issue_token(factory, "tester-ai-project-design", "Tester", "Tester#AIProjectDesign2026", UserRole.tester)
@@ -993,6 +1086,65 @@ def test_ai_route_audit_log_includes_failure_category(monkeypatch: pytest.Monkey
         assert latest_log is not None
         assert latest_log.details_json["failure_category"] == "provider_timeout"
         assert latest_log.details_json["call_mode"] == "llm"
+
+
+def test_ai_chat_stream_route_uses_project_snapshot_and_masks_sensitive_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_chat_stream(monkeypatch)
+    client, factory = _build_api_client(monkeypatch)
+    case_id, _ = _seed_phase3_case(factory)
+    token = _issue_token(factory, "tester-ai-chat", "Tester", "Tester#AIChat2026", UserRole.tester)
+
+    with factory() as session:
+        case = session.get(ApiCase, case_id)
+        assert case is not None
+        project_id = case.suite.project_id
+
+    headers = {"Authorization": f"Bearer {token}"}
+    with client.stream(
+        "POST",
+        "/api/v1/ai-copilot/chat/stream",
+        json={
+            "project_id": project_id,
+            "page_path": "/workspace",
+            "page_title": "工作台",
+            "messages": [{"role": "user", "content": "最近失败执行集中在哪些场景？"}],
+        },
+        headers=headers,
+    ) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: meta" in body
+    assert "event: delta" in body
+    assert "event: done" in body
+    assert "stream_fallback" in body
+
+
+def test_ai_chat_stream_route_supports_free_mode_without_project_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_chat_stream(monkeypatch)
+    client, factory = _build_api_client(monkeypatch)
+    token = _issue_token(factory, "tester-ai-chat-free", "Tester", "Tester#AIChatFree2026", UserRole.tester)
+
+    headers = {"Authorization": f"Bearer {token}"}
+    with client.stream(
+        "POST",
+        "/api/v1/ai-copilot/chat/stream",
+        json={
+            "chat_mode": "free",
+            "page_path": "/workspace",
+            "page_title": "工作台",
+            "messages": [{"role": "user", "content": "帮我解释什么是冒烟测试"}],
+        },
+        headers=headers,
+    ) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert '"chat_mode": "free"' in body
+    assert "event: meta" in body
+    assert "event: delta" in body
+    assert "event: done" in body
 
 
 def test_ai_test_data_web_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:

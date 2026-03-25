@@ -46,6 +46,17 @@ export function AiTestPointTable({ testPoints, selectedPointIds, canEdit, onSele
       width: 110,
     },
     {
+      title: '置信度',
+      dataIndex: 'confidence',
+      width: 120,
+      render: (value: number) => {
+        const normalized = Number.isFinite(value) ? value : 0;
+        const percent = `${(normalized * 100).toFixed(0)}%`;
+        const color = normalized < 0.75 ? 'orange' : normalized < 0.9 ? 'blue' : 'green';
+        return <Tag color={color}>{normalized < 0.75 ? `低 ${percent}` : percent}</Tag>;
+      },
+    },
+    {
       title: '原因',
       dataIndex: 'reason',
       render: (value: string) => (
@@ -68,7 +79,7 @@ export function AiTestPointTable({ testPoints, selectedPointIds, canEdit, onSele
       }}
       pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
       size="small"
-      scroll={{ x: 980, y: 320 }}
+      scroll={{ x: 1100, y: 320 }}
       locale={{ emptyText: '先生成测试点，再在这里挑选需要落草稿的条目。' }}
     />
   );

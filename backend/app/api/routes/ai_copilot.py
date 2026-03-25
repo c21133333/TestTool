@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies.auth import require_roles
@@ -17,6 +18,7 @@ from backend.app.schemas.ai_copilot import (
     AiArtifactTargetType,
     AiAssertionApplyRequest,
     AiAssertionPreviewRequest,
+    AiChatStreamRequest,
     AiCopilotPreviewResponse,
     AiCoverageScanRequest,
     AiDiagnosisPreviewRequest,
@@ -33,6 +35,8 @@ from backend.app.schemas.workspace import ApiCaseRead
 from backend.app.services.ai_copilot_service import AiCopilotService
 from backend.app.services.ai_assertion_service import AiAssertionService
 from backend.app.services.ai_artifact_lineage_service import AiArtifactLineageService
+from backend.app.services.ai_chat_context_service import AiChatContextService
+from backend.app.services.ai_chat_service import AiChatService
 from backend.app.services.ai_coverage_service import AiCoverageService
 from backend.app.services.ai_diagnosis_service import AiDiagnosisService
 from backend.app.services.ai_mock_service import AiMockService
@@ -54,6 +58,32 @@ def _trace_details(result: AiCopilotPreviewResponse) -> dict[str, object]:
         "call_mode": result.call_trace.call_mode,
         "failure_category": result.call_trace.failure_category,
     }
+
+
+@router.post("/chat/stream")
+def stream_chat(
+    payload: AiChatStreamRequest,
+    _: User = Depends(require_roles(UserRole.admin, UserRole.tester, UserRole.developer)),
+    session: Session = Depends(session_scope),
+) -> StreamingResponse:
+    stream = AiChatService(
+        context_service=AiChatContextService(session),
+    ).stream_reply(
+        chat_mode=payload.chat_mode,
+        project_id=payload.project_id,
+        page_path=payload.page_path,
+        page_title=payload.page_title,
+        messages=payload.messages,
+    )
+    return StreamingResponse(
+        stream,
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/artifacts/{artifact_id}/lineage", response_model=ApiResponse[AiArtifactLineageRead])
@@ -221,6 +251,7 @@ def preview_test_points(
         suite_id=suite_id,
         created_by_user_id=current_user.id,
         supplemental_input={
+            "enable_llm": True,
             "markdown_text": payload.markdown_text,
             "prompt_hints": payload.prompt_hints,
         },
