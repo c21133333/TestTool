@@ -18,7 +18,7 @@ from backend.app.models.registry import load_model_metadata
 from backend.app.models.report import Report
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.user import UserRole
-from backend.app.schemas.ai_copilot import AiArtifactCapability, AiArtifactTargetType
+from backend.app.schemas.ai_copilot import AiArtifactCapability, AiArtifactTargetType, AiCoverageResult
 from backend.app.schemas.workspace import ApiCaseCreate, EnvironmentCreate, ProjectCreate, SuiteCreate
 from backend.app.services.ai_artifact_service import AiArtifactService
 from backend.app.services.ai_test_point_draft_service import AiTestPointDraftService
@@ -49,6 +49,252 @@ class _FakeLlmCaseGenerationService:
             ],
             [],
         )
+
+
+def _mock_coverage_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _analyze(self, runtime, target_type, target_id, input_snapshot, scan_result):
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 88,
+            "failure_category": "",
+            "trace_json": {"request_id": "coverage-route-trace"},
+        }
+        return (
+            AiCoverageResult.model_validate(
+                {
+                    "coverage_score": scan_result.coverage_score,
+                    "missing_dimensions": [
+                        {
+                            "endpoint": item.endpoint,
+                            "dimension": item.dimension,
+                            "reason": f"AI 已确认 {item.endpoint} 仍缺少 {item.dimension} 覆盖。",
+                        }
+                        for item in scan_result.missing_dimensions
+                    ],
+                    "suggested_points": [
+                        {
+                            "title": "补充 GET /profile 的异常流程覆盖",
+                            "category": "negative_path",
+                            "priority": "high",
+                            "reason": "建议补充 GET /profile 的失败路径检查。",
+                        },
+                        {
+                            "title": "补充 POST /login 的状态码断言覆盖",
+                            "category": "assertion_hardening",
+                            "priority": "high",
+                            "reason": "建议为 POST /login 增加明确的状态码与业务结果断言。",
+                        },
+                    ],
+                }
+            ),
+            [],
+        )
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_coverage_llm_service.AiCoverageLlmService.resolve_runtime",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai_coverage_llm_service.AiCoverageLlmService.analyze_coverage",
+        _analyze,
+    )
+
+
+def _mock_assertion_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _analyze(self, runtime, input_snapshot, baseline_suggestions, existing_assertions, has_success_sample):
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 66,
+            "failure_category": "",
+            "trace_json": {"request_id": "assertion-route-trace"},
+        }
+        if not has_success_sample:
+            return (
+                [
+                    {
+                        "type": "status_code",
+                        "operator": "==",
+                        "expected": 200,
+                        "enabled": True,
+                        "reason": "建议先补一个成功状态码断言，作为新用例的基础草案。",
+                        "confidence": 0.84,
+                    },
+                    {
+                        "type": "json_path",
+                        "path": "$.code",
+                        "operator": "==",
+                        "expected": 0,
+                        "enabled": True,
+                        "reason": "建议预留业务码断言草案，后续可按真实响应再校准。",
+                        "confidence": 0.71,
+                    },
+                ],
+                ["当前未发现真实成功响应，本次输出为基于请求结构推断的草案断言。"],
+            )
+        return (
+            [
+                {
+                    "type": "status_code",
+                    "operator": "==",
+                    "expected": 200,
+                    "enabled": True,
+                    "reason": "建议固定成功响应状态码，便于第一时间发现异常返回。",
+                    "confidence": 0.97,
+                },
+                {
+                    "type": "json_path",
+                    "path": "$.code",
+                    "operator": "==",
+                    "expected": 0,
+                    "enabled": True,
+                    "reason": "建议校验业务码字段，确保成功语义稳定。",
+                    "confidence": 0.91,
+                },
+                {
+                    "type": "json_path",
+                    "path": "$.message",
+                    "operator": "contains",
+                    "expected": "ok",
+                    "enabled": True,
+                    "reason": "建议补充响应文案断言，增强返回内容校验。",
+                    "confidence": 0.84,
+                },
+            ],
+            [],
+        )
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_assertion_llm_service.AiAssertionLlmService.resolve_runtime",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai_assertion_llm_service.AiAssertionLlmService.analyze_assertions",
+        _analyze,
+    )
+
+
+def _mock_test_data_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _analyze(self, runtime, input_snapshot, baseline_variants, has_rule_baseline):
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 71,
+            "failure_category": "",
+            "trace_json": {"request_id": "test-data-route-trace"},
+        }
+        if not has_rule_baseline:
+            return (
+                [
+                    {
+                        "variant_id": "tv_draft_username_empty",
+                        "name": "draft_empty_string",
+                        "category": "boundary_path",
+                        "payload_patch": {"username": ""},
+                        "target_fields": ["username"],
+                        "reason": "建议先补一个空字符串输入草案，验证基础参数边界。",
+                        "suggested_assertions": [{"type": "status_code", "operator": "==", "expected": 400, "enabled": True}],
+                        "confidence": 0.72,
+                    }
+                ],
+                ["当前规则未能产出稳定测试数据，本次结果为草案建议。"],
+            )
+        return (
+            [
+                *baseline_variants,
+                {
+                    "variant_id": "tv_profile_age_zero",
+                    "name": "zero_boundary",
+                    "category": "boundary_path",
+                    "payload_patch": {"username": "demo", "profile": {"age": 0}},
+                    "target_fields": ["profile.age"],
+                    "reason": "建议补充 age=0 的边界输入，增强数值边界覆盖。",
+                    "suggested_assertions": [{"type": "status_code", "operator": "==", "expected": 400, "enabled": True}],
+                    "confidence": 0.89,
+                },
+            ],
+            [],
+        )
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_test_data_llm_service.AiTestDataLlmService.resolve_runtime",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai_test_data_llm_service.AiTestDataLlmService.analyze_variants",
+        _analyze,
+    )
+
+
+def _mock_mock_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _analyze(self, runtime, input_snapshot, baseline_templates, has_rule_baseline):
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 74,
+            "failure_category": "",
+            "trace_json": {"request_id": "mock-route-trace"},
+        }
+        if not has_rule_baseline:
+            return (
+                [
+                    {
+                        "template_id": "mt_draft_validation_error",
+                        "scenario_name": "validation_error",
+                        "status_code": 400,
+                        "response_template": {"code": 40001, "message": "参数错误"},
+                        "mock_rules": [{"method": "POST", "path": "/orders", "status_code": 400}],
+                        "reason": "建议预留一个参数错误模板草案，便于前期联调。",
+                        "confidence": 0.7,
+                    }
+                ],
+                ["当前规则未能产出稳定 Mock 模板，本次结果为草案建议。"],
+            )
+        return (
+            [
+                *baseline_templates,
+                {
+                    "template_id": "mt_validation_error_post_users_profile",
+                    "scenario_name": "validation_error",
+                    "status_code": 400,
+                    "response_template": {"code": 40001, "message": "参数错误"},
+                    "mock_rules": [{"method": "POST", "path": "/users/{user_id}/profile", "status_code": 400}],
+                    "reason": "建议补充参数校验失败模板，覆盖更常见的联调异常分支。",
+                    "confidence": 0.88,
+                },
+            ],
+            [],
+        )
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_mock_llm_service.AiMockLlmService.resolve_runtime",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai_mock_llm_service.AiMockLlmService.analyze_templates",
+        _analyze,
+    )
 
 
 def _build_api_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, sessionmaker]:
@@ -315,6 +561,7 @@ def test_ai_copilot_report_summary_routes_apply_and_status_lifecycle(monkeypatch
 
 
 def test_ai_copilot_assertion_apply_is_idempotent_for_append(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_assertion_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     token = _issue_token(factory, "tester-ai-assert", "Tester", "Tester#AIAssert2026", UserRole.tester)
     case_id, environment_id = _seed_case(factory, with_existing_assertion=True)
@@ -351,6 +598,8 @@ def test_ai_copilot_assertion_apply_is_idempotent_for_append(monkeypatch: pytest
         )
 
     assert preview_response.status_code == 200
+    preview_payload = preview_response.json()["data"]
+    assert preview_payload["call_trace"]["call_mode"] == "llm"
     assert first_apply_response.status_code == 200
     assert second_apply_response.status_code == 200
 
@@ -362,7 +611,27 @@ def test_ai_copilot_assertion_apply_is_idempotent_for_append(monkeypatch: pytest
     assert any(item["type"] == "json_path" and item["path"] == "$.message" for item in second_assertions)
 
 
+def test_ai_copilot_assertion_preview_returns_draft_without_execution_sample(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_assertion_llm(monkeypatch)
+    client, factory = _build_api_client(monkeypatch)
+    token = _issue_token(factory, "tester-ai-assert-draft", "Tester", "Tester#AIAssertDraft2026", UserRole.tester)
+    case_id, _ = _seed_case(factory, with_existing_assertion=False)
+
+    headers = {"Authorization": f"Bearer {token}"}
+    with client:
+        preview_response = client.post("/api/v1/ai-copilot/assertions/preview", json={"case_id": case_id}, headers=headers)
+
+    assert preview_response.status_code == 200
+    preview_payload = preview_response.json()["data"]
+    assert preview_payload["call_trace"]["call_mode"] == "llm"
+    assert len(preview_payload["result"]["suggested_assertions"]) > 0
+    assert all(item["confidence"] <= 0.68 for item in preview_payload["result"]["suggested_assertions"])
+    assert any("草案" in item["reason"] for item in preview_payload["result"]["suggested_assertions"])
+    assert any("未基于真实成功响应验证" in warning for warning in preview_payload["warnings"])
+
+
 def test_ai_copilot_coverage_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_coverage_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     _, suite_id = _seed_coverage_suite(factory)
     token = _issue_token(factory, "tester-ai-coverage", "Tester", "Tester#AICoverage2026", UserRole.tester)
@@ -377,6 +646,7 @@ def test_ai_copilot_coverage_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> No
     assert preview_payload["capability"] == "coverage"
     assert preview_payload["result"]["coverage_score"] == 55
     assert len(preview_payload["result"]["suggested_points"]) > 0
+    assert preview_payload["call_trace"]["call_mode"] == "llm"
 
     assert history_response.status_code == 200
     history_payload = history_response.json()["data"]["items"]
@@ -384,9 +654,11 @@ def test_ai_copilot_coverage_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> No
     assert history_payload[0]["artifact_id"] == preview_payload["artifact_id"]
     assert history_payload[0]["target_type"] == "suite"
     assert history_payload[0]["status"] == "draft"
+    assert history_payload[0]["model"] == "gpt-5.4"
 
 
 def test_ai_copilot_coverage_routes_support_project_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_coverage_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     project_id, _ = _seed_coverage_suite(factory)
     token = _issue_token(factory, "tester-ai-coverage-project", "Tester", "Tester#AICoverageProject2026", UserRole.tester)
@@ -492,6 +764,7 @@ def test_ai_copilot_test_points_generate_drafts_route(monkeypatch: pytest.Monkey
 
 
 def test_ai_copilot_project_test_point_to_draft_mainline(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_coverage_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     project_id, _ = _seed_coverage_suite(factory)
     token = _issue_token(factory, "tester-ai-project-design", "Tester", "Tester#AIProjectDesign2026", UserRole.tester)
@@ -723,6 +996,7 @@ def test_ai_route_audit_log_includes_failure_category(monkeypatch: pytest.Monkey
 
 
 def test_ai_test_data_web_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_test_data_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     case_id, _ = _seed_phase3_case(factory)
     token = _issue_token(factory, "tester-ai-test-data", "Tester", "Tester#AITestData2026", UserRole.tester)
@@ -744,12 +1018,14 @@ def test_ai_test_data_web_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
     assert preview_response.status_code == 200
     assert preview_payload["capability"] == "test_data"
     assert len(preview_payload["result"]["data_variants"]) >= 3
+    assert preview_payload["call_trace"]["call_mode"] == "llm"
 
     assert history_response.status_code == 200
     history_payload = history_response.json()["data"]["items"]
     assert len(history_payload) == 1
     assert history_payload[0]["artifact_id"] == artifact_id
     assert history_payload[0]["status"] == "draft"
+    assert history_payload[0]["model"] == "gpt-5.4"
 
     assert apply_response.status_code == 200
     applied_payload = apply_response.json()["data"]
@@ -764,6 +1040,7 @@ def test_ai_test_data_web_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_ai_test_data_apply_is_idempotent_for_append(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_test_data_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     case_id, _ = _seed_phase3_case(factory)
     token = _issue_token(factory, "tester-ai-test-data-append", "Tester", "Tester#AITestDataAppend2026", UserRole.tester)
@@ -795,7 +1072,26 @@ def test_ai_test_data_apply_is_idempotent_for_append(monkeypatch: pytest.MonkeyP
     assert [item["variant_id"] for item in second_variants] == selected_variant_ids
 
 
+def test_ai_test_data_preview_returns_draft_when_rule_baseline_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_test_data_llm(monkeypatch)
+    client, factory = _build_api_client(monkeypatch)
+    token = _issue_token(factory, "tester-ai-test-data-draft", "Tester", "Tester#AITestDataDraft2026", UserRole.tester)
+    case_id, _ = _seed_case(factory, with_existing_assertion=False)
+
+    headers = {"Authorization": f"Bearer {token}"}
+    with client:
+        preview_response = client.post("/api/v1/ai-copilot/test-data/preview", json={"case_id": case_id}, headers=headers)
+
+    assert preview_response.status_code == 200
+    preview_payload = preview_response.json()["data"]
+    assert preview_payload["call_trace"]["call_mode"] == "llm"
+    assert len(preview_payload["result"]["data_variants"]) == 1
+    assert preview_payload["result"]["data_variants"][0]["confidence"] <= 0.62
+    assert any("可信度较低" in warning for warning in preview_payload["warnings"])
+
+
 def test_ai_mock_web_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_mock_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     case_id, _ = _seed_phase3_case(factory)
     token = _issue_token(factory, "tester-ai-mock", "Tester", "Tester#AIMock2026", UserRole.tester)
@@ -817,12 +1113,14 @@ def test_ai_mock_web_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
     assert preview_response.status_code == 200
     assert preview_payload["capability"] == "mock"
     assert len(preview_payload["result"]["mock_templates"]) >= 2
+    assert preview_payload["call_trace"]["call_mode"] == "llm"
 
     assert history_response.status_code == 200
     history_payload = history_response.json()["data"]["items"]
     assert len(history_payload) == 1
     assert history_payload[0]["artifact_id"] == artifact_id
     assert history_payload[0]["status"] == "draft"
+    assert history_payload[0]["model"] == "gpt-5.4"
 
     assert apply_response.status_code == 200
     applied_payload = apply_response.json()["data"]
@@ -837,6 +1135,7 @@ def test_ai_mock_web_routes_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_ai_mock_apply_is_idempotent_for_append(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_mock_llm(monkeypatch)
     client, factory = _build_api_client(monkeypatch)
     case_id, _ = _seed_phase3_case(factory)
     token = _issue_token(factory, "tester-ai-mock-append", "Tester", "Tester#AIMockAppend2026", UserRole.tester)
@@ -866,3 +1165,21 @@ def test_ai_mock_apply_is_idempotent_for_append(monkeypatch: pytest.MonkeyPatch)
     second_templates = second_apply_response.json()["data"]["metadata_json"]["ai_mock_templates"]
     assert first_templates == second_templates
     assert [item["template_id"] for item in second_templates] == selected_template_ids
+
+
+def test_ai_mock_preview_returns_draft_when_rule_baseline_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_mock_llm(monkeypatch)
+    client, factory = _build_api_client(monkeypatch)
+    token = _issue_token(factory, "tester-ai-mock-draft", "Tester", "Tester#AIMockDraft2026", UserRole.tester)
+    case_id, _ = _seed_case(factory, with_existing_assertion=False)
+
+    headers = {"Authorization": f"Bearer {token}"}
+    with client:
+        preview_response = client.post("/api/v1/ai-copilot/mock/preview", json={"case_id": case_id}, headers=headers)
+
+    assert preview_response.status_code == 200
+    preview_payload = preview_response.json()["data"]
+    assert preview_payload["call_trace"]["call_mode"] == "llm"
+    assert len(preview_payload["result"]["mock_templates"]) == 1
+    assert preview_payload["result"]["mock_templates"][0]["confidence"] <= 0.64
+    assert any("可信度较低" in warning for warning in preview_payload["warnings"])

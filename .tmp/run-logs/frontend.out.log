@@ -1,0 +1,15 @@
+
+> eazytest-web@0.1.0 dev
+> vite --host 0.0.0.0
+
+
+  [32m[1mVITE[22m v6.4.1[39m  [2mready in [0m[1m286[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.146.9.227:[1m5173[22m/[39m
+[2m13:44:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiCoveragePanel.tsx[22m
+[2m13:44:37[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiCoveragePanel.tsx[22m
+[2m13:44:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m13:44:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m13:55:24[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m14:08:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiWarningList.tsx[22m

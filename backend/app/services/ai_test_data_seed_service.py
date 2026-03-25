@@ -121,6 +121,7 @@ class AiTestDataSeedService:
             target_fields=[target_path],
             reason=reason,
             suggested_assertions=[{"type": "status_code", "operator": "==", "expected": 400, "enabled": True}],
+            confidence=0.88,
         )
 
     def _collect_leaf_fields(self, payload: dict[str, Any]) -> list[_LeafField]:

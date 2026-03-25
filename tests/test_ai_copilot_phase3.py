@@ -28,6 +28,118 @@ from backend.app.services.ai_test_data_seed_service import AiTestDataSeedService
 from backend.app.services.workspace_service import WorkspaceService
 
 
+class _FakeTestDataLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 87,
+            "failure_category": "",
+            "trace_json": {"request_id": "test-data-phase3-trace"},
+        }
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_variants(self, *, runtime, input_snapshot, baseline_variants, has_rule_baseline):
+        if not has_rule_baseline:
+            return (
+                [
+                    {
+                        "variant_id": "tv_draft_username_empty",
+                        "name": "draft_empty_string",
+                        "category": "boundary_path",
+                        "payload_patch": {"username": ""},
+                        "target_fields": ["username"],
+                        "reason": "建议先补一个空字符串输入草案，验证基础参数边界。",
+                        "suggested_assertions": [{"type": "status_code", "operator": "==", "expected": 400, "enabled": True}],
+                        "confidence": 0.72,
+                    }
+                ],
+                ["当前规则未能产出稳定测试数据，本次结果为草案建议。"],
+            )
+        return (
+            [
+                *baseline_variants,
+                {
+                    "variant_id": "tv_profile_age_zero",
+                    "name": "zero_boundary",
+                    "category": "boundary_path",
+                    "payload_patch": {"username": "demo", "profile": {"age": 0}},
+                    "target_fields": ["profile.age"],
+                    "reason": "建议补充 age=0 的边界输入，增强数值边界覆盖。",
+                    "suggested_assertions": [{"type": "status_code", "operator": "==", "expected": 400, "enabled": True}],
+                    "confidence": 0.89,
+                },
+            ],
+            [],
+        )
+
+
+class _FakeMockLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 92,
+            "failure_category": "",
+            "trace_json": {"request_id": "mock-phase3-trace"},
+        }
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_templates(self, *, runtime, input_snapshot, baseline_templates, has_rule_baseline):
+        if not has_rule_baseline:
+            return (
+                [
+                    {
+                        "template_id": "mt_draft_validation_error",
+                        "scenario_name": "validation_error",
+                        "status_code": 400,
+                        "response_template": {"code": 40001, "message": "参数错误"},
+                        "mock_rules": [{"method": "POST", "path": "/orders", "status_code": 400}],
+                        "reason": "建议预留一个参数错误模板草案，便于前期联调。",
+                        "confidence": 0.7,
+                    }
+                ],
+                ["当前规则未能产出稳定 Mock 模板，本次结果为草案建议。"],
+            )
+        return (
+            [
+                *baseline_templates,
+                {
+                    "template_id": "mt_validation_error_post_users_profile",
+                    "scenario_name": "validation_error",
+                    "status_code": 400,
+                    "response_template": {"code": 40001, "message": "参数错误"},
+                    "mock_rules": [{"method": "POST", "path": "/users/{user_id}/profile", "status_code": 400}],
+                    "reason": "建议补充参数校验失败模板，覆盖更常见的联调异常分支。",
+                    "confidence": 0.88,
+                },
+            ],
+            [],
+        )
+
+
+def _make_test_data_service(session: Session) -> AiTestDataService:
+    return AiTestDataService(session, llm_service=_FakeTestDataLlmService())
+
+
+def _make_mock_service(session: Session) -> AiMockService:
+    return AiMockService(session, llm_service=_FakeMockLlmService())
+
+
 def _make_session() -> Session:
     engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
     Base.metadata.create_all(bind=engine)
@@ -204,14 +316,14 @@ def test_ai_mock_preview_response_contract():
         artifact_id="artifact_mock_001",
         capability=AiArtifactCapability.mock,
         status=AiArtifactStatus.draft,
-        warnings=["mock remains export-first in phase3"],
+        warnings=["当前 AI Mock 仍以导出模板为主，不会直接启用 runtime mock。"],
         result=result.model_dump(),
     )
 
     assert preview_request.case_id == 202
     assert apply_request.override_existing is True
     assert preview.capability == AiArtifactCapability.mock
-    assert preview.warnings == ["mock remains export-first in phase3"]
+    assert preview.warnings == ["当前 AI Mock 仍以导出模板为主，不会直接启用 runtime mock。"]
     assert preview.result["mock_templates"][0]["status_code"] == 403
     assert preview.result["mock_templates"][0]["mock_rules"][0]["path"] == "/login"
 
@@ -324,7 +436,7 @@ def test_ai_test_data_preview_persists_artifact():
     api_case = WorkspaceService(session).get_case(case_id)
     service = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.test_data.value: AiTestDataService(session).generate_preview},
+        capability_runners={AiArtifactCapability.test_data.value: _make_test_data_service(session).generate_preview},
     )
 
     preview = service.preview(
@@ -339,10 +451,13 @@ def test_ai_test_data_preview_persists_artifact():
 
     assert preview.capability == AiArtifactCapability.test_data
     assert len(preview.result["data_variants"]) >= 3
+    assert preview.call_trace is not None
+    assert preview.call_trace.call_mode == "llm"
     assert stored is not None
     assert stored.capability == AiArtifactCapability.test_data.value
     assert stored.target_type == AiArtifactTargetType.case.value
     assert stored.case_id == case_id
+    assert stored.model == "gpt-5.4"
 
 
 def test_ai_test_data_apply_appends_variants_to_case_metadata():
@@ -359,7 +474,7 @@ def test_ai_test_data_apply_appends_variants_to_case_metadata():
 
     copilot = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.test_data.value: AiTestDataService(session).generate_preview},
+        capability_runners={AiArtifactCapability.test_data.value: _make_test_data_service(session).generate_preview},
     )
     preview = copilot.preview(
         capability=AiArtifactCapability.test_data,
@@ -371,7 +486,7 @@ def test_ai_test_data_apply_appends_variants_to_case_metadata():
     )
     selected_variant_ids = [item["variant_id"] for item in preview.result["data_variants"][:2]]
 
-    saved_case = AiTestDataService(session).apply_artifact(
+    saved_case = _make_test_data_service(session).apply_artifact(
         preview.artifact_id,
         selected_variant_ids=selected_variant_ids,
         override_existing=False,
@@ -400,7 +515,7 @@ def test_ai_test_data_apply_override_replaces_existing_variants():
 
     copilot = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.test_data.value: AiTestDataService(session).generate_preview},
+        capability_runners={AiArtifactCapability.test_data.value: _make_test_data_service(session).generate_preview},
     )
     preview = copilot.preview(
         capability=AiArtifactCapability.test_data,
@@ -412,7 +527,7 @@ def test_ai_test_data_apply_override_replaces_existing_variants():
     )
     selected_variant_id = preview.result["data_variants"][0]["variant_id"]
 
-    saved_case = AiTestDataService(session).apply_artifact(
+    saved_case = _make_test_data_service(session).apply_artifact(
         preview.artifact_id,
         selected_variant_ids=[selected_variant_id],
         override_existing=True,
@@ -427,7 +542,7 @@ def test_ai_test_data_export_returns_json_bundle():
     api_case = WorkspaceService(session).get_case(case_id)
     preview = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.test_data.value: AiTestDataService(session).generate_preview},
+        capability_runners={AiArtifactCapability.test_data.value: _make_test_data_service(session).generate_preview},
     ).preview(
         capability=AiArtifactCapability.test_data,
         target_type=AiArtifactTargetType.case,
@@ -437,12 +552,40 @@ def test_ai_test_data_export_returns_json_bundle():
         case_id=case_id,
     )
 
-    bundle = AiTestDataService(session).export_artifact(preview.artifact_id)
+    bundle = _make_test_data_service(session).export_artifact(preview.artifact_id)
 
     assert bundle["artifact_id"] == preview.artifact_id
     assert bundle["case_id"] == case_id
     assert bundle["capability"] == "test_data"
     assert len(bundle["data_variants"]) >= 3
+
+
+def test_ai_test_data_preview_returns_draft_variants_without_rule_baseline():
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Draft Test Data", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Draft Suite", description=""))
+    api_case = workspace.create_case(ApiCaseCreate(suite_id=suite.id, name="Draft case", method="POST", url="/orders"))
+    session.commit()
+
+    preview = AiCopilotService(
+        session,
+        capability_runners={AiArtifactCapability.test_data.value: _make_test_data_service(session).generate_preview},
+    ).preview(
+        capability=AiArtifactCapability.test_data,
+        target_type=AiArtifactTargetType.case,
+        target_id=api_case.id,
+        project_id=project.id,
+        suite_id=suite.id,
+        case_id=api_case.id,
+    )
+
+    assert preview.call_trace is not None
+    assert preview.call_trace.call_mode == "llm"
+    assert len(preview.result["data_variants"]) == 1
+    assert preview.result["data_variants"][0]["confidence"] <= 0.62
+    assert "草案" in preview.result["data_variants"][0]["reason"]
+    assert any("可信度较低" in warning for warning in preview.warnings)
 
 
 def test_mock_seed_service_extracts_response_templates_from_history():
@@ -491,7 +634,7 @@ def test_ai_mock_preview_persists_artifact():
     api_case = WorkspaceService(session).get_case(case_id)
     service = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.mock.value: AiMockService(session).generate_preview},
+        capability_runners={AiArtifactCapability.mock.value: _make_mock_service(session).generate_preview},
     )
 
     preview = service.preview(
@@ -506,10 +649,41 @@ def test_ai_mock_preview_persists_artifact():
 
     assert preview.capability == AiArtifactCapability.mock
     assert len(preview.result["mock_templates"]) >= 2
+    assert preview.call_trace is not None
+    assert preview.call_trace.call_mode == "llm"
     assert stored is not None
     assert stored.capability == AiArtifactCapability.mock.value
     assert stored.target_type == AiArtifactTargetType.case.value
     assert stored.case_id == case_id
+    assert stored.model == "gpt-5.4"
+
+
+def test_ai_mock_preview_returns_draft_templates_without_rule_baseline():
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Draft Mock", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Draft Suite", description=""))
+    api_case = workspace.create_case(ApiCaseCreate(suite_id=suite.id, name="Draft case", method="POST", url="/orders"))
+    session.commit()
+
+    preview = AiCopilotService(
+        session,
+        capability_runners={AiArtifactCapability.mock.value: _make_mock_service(session).generate_preview},
+    ).preview(
+        capability=AiArtifactCapability.mock,
+        target_type=AiArtifactTargetType.case,
+        target_id=api_case.id,
+        project_id=project.id,
+        suite_id=suite.id,
+        case_id=api_case.id,
+    )
+
+    assert preview.call_trace is not None
+    assert preview.call_trace.call_mode == "llm"
+    assert len(preview.result["mock_templates"]) == 1
+    assert preview.result["mock_templates"][0]["confidence"] <= 0.64
+    assert "草案" in preview.result["mock_templates"][0]["reason"]
+    assert any("可信度较低" in warning for warning in preview.warnings)
 
 
 def test_ai_mock_apply_appends_templates_to_case_metadata():
@@ -526,7 +700,7 @@ def test_ai_mock_apply_appends_templates_to_case_metadata():
 
     preview = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.mock.value: AiMockService(session).generate_preview},
+        capability_runners={AiArtifactCapability.mock.value: _make_mock_service(session).generate_preview},
     ).preview(
         capability=AiArtifactCapability.mock,
         target_type=AiArtifactTargetType.case,
@@ -537,7 +711,7 @@ def test_ai_mock_apply_appends_templates_to_case_metadata():
     )
     selected_template_ids = [item["template_id"] for item in preview.result["mock_templates"][:2]]
 
-    saved_case = AiMockService(session).apply_artifact(
+    saved_case = _make_mock_service(session).apply_artifact(
         preview.artifact_id,
         selected_template_ids=selected_template_ids,
         override_existing=False,
@@ -566,7 +740,7 @@ def test_ai_mock_apply_override_replaces_existing_templates():
 
     preview = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.mock.value: AiMockService(session).generate_preview},
+        capability_runners={AiArtifactCapability.mock.value: _make_mock_service(session).generate_preview},
     ).preview(
         capability=AiArtifactCapability.mock,
         target_type=AiArtifactTargetType.case,
@@ -577,7 +751,7 @@ def test_ai_mock_apply_override_replaces_existing_templates():
     )
     selected_template_id = preview.result["mock_templates"][0]["template_id"]
 
-    saved_case = AiMockService(session).apply_artifact(
+    saved_case = _make_mock_service(session).apply_artifact(
         preview.artifact_id,
         selected_template_ids=[selected_template_id],
         override_existing=True,
@@ -592,7 +766,7 @@ def test_ai_mock_export_returns_json_bundle():
     api_case = WorkspaceService(session).get_case(case_id)
     preview = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.mock.value: AiMockService(session).generate_preview},
+        capability_runners={AiArtifactCapability.mock.value: _make_mock_service(session).generate_preview},
     ).preview(
         capability=AiArtifactCapability.mock,
         target_type=AiArtifactTargetType.case,
@@ -602,7 +776,7 @@ def test_ai_mock_export_returns_json_bundle():
         case_id=case_id,
     )
 
-    bundle = AiMockService(session).export_artifact(preview.artifact_id)
+    bundle = _make_mock_service(session).export_artifact(preview.artifact_id)
 
     assert bundle["artifact_id"] == preview.artifact_id
     assert bundle["case_id"] == case_id

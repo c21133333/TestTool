@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 
-import { Alert, Collapse, Drawer, Empty } from 'antd';
+import { Alert, Collapse, Drawer, Empty, Pagination, Space } from 'antd';
 
 import { StatePanel } from '../product/StatePanel';
 
@@ -20,6 +21,7 @@ type Props = {
   items: HistoryItem[];
   emptyText: string;
   width?: number | string;
+  pageSize?: number;
 };
 
 export function AiArtifactHistoryDrawer({
@@ -32,7 +34,20 @@ export function AiArtifactHistoryDrawer({
   items,
   emptyText,
   width = 520,
+  pageSize = 10,
 }: Props) {
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(items.length / pageSize));
+    if (page > maxPage) {
+      setPage(maxPage);
+    }
+  }, [items.length, page, pageSize]);
+
+  const startIndex = (page - 1) * pageSize;
+  const pagedItems = items.slice(startIndex, startIndex + pageSize);
+
   return (
     <Drawer title={title} placement="right" open={open} onClose={onClose} width={width}>
       {headerContent ? <div style={{ marginBottom: 12 }}>{headerContent}</div> : null}
@@ -43,14 +58,25 @@ export function AiArtifactHistoryDrawer({
       ) : !items.length ? (
         <Empty description={emptyText} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
-        <Collapse
-          ghost
-          items={items.map((item) => ({
-            key: item.key,
-            label: item.label,
-            children: item.content,
-          }))}
-        />
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Collapse
+            ghost
+            items={pagedItems.map((item) => ({
+              key: item.key,
+              label: item.label,
+              children: item.content,
+            }))}
+          />
+          <Pagination
+            align="end"
+            current={page}
+            pageSize={pageSize}
+            total={items.length}
+            showSizeChanger={false}
+            hideOnSinglePage
+            onChange={setPage}
+          />
+        </Space>
       )}
     </Drawer>
   );

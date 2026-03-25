@@ -704,7 +704,7 @@ export function AiCaseGenerationPanel({
               dataSource={historyItems}
               columns={historyColumns}
               size="small"
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               loading={historyLoading}
               scroll={{ x: 980, y: 180 }}
               locale={{ emptyText: '当前没有草稿历史记录。' }}

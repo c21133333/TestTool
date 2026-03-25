@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fastapi import HTTPException, status
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -17,6 +18,154 @@ from backend.app.services.execution_service import ExecutionService
 from backend.app.services.report_service import ReportService
 from backend.app.services.ai_report_summary_service import AiReportSummaryService
 from backend.app.services.workspace_service import WorkspaceService
+
+
+class _FakeAssertionLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 95,
+            "failure_category": "",
+            "trace_json": {"request_id": "assertion-test-trace"},
+        }
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_assertions(self, *, runtime, input_snapshot, baseline_suggestions, existing_assertions, has_success_sample):
+        if not has_success_sample:
+            return (
+                [
+                    {
+                        "type": "status_code",
+                        "operator": "==",
+                        "expected": 200,
+                        "enabled": True,
+                        "reason": "建议先约束接口返回成功状态码，避免明显异常漏检。",
+                        "confidence": 0.86,
+                    },
+                    {
+                        "type": "json_path",
+                        "path": "$.code",
+                        "operator": "==",
+                        "expected": 0,
+                        "enabled": True,
+                        "reason": "结合常见 API 设计，建议预留业务码断言草案。",
+                        "confidence": 0.72,
+                    },
+                ],
+                ["当前未发现真实成功响应，本次输出为基于请求结构推断的草案断言。"],
+            )
+        return (
+            [
+                {
+                    "type": "status_code",
+                    "operator": "==",
+                    "expected": 200,
+                    "enabled": True,
+                    "reason": "建议固定成功响应状态码，避免接口异常时无感知。",
+                    "confidence": 0.97,
+                },
+                {
+                    "type": "json_path",
+                    "path": "$.code",
+                    "operator": "==",
+                    "expected": 0,
+                    "enabled": True,
+                    "reason": "建议校验稳定业务码字段，确保成功语义明确。",
+                    "confidence": 0.91,
+                },
+            ],
+            [],
+        )
+
+
+class _FakeDiagnosisLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 88,
+            "failure_category": "",
+            "trace_json": {"request_id": "diagnosis-test-trace"},
+        }
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_diagnosis(self, *, runtime, input_snapshot, baseline_result, has_clear_signal):
+        return (
+            {
+                "diagnosis_category": "auth_issue",
+                "root_cause_hypothesis": "大模型判断当前失败更像鉴权令牌失效或权限范围不匹配。",
+                "confidence": 0.89,
+                "next_actions": ["刷新 token 后重放请求", "核对环境中的鉴权配置"],
+            },
+            [],
+        )
+
+
+class _FailingDiagnosisLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {"call_mode": "deterministic", "trace_json": {}}
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_diagnosis(self, *, runtime, input_snapshot, baseline_result, has_clear_signal):
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="AI generation timed out.")
+
+
+class _FakeReportSummaryLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 76,
+            "failure_category": "",
+            "trace_json": {"request_id": "report-summary-test-trace"},
+        }
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_summary(self, *, runtime, input_snapshot, baseline_result, has_rule_baseline):
+        return (
+            {
+                "executive_summary": "本次执行以失败为主，主要风险集中在 assertion_failed。",
+                "risk_summary": "失败条目已经形成清晰聚类，建议先核对断言基线是否过旧。",
+                "top_failures": [{"category": "assertion_failed", "count": 2}],
+                "recommended_actions": ["回看失败响应体", "对比最近一次成功报告"],
+            },
+            [],
+        )
+
+
+class _FailingReportSummaryLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {"call_mode": "deterministic", "trace_json": {}}
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_summary(self, *, runtime, input_snapshot, baseline_result, has_rule_baseline):
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI response invalid.")
 
 
 def _make_session() -> Session:
@@ -440,6 +589,43 @@ def test_diagnosis_preview_creates_draft_artifact(monkeypatch):
     assert stored.execution_id == execution.id
 
 
+def test_diagnosis_preview_prefers_llm_result_when_available() -> None:
+    service = AiDiagnosisService(llm_service=_FakeDiagnosisLlmService())
+
+    preview = service.generate_preview(
+        {
+            "input_snapshot": {
+                "summary": {"failure_breakdown": {"timeout": 1}},
+                "first_failure": {"category": "timeout", "message": "token expired after retry"},
+                "items": [{"failure_message": "401 token expired"}],
+            }
+        }
+    )
+
+    assert preview["result"]["diagnosis_category"] == "auth_issue"
+    assert preview["result"]["confidence"] == 0.89
+    assert preview["call_trace"]["call_mode"] == "llm"
+
+
+def test_diagnosis_preview_falls_back_to_rules_when_llm_fails() -> None:
+    service = AiDiagnosisService(llm_service=_FailingDiagnosisLlmService())
+
+    preview = service.generate_preview(
+        {
+            "input_snapshot": {
+                "summary": {},
+                "first_failure": {"category": "unknown", "message": "something odd happened"},
+                "items": [],
+            }
+        }
+    )
+
+    assert preview["result"]["diagnosis_category"] == "unknown"
+    assert any("回退到规则诊断结果" in warning for warning in preview["warnings"])
+    assert any("可信度较低" in warning for warning in preview["warnings"])
+    assert preview["call_trace"]["call_mode"] == "deterministic_fallback"
+
+
 def test_diagnosis_history_returns_existing_artifacts(monkeypatch):
     session = _make_session()
     workspace = WorkspaceService(session)
@@ -539,6 +725,35 @@ def test_report_summary_preview_creates_artifact(monkeypatch):
     assert stored.report_id == report.id
 
 
+def test_report_summary_preview_prefers_llm_result_when_available() -> None:
+    service = AiReportSummaryService(llm_service=_FakeReportSummaryLlmService())
+
+    preview = service.generate_preview(
+        {
+            "input_snapshot": {
+                "execution_summary": {"total": 3, "ok": 1, "ng": 2, "failure_breakdown": {"assertion_failed": 2}},
+                "metadata": {"summary": {"total": 3, "ok": 1, "ng": 2}},
+                "recent_suite_execution": {"summary": {"ng": 1}},
+            }
+        }
+    )
+
+    assert preview["result"]["executive_summary"].startswith("本次执行以失败为主")
+    assert preview["result"]["recommended_actions"][0] == "回看失败响应体"
+    assert preview["call_trace"]["call_mode"] == "llm"
+
+
+def test_report_summary_preview_falls_back_to_rules_when_llm_fails() -> None:
+    service = AiReportSummaryService(llm_service=_FailingReportSummaryLlmService())
+
+    preview = service.generate_preview({"input_snapshot": {}})
+
+    assert preview["result"]["executive_summary"].startswith("This execution finished")
+    assert any("回退到规则总结结果" in warning for warning in preview["warnings"])
+    assert any("可信度较低" in warning for warning in preview["warnings"])
+    assert preview["call_trace"]["call_mode"] == "deterministic_fallback"
+
+
 def test_report_summary_apply_writes_metadata_json_ai_summary(monkeypatch):
     session = _make_session()
     workspace = WorkspaceService(session)
@@ -610,7 +825,11 @@ def test_assertion_preview_returns_suggestions_for_case(monkeypatch):
 
     service = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.assertion.value: AiAssertionService().generate_preview},
+        capability_runners={
+            AiArtifactCapability.assertion.value: AiAssertionService(
+                llm_service=_FakeAssertionLlmService(),
+            ).generate_preview
+        },
     )
     preview = service.preview(
         capability=AiArtifactCapability.assertion,
@@ -630,6 +849,53 @@ def test_assertion_preview_returns_suggestions_for_case(monkeypatch):
     assert any(item["type"] == "json_path" and item["path"] == "$.code" for item in suggestions)
     assert stored is not None
     assert stored.case_id == case.id
+    assert preview.call_trace is not None
+    assert preview.call_trace.call_mode == "llm"
+    assert stored.model == "gpt-5.4"
+
+
+def test_assertion_preview_returns_draft_suggestions_without_execution_sample():
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Assertions", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Suite A", description=""))
+    case = workspace.create_case(
+        ApiCaseCreate(
+            suite_id=suite.id,
+            name="Create order",
+            method="POST",
+            url="/orders?source=web",
+            headers_json={"Authorization": "Bearer {{token}}"},
+            body_json={"sku_id": 1001, "quantity": 2},
+        )
+    )
+    session.commit()
+
+    service = AiCopilotService(
+        session,
+        capability_runners={
+            AiArtifactCapability.assertion.value: AiAssertionService(
+                llm_service=_FakeAssertionLlmService(),
+            ).generate_preview
+        },
+    )
+    preview = service.preview(
+        capability=AiArtifactCapability.assertion,
+        target_type=AiArtifactTargetType.case,
+        target_id=case.id,
+        project_id=project.id,
+        suite_id=suite.id,
+        case_id=case.id,
+    )
+
+    suggestions = preview.result["suggested_assertions"]
+
+    assert suggestions
+    assert preview.call_trace is not None
+    assert preview.call_trace.call_mode == "llm"
+    assert any("草案" in item["reason"] for item in suggestions)
+    assert all(item["confidence"] <= 0.68 for item in suggestions)
+    assert any("未基于真实成功响应验证" in warning for warning in preview.warnings)
 
 
 def test_assertion_apply_appends_assertions_without_overwriting_by_default(monkeypatch):
@@ -665,7 +931,12 @@ def test_assertion_apply_appends_assertions_without_overwriting_by_default(monke
 
     service = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.assertion.value: AiAssertionService().generate_preview},
+        capability_runners={
+            AiArtifactCapability.assertion.value: AiAssertionService(
+                session,
+                llm_service=_FakeAssertionLlmService(),
+            ).generate_preview
+        },
     )
     preview = service.preview(
         capability=AiArtifactCapability.assertion,
@@ -719,7 +990,12 @@ def test_assertion_apply_requires_explicit_override_when_replacing_existing_asse
 
     service = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.assertion.value: AiAssertionService().generate_preview},
+        capability_runners={
+            AiArtifactCapability.assertion.value: AiAssertionService(
+                session,
+                llm_service=_FakeAssertionLlmService(),
+            ).generate_preview
+        },
     )
     preview = service.preview(
         capability=AiArtifactCapability.assertion,

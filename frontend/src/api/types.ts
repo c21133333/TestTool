@@ -362,6 +362,7 @@ export type AiTestDataVariant = {
   target_fields: string[];
   reason: string;
   suggested_assertions: Record<string, unknown>[];
+  confidence: number;
 };
 
 export type AiTestDataResult = {
@@ -375,6 +376,7 @@ export type AiMockTemplate = {
   response_template: Record<string, unknown>;
   mock_rules: Record<string, unknown>[];
   reason: string;
+  confidence: number;
 };
 
 export type AiMockResult = {

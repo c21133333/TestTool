@@ -68,6 +68,11 @@ class AiCopilotService:
         result = generated.get("result") if isinstance(generated.get("result"), dict) else {}
         warnings = [str(item) for item in generated.get("warnings") or []]
         call_trace = self._normalize_call_trace(generated.get("call_trace"))
+        provider_name = provider.strip()
+        model_name = model.strip()
+        if call_trace.provider is not None:
+            provider_name = provider_name or str(call_trace.provider.provider or "")
+            model_name = model_name or str(call_trace.provider.model or "")
 
         artifact = self._artifact_service.create_draft_artifact(
             capability=capability,
@@ -81,8 +86,8 @@ class AiCopilotService:
             input_json=context,
             output_json=result,
             warnings=warnings,
-            provider=provider,
-            model=model,
+            provider=provider_name,
+            model=model_name,
             created_by_user_id=created_by_user_id,
             call_trace=call_trace,
         )

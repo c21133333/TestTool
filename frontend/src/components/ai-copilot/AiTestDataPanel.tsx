@@ -46,6 +46,7 @@ function normalizeHistoryResult(outputJson: Record<string, unknown>): AiTestData
         suggested_assertions: Array.isArray(entry.suggested_assertions)
           ? entry.suggested_assertions.filter((assertion): assertion is Record<string, unknown> => Boolean(assertion && typeof assertion === 'object'))
           : [],
+        confidence: Number(entry.confidence ?? 0),
       });
       return result;
     }, []),
@@ -164,7 +165,7 @@ export function AiTestDataPanel({
             <Table<AiTestDataVariant>
               rowKey="variant_id"
               size="small"
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               dataSource={variants}
               columns={columns}
               rowSelection={{

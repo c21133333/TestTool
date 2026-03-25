@@ -26,6 +26,59 @@ from backend.app.services.ai_test_point_service import AiTestPointService
 from backend.app.services.workspace_service import WorkspaceService
 
 
+class _FakeCoverageLlmService:
+    def __init__(self) -> None:
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 123,
+            "failure_category": "",
+            "trace_json": {"request_id": "cov-test-trace"},
+        }
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_coverage(self, *, runtime, target_type: str, target_id: int, input_snapshot: dict, scan_result: AiCoverageResult):
+        enhanced_missing = []
+        for item in scan_result.missing_dimensions:
+            enhanced_missing.append(
+                {
+                    "endpoint": item.endpoint,
+                    "dimension": item.dimension,
+                    "reason": f"AI 已复核 {item.endpoint}，确认仍缺少{item.dimension}覆盖。",
+                }
+            )
+        return (
+            AiCoverageResult.model_validate(
+                {
+                    "coverage_score": scan_result.coverage_score,
+                    "missing_dimensions": enhanced_missing,
+                    "suggested_points": [
+                        {
+                            "title": "补充 GET /profile 的异常流程覆盖",
+                            "category": "negative_path",
+                            "priority": "high",
+                            "reason": "建议补充 GET /profile 的失败路径或非法输入场景。",
+                        },
+                        {
+                            "title": "补充 POST /login 的状态码断言覆盖",
+                            "category": "assertion_hardening",
+                            "priority": "high",
+                            "reason": "建议为 POST /login 增加明确的状态码与业务结果断言。",
+                        },
+                    ],
+                }
+            ),
+            [],
+        )
+
+
 def _make_session() -> Session:
     engine = create_engine("sqlite+pysqlite:///:memory:", future=True)
     Base.metadata.create_all(bind=engine)
@@ -261,7 +314,12 @@ def test_ai_copilot_coverage_preview_persists_artifact():
     project_id, suite_id, _, _ = _seed_design_workspace(session)
     service = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.coverage.value: AiCoverageService(session).generate_preview},
+        capability_runners={
+            AiArtifactCapability.coverage.value: AiCoverageService(
+                session,
+                llm_service=_FakeCoverageLlmService(),
+            ).generate_preview
+        },
     )
 
     preview = service.preview(
@@ -280,6 +338,10 @@ def test_ai_copilot_coverage_preview_persists_artifact():
     assert stored.target_type == AiArtifactTargetType.suite.value
     assert stored.target_id == suite_id
     assert stored.suite_id == suite_id
+    assert preview.call_trace is not None
+    assert preview.call_trace.call_mode == "llm"
+    assert stored.provider == "openai_compatible"
+    assert stored.model == "gpt-5.4"
 
 
 def test_ai_copilot_coverage_history_filters_by_suite():
@@ -291,7 +353,12 @@ def test_ai_copilot_coverage_history_filters_by_suite():
 
     service = AiCopilotService(
         session,
-        capability_runners={AiArtifactCapability.coverage.value: AiCoverageService(session).generate_preview},
+        capability_runners={
+            AiArtifactCapability.coverage.value: AiCoverageService(
+                session,
+                llm_service=_FakeCoverageLlmService(),
+            ).generate_preview
+        },
     )
     first = service.preview(
         capability=AiArtifactCapability.coverage,
@@ -328,7 +395,7 @@ def test_ai_copilot_coverage_result_contains_suggested_points():
     session = _make_session()
     _, suite_id, _, _ = _seed_design_workspace(session)
 
-    result = AiCoverageService(session).generate_preview(
+    result = AiCoverageService(session, llm_service=_FakeCoverageLlmService()).generate_preview(
         {
             "capability": "coverage",
             "target_type": "suite",
@@ -341,6 +408,8 @@ def test_ai_copilot_coverage_result_contains_suggested_points():
     assert result["result"]["coverage_score"] == 55
     assert len(result["result"]["suggested_points"]) > 0
     assert all("priority" in item for item in result["result"]["suggested_points"])
+    assert result["call_trace"]["call_mode"] == "llm"
+    assert result["result"]["missing_dimensions"][0]["reason"].startswith("AI 已复核 ")
 
 
 def test_ai_test_point_preview_marks_existing_coverage_overlap():

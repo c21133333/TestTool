@@ -161,6 +161,7 @@ class AiTestDataVariantRead(BaseModel):
     target_fields: list[str] = Field(default_factory=list)
     reason: str
     suggested_assertions: list[dict[str, Any]] = Field(default_factory=list)
+    confidence: float = 0.85
 
 
 class AiTestDataResult(BaseModel):
@@ -174,6 +175,7 @@ class AiMockTemplateRead(BaseModel):
     response_template: dict[str, Any] = Field(default_factory=dict)
     mock_rules: list[dict[str, Any]] = Field(default_factory=list)
     reason: str
+    confidence: float = 0.85
 
 
 class AiMockResult(BaseModel):

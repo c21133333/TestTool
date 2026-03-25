@@ -23,6 +23,19 @@ _ASSERTION_DIMENSIONS = (
     "latency",
 )
 _BUSINESS_CODE_PATHS = {"$.code", "$.status", "$.businessCode", "$.business_code"}
+_DIMENSION_LABELS = {
+    "happy_path": "主流程",
+    "negative_path": "异常流程",
+    "boundary_path": "边界场景",
+    "auth": "鉴权场景",
+    "idempotent": "幂等场景",
+    "pagination": "分页场景",
+    "status": "状态码断言",
+    "business_code": "业务码断言",
+    "body_field": "响应字段断言",
+    "schema": "响应结构断言",
+    "latency": "时延断言",
+}
 
 
 @dataclass
@@ -55,7 +68,7 @@ class AiCoverageScanService:
                         AiCoverageMissingDimension(
                             endpoint=endpoint,
                             dimension=dimension,
-                            reason=f"No case metadata marks {endpoint} as covering {dimension}.",
+                            reason=f"现有用例元数据没有明确标记 {endpoint} 已覆盖“{self._dimension_label(dimension)}”。",
                         )
                     )
             for dimension in _ASSERTION_DIMENSIONS:
@@ -64,7 +77,7 @@ class AiCoverageScanService:
                         AiCoverageMissingDimension(
                             endpoint=endpoint,
                             dimension=dimension,
-                            reason=f"No assertion for {endpoint} covers {dimension}.",
+                            reason=f"现有断言中没有任何配置可以证明 {endpoint} 已覆盖“{self._dimension_label(dimension)}”。",
                         )
                     )
 
@@ -152,3 +165,6 @@ class AiCoverageScanService:
                 else:
                     covered.add("body_field")
         return covered
+
+    def _dimension_label(self, dimension: str) -> str:
+        return _DIMENSION_LABELS.get(dimension, dimension)

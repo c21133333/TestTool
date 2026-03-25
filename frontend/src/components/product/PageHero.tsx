@@ -5,7 +5,7 @@ import { Space, Typography } from 'antd';
 type PageHeroProps = {
   eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
   tags?: ReactNode[];
   actions?: ReactNode;
 };
@@ -19,7 +19,7 @@ export function PageHero({ eyebrow, title, description, tags, actions }: PageHer
           <Typography.Title level={2}>{title}</Typography.Title>
           {actions ? <div className="page-hero__actions">{actions}</div> : null}
         </div>
-        <Typography.Paragraph>{description}</Typography.Paragraph>
+        {description ? <Typography.Paragraph>{description}</Typography.Paragraph> : null}
         {tags?.length ? <Space wrap>{tags}</Space> : null}
       </div>
     </div>

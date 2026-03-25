@@ -34,7 +34,6 @@ export function UsersPage() {
     <div className="page-stack">
       <div className="page-hero">
         <Typography.Title>用户管理</Typography.Title>
-        <Typography.Paragraph>当前系统采用 `admin / tester / developer` 三类角色的基础 RBAC 模型。</Typography.Paragraph>
       </div>
       {error ? <Alert type="warning" message={error} showIcon /> : null}
       <Row gutter={[18, 18]}>
@@ -71,7 +70,7 @@ export function UsersPage() {
           <Card className="glass-card" title="用户列表">
             <Table
               rowKey="id"
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               dataSource={users}
               columns={[
                 { title: '用户名', dataIndex: 'username' },

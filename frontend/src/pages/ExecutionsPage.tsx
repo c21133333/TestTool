@@ -353,9 +353,7 @@ export function ExecutionsPage() {
   return (
     <div className="page-stack">
       <PageHero
-        eyebrow="执行中心"
         title="执行控制台"
-        description="在一个地方发起执行、观察运行态势，并读取结构化失败信号。"
         tags={[
           <Tag key="refresh" color={activeExecutionCount > 0 ? 'warning' : 'success'}>
             {activeExecutionCount > 0 ? '自动刷新已开启' : '当前没有进行中的执行'}
@@ -508,7 +506,7 @@ export function ExecutionsPage() {
                 current: page,
                 pageSize,
                 total,
-                showSizeChanger: true,
+                showSizeChanger: false,
                 showTotal: (value) => `共 ${value} 条`,
               }}
               onChange={(pagination) => {

@@ -204,9 +204,7 @@ export function ReportsPage() {
   return (
     <div className="page-stack">
       <PageHero
-        eyebrow="报告中心"
         title="执行报告"
-        description="在这里直接预览、打开和下载执行报告，不再手动翻服务器路径。"
         tags={[
           <Tag key="total" color="processing">{`${reports.length} 份报告`}</Tag>,
           <Tag key="filter" color="default">{`当前筛选：${filterLabel}`}</Tag>,
@@ -267,7 +265,7 @@ export function ReportsPage() {
             <Table<Report>
               rowKey="id"
               dataSource={filteredReports}
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               locale={{
                 emptyText: <Empty description="当前筛选条件下没有报告" />,
               }}

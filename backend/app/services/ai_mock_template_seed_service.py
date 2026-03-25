@@ -86,6 +86,7 @@ class AiMockTemplateSeedService:
             response_template=response_template,
             mock_rules=[{"method": method, "path": path, "status_code": status_code}],
             reason=reason,
+            confidence=0.9 if scenario_name == "happy_path" else 0.86,
         )
 
     def _extract_response(self, sample: Any) -> dict[str, Any] | None:

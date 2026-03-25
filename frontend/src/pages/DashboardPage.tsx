@@ -81,9 +81,7 @@ export function DashboardPage() {
   return (
     <div className="page-stack">
       <PageHero
-        eyebrow="运营快照"
         title="团队概览"
-        description="把资产规模、最新执行和报告产出收敛到一个总览视图里。"
         tags={[
           <Tag key="projects" color="processing">{`${projects.length} 个项目`}</Tag>,
           <Tag key="active" color={activeExecutionCount > 0 ? 'warning' : 'success'}>
@@ -173,6 +171,7 @@ export function DashboardPage() {
                   ) : (
                     <List
                       dataSource={recentExecutions}
+                      pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true }}
                       renderItem={(execution) => (
                         <List.Item
                           actions={[
@@ -225,6 +224,7 @@ export function DashboardPage() {
                 ) : (
                   <List
                     dataSource={recentReports}
+                    pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true }}
                     renderItem={(report) => (
                       <List.Item
                         actions={[

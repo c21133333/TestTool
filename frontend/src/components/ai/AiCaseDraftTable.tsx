@@ -236,7 +236,7 @@ export function AiCaseDraftTable({ drafts, canEdit, onDraftChange, onDraftDuplic
       dataSource={drafts}
       columns={columns}
       className="ai-case-draft-table"
-      pagination={false}
+      pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
       size="small"
       tableLayout="fixed"
       scroll={{ x: 2160, y: 460 }}

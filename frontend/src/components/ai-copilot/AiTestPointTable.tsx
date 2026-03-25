@@ -66,7 +66,7 @@ export function AiTestPointTable({ testPoints, selectedPointIds, canEdit, onSele
         onChange: (nextKeys) => onSelectionChange(nextKeys.map(String)),
         getCheckboxProps: () => ({ disabled: !canEdit }),
       }}
-      pagination={false}
+      pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
       size="small"
       scroll={{ x: 980, y: 320 }}
       locale={{ emptyText: '先生成测试点，再在这里挑选需要落草稿的条目。' }}

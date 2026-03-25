@@ -48,6 +48,7 @@ function normalizeHistoryResult(outputJson: Record<string, unknown>): AiMockResu
           ? entry.mock_rules.filter((rule): rule is Record<string, unknown> => Boolean(rule && typeof rule === 'object'))
           : [],
         reason: String(entry.reason ?? ''),
+        confidence: Number(entry.confidence ?? 0),
       });
       return result;
     }, []),
@@ -168,7 +169,7 @@ export function AiMockTemplatePanel({
             <Table<AiMockTemplate>
               rowKey="template_id"
               size="small"
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               dataSource={templates}
               columns={columns}
               rowSelection={{

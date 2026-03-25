@@ -76,7 +76,6 @@ export function AuditLogsPage() {
     <div className="page-stack">
       <div className="page-hero">
         <Typography.Title>审计日志</Typography.Title>
-        <Typography.Paragraph>所有关键写操作都会在这里留痕，便于管理员复盘和追踪。</Typography.Paragraph>
       </div>
       {error ? <Alert type="error" message={error} showIcon /> : null}
       <Card className="glass-card">
@@ -146,7 +145,7 @@ export function AuditLogsPage() {
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
+            showSizeChanger: false,
             showTotal: (value) => `共 ${value} 条日志`,
           }}
           onChange={(pagination) => {

@@ -20,14 +20,19 @@ import { AiArtifactHistoryDrawer } from '../components/ai-copilot/AiArtifactHist
 import { AiCapabilityActionCard } from '../components/ai-copilot/AiCapabilityActionCard';
 import { AiCoveragePanel } from '../components/ai-copilot/AiCoveragePanel';
 import { AiExecutionPreparationPanel } from '../components/ai-copilot/AiExecutionPreparationPanel';
-import { AiMockTemplatePanel } from '../components/ai-copilot/AiMockTemplatePanel';
+import { AiPreparationAssetsPanel } from '../components/ai-copilot/AiPreparationAssetsPanel';
 import { AiSuggestionPanel } from '../components/ai-copilot/AiSuggestionPanel';
-import { AiTestDataPanel } from '../components/ai-copilot/AiTestDataPanel';
 import { canManageWorkspace } from '../auth/permissions';
 import { AiCaseGenerationPanel } from '../components/ai/AiCaseGenerationPanel';
 import { AssertionEditor, type AssertionEditorRow } from '../components/editors/AssertionEditor';
 import { KeyValueEditor, type KeyValueEditorRow } from '../components/editors/KeyValueEditor';
 import { ProcessorEditor, type ProcessorEditorRow } from '../components/editors/ProcessorEditor';
+
+const TABLE_PAGINATION = {
+  pageSize: 10,
+  showSizeChanger: false,
+  hideOnSinglePage: true,
+};
 
 function stringifyJson(value: unknown, fallback: string) {
   try {
@@ -265,9 +270,56 @@ function normalizeCoverageHistoryResult(outputJson: Record<string, unknown>): Ai
   };
 }
 
+function coverageLabel(value: string): string {
+  const labels: Record<string, string> = {
+    happy_path: '主流程',
+    negative_path: '异常流程',
+    boundary_path: '边界场景',
+    auth: '鉴权场景',
+    idempotent: '幂等场景',
+    pagination: '分页场景',
+    assertion_hardening: '断言加固',
+    status: '状态码断言',
+    business_code: '业务码断言',
+    body_field: '响应字段断言',
+    schema: '响应结构断言',
+    latency: '时延断言',
+    project: '项目',
+    suite: '套件',
+    draft: '草稿',
+    accepted: '已接受',
+    rejected: '已拒绝',
+    applied: '已应用',
+    superseded: '已替代',
+  };
+  return labels[value] ?? value;
+}
+
+function assertionTypeLabel(value: string): string {
+  const labels: Record<string, string> = {
+    status_code: '状态码断言',
+    json_path: 'JSON 路径断言',
+    header: '请求头断言',
+  };
+  return labels[value] ?? value;
+}
+
+function assertionOperatorLabel(value: string): string {
+  const labels: Record<string, string> = {
+    '==': '等于',
+    contains: '包含',
+    not_null: '非空',
+    schema: '结构匹配',
+    matches_schema: '结构匹配',
+  };
+  return labels[value] ?? value;
+}
+
 function buildCoveragePromptSeed(result: AiCoverageResult): string {
   const suggestionLines = result.suggested_points.map((item) => `- ${item.title}: ${item.reason}`);
-  const gapLines = result.missing_dimensions.slice(0, 5).map((item) => `- ${item.endpoint} 缺少 ${item.dimension}: ${item.reason}`);
+  const gapLines = result.missing_dimensions
+    .slice(0, 5)
+    .map((item) => `- ${item.endpoint} 缺少${coverageLabel(item.dimension)}: ${item.reason}`);
   return ['请优先补齐以下 coverage 缺口：', ...suggestionLines, ...gapLines].join('\n').trim();
 }
 
@@ -297,6 +349,7 @@ function normalizeSavedTestDataVariants(apiCase: ApiCase | null): AiTestDataResu
       suggested_assertions: Array.isArray(entry.suggested_assertions)
         ? entry.suggested_assertions.filter((assertion): assertion is Record<string, unknown> => Boolean(assertion && typeof assertion === 'object'))
         : [],
+      confidence: Number(entry.confidence ?? 0),
     });
     return result;
   }, []);
@@ -318,6 +371,7 @@ function normalizeSavedMockTemplates(apiCase: ApiCase | null): AiMockResult['moc
         ? entry.mock_rules.filter((rule): rule is Record<string, unknown> => Boolean(rule && typeof rule === 'object'))
         : [],
       reason: String(entry.reason ?? ''),
+      confidence: Number(entry.confidence ?? 0),
     });
     return result;
   }, []);
@@ -338,6 +392,13 @@ export function WorkspacePage() {
   const [importFileList, setImportFileList] = useState<UploadFile[]>([]);
   const [legacyImportProjectId, setLegacyImportProjectId] = useState<number | null>(null);
   const [legacyImportFileList, setLegacyImportFileList] = useState<UploadFile[]>([]);
+  const [projectKeyword, setProjectKeyword] = useState('');
+  const [suiteKeyword, setSuiteKeyword] = useState('');
+  const [suiteProjectFilter, setSuiteProjectFilter] = useState<number | undefined>(undefined);
+  const [caseKeyword, setCaseKeyword] = useState('');
+  const [caseSuiteFilter, setCaseSuiteFilter] = useState<number | undefined>(undefined);
+  const [caseMethodFilter, setCaseMethodFilter] = useState<string | undefined>(undefined);
+  const [isCaseEditorVisible, setIsCaseEditorVisible] = useState(false);
   const [headerRows, setHeaderRows] = useState<KeyValueEditorRow[]>([]);
   const [bodyMode, setBodyMode] = useState<'structured' | 'raw'>('structured');
   const [bodyRows, setBodyRows] = useState<KeyValueEditorRow[]>([]);
@@ -409,9 +470,55 @@ export function WorkspacePage() {
   const editingCase = useMemo(() => cases.find((item) => item.id === editingCaseId) ?? null, [cases, editingCaseId]);
   const editingSuite = useMemo(() => suites.find((item) => item.id === editingCase?.suite_id) ?? null, [suites, editingCase]);
   const editingProject = useMemo(() => projects.find((item) => item.id === editingSuite?.project_id) ?? null, [projects, editingSuite]);
+  const suiteNameById = useMemo(() => new Map(suites.map((suite) => [suite.id, suite.name])), [suites]);
+  const suiteProjectIdById = useMemo(() => new Map(suites.map((suite) => [suite.id, suite.project_id])), [suites]);
+  const projectNameById = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
+  const filteredProjects = useMemo(() => {
+    const keyword = projectKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return projects;
+    }
+    return projects.filter(
+      (project) =>
+        project.name.toLowerCase().includes(keyword) ||
+        project.description.toLowerCase().includes(keyword),
+    );
+  }, [projectKeyword, projects]);
+  const filteredSuites = useMemo(() => {
+    const keyword = suiteKeyword.trim().toLowerCase();
+    return suites.filter((suite) => {
+      const matchesProject = suiteProjectFilter === undefined || suite.project_id === suiteProjectFilter;
+      const matchesKeyword =
+        !keyword ||
+        suite.name.toLowerCase().includes(keyword) ||
+        suite.description.toLowerCase().includes(keyword);
+      return matchesProject && matchesKeyword;
+    });
+  }, [suiteKeyword, suiteProjectFilter, suites]);
+  const filteredCases = useMemo(() => {
+    const keyword = caseKeyword.trim().toLowerCase();
+    return cases.filter((apiCase) => {
+      const matchesSuite = caseSuiteFilter === undefined || apiCase.suite_id === caseSuiteFilter;
+      const matchesMethod = !caseMethodFilter || apiCase.method === caseMethodFilter;
+      const matchesKeyword =
+        !keyword ||
+        apiCase.name.toLowerCase().includes(keyword) ||
+        apiCase.url.toLowerCase().includes(keyword) ||
+        apiCase.description.toLowerCase().includes(keyword);
+      return matchesSuite && matchesMethod && matchesKeyword;
+    });
+  }, [caseKeyword, caseMethodFilter, caseSuiteFilter, cases]);
   const editingEnvironments = useMemo(() => editingProject?.environments ?? [], [editingProject]);
   const savedTestDataVariants = useMemo(() => normalizeSavedTestDataVariants(editingCase), [editingCase]);
   const savedMockTemplates = useMemo(() => normalizeSavedMockTemplates(editingCase), [editingCase]);
+  const executionAvailableVariants = useMemo(
+    () => (testDataPreview?.result.data_variants.length ? testDataPreview.result.data_variants : savedTestDataVariants),
+    [savedTestDataVariants, testDataPreview],
+  );
+  const executionAvailableTemplates = useMemo(
+    () => (mockPreview?.result.mock_templates.length ? mockPreview.result.mock_templates : savedMockTemplates),
+    [mockPreview, savedMockTemplates],
+  );
   const savedAssertions = useMemo(
     () => ((editingCase?.assertions_json ?? []).filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))),
     [editingCase],
@@ -464,12 +571,24 @@ export function WorkspacePage() {
   }, [designProjectId, designSuiteId, suites]);
 
   useEffect(() => {
-    setExecutionPreparationVariantIds(savedTestDataVariants.map((item) => item.variant_id));
-    setExecutionPreparationTemplateIds(savedMockTemplates.map((item) => item.template_id));
+    if (suiteProjectFilter !== undefined && !projects.some((project) => project.id === suiteProjectFilter)) {
+      setSuiteProjectFilter(undefined);
+    }
+  }, [projects, suiteProjectFilter]);
+
+  useEffect(() => {
+    if (caseSuiteFilter !== undefined && !suites.some((suite) => suite.id === caseSuiteFilter)) {
+      setCaseSuiteFilter(undefined);
+    }
+  }, [caseSuiteFilter, suites]);
+
+  useEffect(() => {
+    setExecutionPreparationVariantIds(executionAvailableVariants.map((item) => item.variant_id));
+    setExecutionPreparationTemplateIds(executionAvailableTemplates.map((item) => item.template_id));
     setExecutionPreparationEnvironmentId(null);
     setExecutionPreparationResult(null);
     setExecutionPreparationError(null);
-  }, [editingCaseId, savedTestDataVariants, savedMockTemplates]);
+  }, [editingCaseId, executionAvailableTemplates, executionAvailableVariants]);
 
   function resetProjectForm() {
     setEditingProjectId(null);
@@ -481,8 +600,11 @@ export function WorkspacePage() {
     suiteForm.resetFields();
   }
 
-  function resetCaseForm() {
+  function resetCaseForm(closeEditor = false) {
     setEditingCaseId(null);
+    if (closeEditor) {
+      setIsCaseEditorVisible(false);
+    }
     caseForm.setFieldsValue({
       method: 'GET',
       body_json: '{}',
@@ -520,6 +642,11 @@ export function WorkspacePage() {
   useEffect(() => {
     resetCaseForm();
   }, []);
+
+  function handleStartCreateCase() {
+    resetCaseForm();
+    setIsCaseEditorVisible(true);
+  }
 
   async function submitProject(values: { name: string; description: string }) {
     if (editingProjectId === null) {
@@ -580,7 +707,7 @@ export function WorkspacePage() {
       await api.updateCase(editingCaseId, payload);
       message.success('用例已更新。');
     }
-    resetCaseForm();
+    resetCaseForm(true);
     await refresh();
   }
 
@@ -962,6 +1089,7 @@ export function WorkspacePage() {
   }
 
   function loadCaseIntoEditor(apiCase: ApiCase) {
+    setIsCaseEditorVisible(true);
     const caseBodyText = stringifyJson(apiCase.body_json, '{}');
     const caseBodyMode = isPlainObject(apiCase.body_json) ? 'structured' : 'raw';
     const metadataFields = splitMetadata(apiCase.metadata_json);
@@ -1036,9 +1164,6 @@ export function WorkspacePage() {
     <div className="page-stack">
       <div className="page-hero">
         <Typography.Title>工作台</Typography.Title>
-        <Typography.Paragraph>
-          断言与处理器已经支持结构化编辑。开发可以查看资产，测试与管理员可以直接维护项目、套件和用例。
-        </Typography.Paragraph>
       </div>
 
       <Tabs
@@ -1048,7 +1173,7 @@ export function WorkspacePage() {
             label: '项目',
             children: (
               <Row gutter={[18, 18]}>
-                <Col span={8}>
+                <Col xs={24} xl={8}>
                   <Card className="glass-card" title={editingProjectId ? '编辑项目' : '新建项目'}>
                     <Form form={projectForm} layout="vertical" onFinish={(values) => void submitProject(values)} disabled={!canEdit}>
                       <Form.Item name="name" label="名称" rules={[{ required: true }]}>
@@ -1067,12 +1192,26 @@ export function WorkspacePage() {
                   </Card>
                 </Col>
 
-                <Col span={16}>
-                  <Card className="glass-card" title="项目列表">
+                <Col xs={24} xl={16}>
+                  <Card
+                    className="glass-card"
+                    title="项目列表"
+                    extra={<Typography.Text type="secondary">{`共 ${filteredProjects.length} / ${projects.length} 个项目`}</Typography.Text>}
+                  >
+                    <div className="workspace-filter-bar">
+                      <Input
+                        allowClear
+                        value={projectKeyword}
+                        onChange={(event) => setProjectKeyword(event.target.value)}
+                        placeholder="按项目名称或描述筛选"
+                      />
+                      <Button onClick={() => setProjectKeyword('')}>重置筛选</Button>
+                    </div>
                     <Table<Project>
                       rowKey="id"
-                      pagination={false}
-                      dataSource={projects}
+                      pagination={TABLE_PAGINATION}
+                      dataSource={filteredProjects}
+                      scroll={{ x: 900 }}
                       columns={[
                         { title: '项目', dataIndex: 'name' },
                         { title: '描述', dataIndex: 'description' },
@@ -1112,7 +1251,7 @@ export function WorkspacePage() {
             label: '套件',
             children: (
               <Row gutter={[18, 18]}>
-                <Col span={8}>
+                <Col xs={24} xl={8}>
                   <Space direction="vertical" style={{ width: '100%' }} size="large">
                     <Card className="glass-card" title={editingSuiteId ? '编辑套件' : '新建套件'}>
                       <Form form={suiteForm} layout="vertical" onFinish={(values) => void submitSuite(values)} disabled={!canEdit}>
@@ -1232,15 +1371,44 @@ export function WorkspacePage() {
                   </Space>
                 </Col>
 
-                <Col span={16}>
-                  <Card className="glass-card" title="套件列表">
+                <Col xs={24} xl={16}>
+                  <Card
+                    className="glass-card"
+                    title="套件列表"
+                    extra={<Typography.Text type="secondary">{`共 ${filteredSuites.length} / ${suites.length} 个套件`}</Typography.Text>}
+                  >
+                    <div className="workspace-filter-bar">
+                      <Select
+                        allowClear
+                        value={suiteProjectFilter}
+                        onChange={(value) => setSuiteProjectFilter(value)}
+                        placeholder="按项目筛选"
+                        options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                        style={{ width: 220 }}
+                      />
+                      <Input
+                        allowClear
+                        value={suiteKeyword}
+                        onChange={(event) => setSuiteKeyword(event.target.value)}
+                        placeholder="按套件名称或描述筛选"
+                      />
+                      <Button
+                        onClick={() => {
+                          setSuiteProjectFilter(undefined);
+                          setSuiteKeyword('');
+                        }}
+                      >
+                        重置筛选
+                      </Button>
+                    </div>
                     <Table<Suite>
                       rowKey="id"
-                      pagination={false}
-                      dataSource={suites}
+                      pagination={TABLE_PAGINATION}
+                      dataSource={filteredSuites}
+                      scroll={{ x: 900 }}
                       columns={[
                         { title: '套件', dataIndex: 'name' },
-                        { title: '项目 ID', dataIndex: 'project_id' },
+                        { title: '所属项目', dataIndex: 'project_id', render: (value: number) => projectNameById.get(value) ?? `项目 #${value}` },
                         { title: '描述', dataIndex: 'description' },
                         { title: '用例数', render: (_, suite) => suite.cases.length },
                         {
@@ -1276,10 +1444,24 @@ export function WorkspacePage() {
             key: 'cases',
             label: '用例',
             children: (
-              <Row gutter={[18, 18]}>
-                <Col span={11}>
-                  <Card className="glass-card" title={editingCaseId ? '编辑用例' : '新建用例'}>
-                    <Form form={caseForm} layout="vertical" onFinish={(values) => void submitCase(values)} disabled={!canEdit}>
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                {isCaseEditorVisible ? (
+                  <div>
+                    <Card
+                      className="glass-card workspace-section-card"
+                      title={editingCaseId ? `编辑区 · ${editingCase?.name ?? `用例 #${editingCaseId}`}` : '编辑区 · 新建用例'}
+                      extra={
+                        <Space>
+                          {editingCase ? (
+                            <Typography.Text type="secondary">
+                              {`${projectNameById.get(editingProject?.id ?? -1) ?? '未归属项目'} / ${suiteNameById.get(editingCase.suite_id) ?? `套件 #${editingCase.suite_id}`}`}
+                            </Typography.Text>
+                          ) : null}
+                          <Button onClick={() => resetCaseForm(true)}>收起编辑区</Button>
+                        </Space>
+                      }
+                    >
+                      <Form form={caseForm} layout="vertical" onFinish={(values) => void submitCase(values)} disabled={!canEdit}>
                       <Form.Item name="suite_id" label="所属套件" rules={[{ required: true }]}>
                         <Select options={suites.map((suite) => ({ value: suite.id, label: suite.name }))} />
                       </Form.Item>
@@ -1386,19 +1568,19 @@ export function WorkspacePage() {
                                     <Typography.Text>
                                       当前已保存断言 {savedAssertions.length} 条，追加后 {appendPreviewAssertions.length} 条，覆盖后 {suggestedAssertions.length} 条。
                                     </Typography.Text>
-                                    <AiSuggestionPanel
-                                      items={suggestedAssertions.map((item, index) => ({
-                                        key: `suggestion-${index}-${item.type}-${item.path ?? item.header ?? 'value'}`,
-                                        title: `${item.type} ${item.path ?? item.header ?? ''}`.trim(),
-                                        tags: <Typography.Text type="secondary">{`confidence: ${(item.confidence * 100).toFixed(0)}%`}</Typography.Text>,
-                                        content: (
-                                          <Space direction="vertical" style={{ width: '100%' }}>
-                                            <Typography.Text>{`operator: ${item.operator}`}</Typography.Text>
-                                            <Typography.Text>{`expected: ${stringifyValue(item.expected)}`}</Typography.Text>
-                                            <Typography.Text type="secondary">{item.reason}</Typography.Text>
-                                          </Space>
-                                        ),
-                                      }))}
+                                      <AiSuggestionPanel
+                                        items={suggestedAssertions.map((item, index) => ({
+                                          key: `suggestion-${index}-${item.type}-${item.path ?? item.header ?? 'value'}`,
+                                          title: `${assertionTypeLabel(item.type)} ${item.path ?? item.header ?? ''}`.trim(),
+                                          tags: <Typography.Text type="secondary">{`置信度 ${(item.confidence * 100).toFixed(0)}%`}</Typography.Text>,
+                                          content: (
+                                            <Space direction="vertical" style={{ width: '100%' }}>
+                                              <Typography.Text>{`操作符：${assertionOperatorLabel(item.operator)}`}</Typography.Text>
+                                              <Typography.Text>{`期望值：${stringifyValue(item.expected)}`}</Typography.Text>
+                                              <Typography.Text type="secondary">{item.reason}</Typography.Text>
+                                            </Space>
+                                          ),
+                                        }))}
                                       emptyText="当前没有可应用的新断言建议。"
                                     />
                                     {suggestedAssertions.length ? (
@@ -1422,61 +1604,51 @@ export function WorkspacePage() {
                       <Form.Item label="AI 预执行准备">
                         {editingCaseId !== null ? (
                           <>
-                            <Row gutter={[12, 12]}>
-                              <Col span={12}>
-                                <AiTestDataPanel
-                                  preview={testDataPreview}
-                                  selectedVariantIds={testDataSelectedIds}
-                                  canEdit={canEdit}
-                                  loading={testDataLoading}
-                                  applyLoading={testDataApplyLoading}
-                                  exportLoading={testDataExportLoading}
-                                  error={testDataError}
-                                  historyOpen={testDataHistoryOpen}
-                                  historyLoading={testDataHistoryLoading}
-                                  historyError={testDataHistoryError}
-                                  historyItems={testDataHistory}
-                                  onPreview={() => void handlePreviewTestData()}
-                                  onApplyAppend={() => void handleApplyTestData(false)}
-                                  onApplyOverride={() => void handleApplyTestData(true)}
-                                  onExport={() => void handleExportTestData()}
-                                  onSelectionChange={setTestDataSelectedIds}
-                                  onOpenHistory={() => void handleOpenTestDataHistory()}
-                                  onCloseHistory={() => setTestDataHistoryOpen(false)}
-                                  onLoadHistory={applyTestDataHistoryItem}
-                                  onViewLineage={(item) => void handleViewLineage(item)}
-                                />
-                              </Col>
-                              <Col span={12}>
-                                <AiMockTemplatePanel
-                                  preview={mockPreview}
-                                  selectedTemplateIds={mockSelectedIds}
-                                  canEdit={canEdit}
-                                  loading={mockLoading}
-                                  applyLoading={mockApplyLoading}
-                                  exportLoading={mockExportLoading}
-                                  error={mockError}
-                                  historyOpen={mockHistoryOpen}
-                                  historyLoading={mockHistoryLoading}
-                                  historyError={mockHistoryError}
-                                  historyItems={mockHistory}
-                                  onPreview={() => void handlePreviewMock()}
-                                  onApplyAppend={() => void handleApplyMock(false)}
-                                  onApplyOverride={() => void handleApplyMock(true)}
-                                  onExport={() => void handleExportMock()}
-                                  onSelectionChange={setMockSelectedIds}
-                                  onOpenHistory={() => void handleOpenMockHistory()}
-                                  onCloseHistory={() => setMockHistoryOpen(false)}
-                                  onLoadHistory={applyMockHistoryItem}
-                                  onViewLineage={(item) => void handleViewLineage(item)}
-                                />
-                              </Col>
-                            </Row>
+                            <AiPreparationAssetsPanel
+                              canEdit={canEdit}
+                              testDataPreview={testDataPreview}
+                              selectedVariantIds={testDataSelectedIds}
+                              testDataLoading={testDataLoading}
+                              testDataApplyLoading={testDataApplyLoading}
+                              testDataExportLoading={testDataExportLoading}
+                              testDataError={testDataError}
+                              testDataHistoryOpen={testDataHistoryOpen}
+                              testDataHistoryLoading={testDataHistoryLoading}
+                              testDataHistoryError={testDataHistoryError}
+                              testDataHistoryItems={testDataHistory}
+                              onPreviewTestData={() => void handlePreviewTestData()}
+                              onApplyTestDataAppend={() => void handleApplyTestData(false)}
+                              onApplyTestDataOverride={() => void handleApplyTestData(true)}
+                              onExportTestData={() => void handleExportTestData()}
+                              onSelectionChangeVariantIds={setTestDataSelectedIds}
+                              onOpenTestDataHistory={() => void handleOpenTestDataHistory()}
+                              onCloseTestDataHistory={() => setTestDataHistoryOpen(false)}
+                              onLoadTestDataHistory={applyTestDataHistoryItem}
+                              mockPreview={mockPreview}
+                              selectedTemplateIds={mockSelectedIds}
+                              mockLoading={mockLoading}
+                              mockApplyLoading={mockApplyLoading}
+                              mockExportLoading={mockExportLoading}
+                              mockError={mockError}
+                              mockHistoryOpen={mockHistoryOpen}
+                              mockHistoryLoading={mockHistoryLoading}
+                              mockHistoryError={mockHistoryError}
+                              mockHistoryItems={mockHistory}
+                              onPreviewMock={() => void handlePreviewMock()}
+                              onApplyMockAppend={() => void handleApplyMock(false)}
+                              onApplyMockOverride={() => void handleApplyMock(true)}
+                              onExportMock={() => void handleExportMock()}
+                              onSelectionChangeTemplateIds={setMockSelectedIds}
+                              onOpenMockHistory={() => void handleOpenMockHistory()}
+                              onCloseMockHistory={() => setMockHistoryOpen(false)}
+                              onLoadMockHistory={applyMockHistoryItem}
+                              onViewLineage={(item) => void handleViewLineage(item)}
+                            />
                             <div style={{ marginTop: 12 }}>
                               <AiExecutionPreparationPanel
                                 canEdit={canEdit}
-                                availableVariants={savedTestDataVariants}
-                                availableTemplates={savedMockTemplates}
+                                availableVariants={executionAvailableVariants}
+                                availableTemplates={executionAvailableTemplates}
                                 selectedVariantIds={executionPreparationVariantIds}
                                 selectedTemplateIds={executionPreparationTemplateIds}
                                 selectedEnvironmentId={executionPreparationEnvironmentId}
@@ -1504,24 +1676,24 @@ export function WorkspacePage() {
                       <Form.Item label="元数据">
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <Row gutter={12}>
-                            <Col span={12}>
+                            <Col xs={24} xl={12}>
                               <Form.Item name="category" label="分类">
                                 <Input placeholder="auth" />
                               </Form.Item>
                             </Col>
-                            <Col span={12}>
+                            <Col xs={24} xl={12}>
                               <Form.Item name="priority" label="优先级">
                                 <Select allowClear options={[{ value: 'P0', label: 'P0' }, { value: 'P1', label: 'P1' }, { value: 'P2', label: 'P2' }, { value: 'P3', label: 'P3' }]} />
                               </Form.Item>
                             </Col>
                           </Row>
                           <Row gutter={12}>
-                            <Col span={12}>
+                            <Col xs={24} xl={12}>
                               <Form.Item name="owner" label="负责人">
                                 <Input placeholder="qa-owner" />
                               </Form.Item>
                             </Col>
-                            <Col span={12}>
+                            <Col xs={24} xl={12}>
                               <Form.Item name="timeout_ms" label="超时 (ms)">
                                 <Input placeholder="5000" />
                               </Form.Item>
@@ -1541,31 +1713,92 @@ export function WorkspacePage() {
                           </Typography.Text>
                         </Space>
                       </Form.Item>
-                      <Space>
-                        <Button type="primary" htmlType="submit" disabled={!canEdit}>
-                          {editingCaseId ? '保存' : '创建'}
-                        </Button>
-                        <Button onClick={resetCaseForm}>重置</Button>
-                      </Space>
-                    </Form>
-                  </Card>
-                </Col>
+                        <Space>
+                          <Button type="primary" htmlType="submit" disabled={!canEdit}>
+                            {editingCaseId ? '保存' : '创建'}
+                          </Button>
+                          <Button onClick={() => resetCaseForm()}>重置</Button>
+                        </Space>
+                      </Form>
+                    </Card>
+                  </div>
+                ) : null}
 
-                <Col span={13}>
-                  <Card className="glass-card" title="用例列表">
+                <div>
+                  <Card
+                    className="glass-card workspace-section-card"
+                    title="清单区 · 用例列表"
+                    extra={
+                      <Space>
+                        <Typography.Text type="secondary">{`共 ${filteredCases.length} / ${cases.length} 条用例`}</Typography.Text>
+                        <Button type="primary" onClick={handleStartCreateCase} disabled={!canEdit}>
+                          新增用例
+                        </Button>
+                      </Space>
+                    }
+                  >
+                    <div className="workspace-filter-bar">
+                      <Select
+                        allowClear
+                        value={caseSuiteFilter}
+                        onChange={(value) => setCaseSuiteFilter(value)}
+                        placeholder="按套件筛选"
+                        options={suites.map((suite) => ({ value: suite.id, label: suite.name }))}
+                        style={{ width: 220 }}
+                      />
+                      <Select
+                        allowClear
+                        value={caseMethodFilter}
+                        onChange={(value) => setCaseMethodFilter(value)}
+                        placeholder="按请求方法筛选"
+                        options={['GET', 'POST', 'PUT', 'DELETE'].map((method) => ({ value: method, label: method }))}
+                        style={{ width: 180 }}
+                      />
+                      <Input
+                        allowClear
+                        value={caseKeyword}
+                        onChange={(event) => setCaseKeyword(event.target.value)}
+                        placeholder="按用例名、URL、描述筛选"
+                      />
+                      <Button
+                        onClick={() => {
+                          setCaseSuiteFilter(undefined);
+                          setCaseMethodFilter(undefined);
+                          setCaseKeyword('');
+                        }}
+                      >
+                        重置筛选
+                      </Button>
+                    </div>
                     <Table<ApiCase>
                       rowKey="id"
-                      pagination={false}
-                      dataSource={cases}
+                      pagination={TABLE_PAGINATION}
+                      dataSource={filteredCases}
+                      scroll={{ x: 1280 }}
                       columns={[
-                        { title: '用例', dataIndex: 'name' },
-                        { title: '请求方法', dataIndex: 'method' },
+                        { title: '用例', dataIndex: 'name', width: 220 },
+                        {
+                          title: '所属项目',
+                          width: 160,
+                          render: (_, apiCase) => {
+                            const projectId = suiteProjectIdById.get(apiCase.suite_id);
+                            return projectId ? projectNameById.get(projectId) ?? `项目 #${projectId}` : '-';
+                          },
+                        },
+                        {
+                          title: '所属套件',
+                          dataIndex: 'suite_id',
+                          width: 180,
+                          render: (value: number) => suiteNameById.get(value) ?? `套件 #${value}`,
+                        },
+                        { title: '请求方法', dataIndex: 'method', width: 100 },
                         { title: 'URL', dataIndex: 'url' },
-                        { title: '断言数', render: (_, apiCase) => apiCase.assertions_json.length },
-                        { title: '前置', render: (_, apiCase) => apiCase.pre_processors_json.length },
-                        { title: '后置', render: (_, apiCase) => apiCase.post_processors_json.length },
+                        { title: '断言数', width: 90, render: (_, apiCase) => apiCase.assertions_json.length },
+                        { title: '前置', width: 90, render: (_, apiCase) => apiCase.pre_processors_json.length },
+                        { title: '后置', width: 90, render: (_, apiCase) => apiCase.post_processors_json.length },
                         {
                           title: '操作',
+                          width: 160,
                           render: (_, apiCase) => (
                             <Space>
                               <Button size="small" onClick={() => loadCaseIntoEditor(apiCase)}>
@@ -1582,8 +1815,8 @@ export function WorkspacePage() {
                       ]}
                     />
                   </Card>
-                </Col>
-              </Row>
+                </div>
+              </Space>
             ),
           },
         ]}
@@ -1598,11 +1831,11 @@ export function WorkspacePage() {
           const result = normalizeCoverageHistoryResult(item.output_json);
           return {
             key: item.artifact_id,
-            label: `${item.artifact_id.slice(0, 8)} · score ${result.coverage_score} · ${item.status}`,
+            label: `${item.artifact_id.slice(0, 8)} · 覆盖率 ${result.coverage_score} · ${coverageLabel(item.status)}`,
             content: (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Typography.Text type="secondary">
-                  target: {item.target_type} #{item.target_id}
+                  目标: {coverageLabel(item.target_type)} #{item.target_id}
                 </Typography.Text>
                 <Typography.Text>
                   缺口 {result.missing_dimensions.length}，建议点 {result.suggested_points.length}

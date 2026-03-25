@@ -126,9 +126,6 @@ export function EnvironmentsPage() {
     <div className="page-stack">
       <div className="page-hero">
         <Typography.Title>环境管理</Typography.Title>
-        <Typography.Paragraph>
-          在这里维护基础 URL、公共请求头和环境变量。测试与管理员可编辑，开发角色默认只读查看。
-        </Typography.Paragraph>
       </div>
       <Row gutter={[18, 18]}>
         <Col span={9}>
@@ -179,7 +176,7 @@ export function EnvironmentsPage() {
           <Card className="glass-card" title="环境列表">
             <Table
               rowKey="id"
-              pagination={false}
+              pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               dataSource={environments}
               columns={[
                 { title: '名称', dataIndex: 'name' },
