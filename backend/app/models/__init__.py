@@ -1,3 +1,6 @@
+from backend.app.models.ai_case_history import AiCaseHistory
+from backend.app.models.ai_artifact_link import AiArtifactLink
+from backend.app.models.ai_artifact import AiArtifact
 from backend.app.models.audit_log import AuditLog
 from backend.app.models.access_token import AccessToken
 from backend.app.models.api_case import ApiCase
@@ -10,6 +13,9 @@ from backend.app.models.user import User, UserRole
 
 __all__ = [
     "AccessToken",
+    "AiArtifact",
+    "AiArtifactLink",
+    "AiCaseHistory",
     "AuditLog",
     "ApiCase",
     "Environment",

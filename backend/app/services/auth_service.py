@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
 from backend.app.core.observability import get_logger, log_event
+from backend.app.core.timezone import to_beijing_isoformat
 from backend.app.core.security import (
     generate_access_token,
     hash_password,
@@ -100,8 +101,8 @@ class AuthService:
         )
         return AuthSessionRead(
             access_token=token,
-            issued_at=issued_at.isoformat(),
-            expires_at=expires_at.isoformat(),
+            issued_at=to_beijing_isoformat(issued_at),
+            expires_at=to_beijing_isoformat(expires_at),
             expires_in_seconds=settings.auth_token_ttl_hours * 3600,
             user=UserRead.model_validate(user),
         )

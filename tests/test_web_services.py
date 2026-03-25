@@ -14,11 +14,17 @@ from backend.app.models.execution import ExecutionStatus
 from backend.app.models.user import UserRole
 from backend.app.schemas.audit_log import AuditLogRead
 from backend.app.services.audit_log_service import AuditLogService
+from backend.app.services.ai_case_draft_service import AiCaseDraftService
+from backend.app.services.ai_case_history_service import AiCaseHistoryService
+from backend.app.services.ai_case_import_service import AiCaseImportService
 from backend.app.services.auth_service import AuthService
 from backend.app.services.execution_service import ExecutionService
 from backend.app.services.import_service import ImportService
+from backend.app.services.markdown_endpoint_parser import MarkdownEndpointParser
 from backend.app.services.report_service import ReportService
 from backend.app.services.workspace_service import WorkspaceService
+from backend.app.schemas.ai_case_draft import AiCaseDraftImportRequest, AiCaseDraftPreviewRequest, AiCaseDraftRerunRequest
+from backend.app.schemas.execution import AiExecutionPreparationSelection
 from backend.app.schemas.workspace import ApiCaseCreate, EnvironmentCreate, ProjectCreate, SuiteCreate
 
 
@@ -43,6 +49,8 @@ def test_auth_service_creates_and_resolves_session():
 
     assert resolved is not None
     assert resolved.username == "owner"
+    assert auth_session.issued_at.endswith("+08:00")
+    assert auth_session.expires_at.endswith("+08:00")
     assert session.query(User).count() == 1
     assert session.query(AccessToken).count() == 1
 
@@ -94,6 +102,72 @@ def test_execution_service_runs_single_case(monkeypatch):
     assert session.query(ApiCase).count() == 1
     assert session.query(Environment).count() == 1
     assert session.query(Execution).count() == 1
+
+
+def test_execution_service_runs_single_case_with_ai_preparation(monkeypatch):
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="Prepared Demo", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Prepared Suite", description=""))
+    case = workspace.create_case(
+        ApiCaseCreate(
+            suite_id=suite.id,
+            name="Profile update",
+            method="POST",
+            url="/profile",
+            body_json={"username": "demo", "profile": {"age": 18}},
+            metadata_json={
+                "ai_test_data_variants": [
+                    {
+                        "variant_id": "tv_boundary_age",
+                        "name": "numeric_boundary",
+                        "category": "boundary_path",
+                        "payload_patch": {"profile": {"age": 19}},
+                        "target_fields": ["profile.age"],
+                        "reason": "boundary",
+                        "suggested_assertions": [],
+                    }
+                ],
+                "ai_mock_templates": [
+                    {
+                        "template_id": "mt_permission_denied",
+                        "scenario_name": "permission_denied",
+                        "status_code": 403,
+                        "response_template": {"code": 40301, "message": "permission denied"},
+                        "mock_rules": [{"method": "POST", "path": "/profile", "status_code": 403}],
+                        "reason": "permission branch",
+                    }
+                ],
+            },
+        )
+    )
+    session.commit()
+
+    monkeypatch.setattr(
+        "backend.app.services.execution_service.execute_case_payload",
+        lambda payload: {
+            "name": payload["name"],
+            "request": payload["request"],
+            "response": {"success": True, "status_code": 200, "elapsed_ms": 42, "response_json": {"ok": True}},
+            "assertion_results": [],
+            "result": "PASS",
+        },
+    )
+    monkeypatch.setattr("backend.app.services.execution_service.ReportService.build_execution_report", lambda self, execution: [])
+
+    execution = ExecutionService(session).run_case_now(
+        case.id,
+        None,
+        None,
+        ai_preparation=AiExecutionPreparationSelection(
+            selected_test_data_variant_ids=["tv_boundary_age"],
+            selected_mock_template_ids=["mt_permission_denied"],
+        ),
+    )
+
+    assert execution.items[0].request_json["body"]["profile"]["age"] == 19
+    assert execution.summary_json["ai_preparation"]["selected_variant_ids"] == ["tv_boundary_age"]
+    assert execution.summary_json["ai_preparation"]["selected_template_ids"] == ["mt_permission_denied"]
 
 
 def test_workspace_service_updates_and_deletes_resources():
@@ -659,3 +733,232 @@ def test_import_service_imports_legacy_project_json(tmp_path):
     assert len(imported_execution.items) == 1
     imported_report_paths = [report.file_path for report in session.query(Report).all()]
     assert all("legacy_imports" in path for path in imported_report_paths)
+
+
+def test_ai_case_draft_service_generates_preview_from_markdown():
+    session = _make_session()
+    project = WorkspaceService(session).create_project(ProjectCreate(name="AI Project", description=""))
+    session.commit()
+
+    class FakeLlmService:
+        def generate_drafts(self, *, section_title, section_content, runtime, prompt_hints=""):
+            assert section_title == "登录接口"
+            assert "POST /api/login" in section_content
+            assert runtime.provider == "openai_compatible"
+            assert "smoke coverage" in prompt_hints.lower()
+            return (
+                [
+                    {
+                        "name": "登录成功",
+                        "method": "post",
+                        "url": "/api/login",
+                        "description": "主链路",
+                        "headers_json": {"Content-Type": "application/json"},
+                        "body_json": {"username": "demo", "password": "secret"},
+                        "assertions_json": [{"type": "status_code", "operator": "==", "expected": 200, "enabled": True}],
+                        "metadata_json": {"category": "auth", "priority": "P1"},
+                    },
+                    {
+                        "name": "登录成功重复",
+                        "method": "POST",
+                        "url": "/api/login",
+                        "description": "重复草稿",
+                        "headers_json": {"Content-Type": "application/json"},
+                        "body_json": {"username": "demo", "password": "secret"},
+                        "assertions_json": [{"type": "status_code", "operator": "==", "expected": 200, "enabled": True}],
+                        "metadata_json": {"category": "auth", "priority": "P1"},
+                    },
+                ],
+                [],
+            )
+
+    payload = AiCaseDraftPreviewRequest(
+        project_id=project.id,
+        suite_name="登录 API",
+        markdown_text="# 登录接口\n\nPOST /api/login\n\n请求参数：username password",
+        provider="openai_compatible",
+        model="gpt-5.4",
+        base_url="https://ai.example.com",
+        api_key="test-key",
+        prompt_preset="smoke",
+    )
+
+    result = AiCaseDraftService(session, parser=MarkdownEndpointParser(), llm_service=FakeLlmService()).preview_drafts(payload)
+
+    assert result.suite_name == "登录 API"
+    assert result.doc_summary.section_count == 1
+    assert result.doc_summary.endpoint_count == 1
+    assert len(result.drafts) == 2
+    assert result.drafts[0].case.method == "POST"
+    assert result.drafts[0].case.metadata_json["ai_generated"] is True
+    assert result.prompt_preset == "smoke"
+    assert "smoke coverage" in result.prompt_hints_effective.lower()
+    assert result.drafts[0].source_location["line_start"] == 1
+    assert result.drafts[0].source_location["matched_endpoint"]["line_number"] == 2
+    assert result.drafts[0].validation_status == "warning"
+    assert any("duplicate" in warning.lower() for warning in result.drafts[0].review_warnings)
+    assert any("duplicate" in warning.lower() for warning in result.warnings)
+
+
+def test_ai_case_import_service_creates_suite_and_cases():
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    project = workspace.create_project(ProjectCreate(name="AI Import", description=""))
+    session.commit()
+
+    payload = AiCaseDraftImportRequest(
+        project_id=project.id,
+        suite_name="AI Generated Suite",
+        drafts=[
+            {
+                "draft_id": "draft-1",
+                "selected": True,
+                "case": {
+                    "name": "创建用户成功",
+                    "method": "POST",
+                    "url": "/api/users",
+                    "description": "创建用户主链路",
+                    "headers_json": {"Content-Type": "application/json"},
+                    "body_json": {"name": "demo"},
+                    "assertions_json": [{"type": "status_code", "operator": "==", "expected": 200, "enabled": True}],
+                    "metadata_json": {"category": "user", "priority": "P1"},
+                },
+                "source_excerpt": "POST /api/users",
+                "source_location": {"section_title": "用户接口", "chunk_index": 0},
+            },
+            {
+                "draft_id": "draft-2",
+                "selected": True,
+                "case": {
+                    "name": "",
+                    "method": "POST",
+                    "url": "",
+                    "description": "无效用例",
+                },
+                "source_excerpt": "POST /api/invalid",
+                "source_location": {"section_title": "用户接口", "chunk_index": 0},
+            },
+        ],
+    )
+
+    result = AiCaseImportService(session).import_drafts(payload)
+    session.commit()
+
+    assert result.created_cases == 1
+    assert result.skipped_cases == 1
+    assert len(result.failures) == 1
+    suite = workspace.get_suite(result.suite_id)
+    assert suite.name == "AI Generated Suite"
+    assert len(suite.cases) == 1
+    imported_case = suite.cases[0]
+    assert imported_case.metadata_json["ai_generated"] is True
+    assert imported_case.metadata_json["draft_id"] == "draft-1"
+
+
+def test_ai_case_history_service_persists_and_exports(tmp_path):
+    session = _make_session()
+    project = WorkspaceService(session).create_project(ProjectCreate(name="History Project", description=""))
+    session.commit()
+
+    class FakeLlmService:
+        def generate_drafts(self, *, section_title, section_content, runtime, prompt_hints=""):
+            return (
+                [
+                    {
+                        "name": "查询成功",
+                        "method": "GET",
+                        "url": "/api/users",
+                        "description": "查询用户",
+                        "headers_json": {"Accept": "application/json"},
+                        "body_json": None,
+                        "assertions_json": [{"type": "status_code", "operator": "==", "expected": 200, "enabled": True}],
+                        "metadata_json": {"category": "user"},
+                    }
+                ],
+                [],
+            )
+
+    history_service = AiCaseHistoryService(session)
+    history_service._export_dir = tmp_path
+    payload = AiCaseDraftPreviewRequest(
+        project_id=project.id,
+        suite_name="用户 API",
+        markdown_text="# 用户接口\n\nGET /api/users",
+        provider="openai_compatible",
+        model="gpt-5.4",
+        base_url="https://ai.example.com",
+        api_key="test-key",
+    )
+
+    draft_service = AiCaseDraftService(session, parser=MarkdownEndpointParser(), llm_service=FakeLlmService(), history_service=history_service)
+    batch = draft_service.preview_drafts(payload)
+    session.commit()
+
+    assert batch.history_id
+    assert batch.created_at.endswith("+08:00")
+    history_list = history_service.list_history(project_id=project.id)
+    assert len(history_list.items) == 1
+    assert history_list.items[0].history_id == batch.history_id
+    assert history_list.items[0].created_at.endswith("+08:00")
+
+    stored_payload, stored_batch = history_service.get_history_batch(batch.history_id)
+    assert stored_payload["suite_name"] == "用户 API"
+    assert stored_payload["created_at"].endswith("+08:00")
+    assert stored_batch.drafts[0].case.url == "/api/users"
+
+    export_path = history_service.build_excel_export(batch.history_id)
+    assert export_path.exists()
+    assert export_path.suffix == ".xlsx"
+
+
+def test_ai_case_draft_service_can_rerun_from_history(tmp_path):
+    session = _make_session()
+    project = WorkspaceService(session).create_project(ProjectCreate(name="History Rerun", description=""))
+    session.commit()
+
+    class CountingLlmService:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_drafts(self, *, section_title, section_content, runtime, prompt_hints=""):
+            self.calls += 1
+            return (
+                [
+                    {
+                        "name": f"草稿-{self.calls}",
+                        "method": "GET",
+                        "url": "/api/rerun",
+                        "description": "重跑校验",
+                        "headers_json": {},
+                        "body_json": None,
+                        "assertions_json": [{"type": "status_code", "operator": "==", "expected": 200, "enabled": True}],
+                        "metadata_json": {"category": "rerun"},
+                    }
+                ],
+                [],
+            )
+
+    history_service = AiCaseHistoryService(session)
+    history_service._export_dir = tmp_path
+    llm_service = CountingLlmService()
+    draft_service = AiCaseDraftService(session, parser=MarkdownEndpointParser(), llm_service=llm_service, history_service=history_service)
+
+    first_batch = draft_service.preview_drafts(
+        AiCaseDraftPreviewRequest(
+            project_id=project.id,
+            suite_name="Rerun Suite",
+            markdown_text="# 接口\n\nGET /api/rerun",
+            provider="openai_compatible",
+            model="gpt-5.4",
+            base_url="https://ai.example.com",
+            api_key="test-key",
+        )
+    )
+    session.commit()
+
+    rerun_batch = draft_service.rerun_from_history(first_batch.history_id, AiCaseDraftRerunRequest(api_key="test-key"))
+    session.commit()
+
+    assert first_batch.history_id != rerun_batch.history_id
+    assert rerun_batch.drafts[0].case.name == "草稿-2"
+    assert rerun_batch.created_at.endswith("+08:00")

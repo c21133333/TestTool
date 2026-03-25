@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from backend.app.core.error_handling import build_api_error_responses
-from backend.app.api.routes import audit_logs, auth, cases, environments, executions, health, imports, projects, reports, suites, users
+from backend.app.api.routes import ai_case_drafts, ai_copilot, audit_logs, auth, cases, environments, executions, health, imports, projects, reports, suites, users
 
 api_router = APIRouter()
 common_error_responses = build_api_error_responses()
@@ -17,3 +17,5 @@ api_router.include_router(environments.router, prefix="/environments", tags=["en
 api_router.include_router(executions.router, prefix="/executions", tags=["executions"], responses=common_error_responses)
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"], responses=common_error_responses)
 api_router.include_router(imports.router, prefix="/imports", tags=["imports"], responses=common_error_responses)
+api_router.include_router(ai_case_drafts.router, prefix="/ai-case-drafts", tags=["ai_case_drafts"], responses=common_error_responses)
+api_router.include_router(ai_copilot.router, prefix="/ai-copilot", tags=["ai_copilot"], responses=common_error_responses)

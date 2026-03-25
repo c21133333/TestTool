@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 # Import model modules so SQLAlchemy metadata is fully populated before migrations run.
+from backend.app.models import ai_case_history  # noqa: F401
+from backend.app.models import ai_artifact  # noqa: F401
+from backend.app.models import ai_artifact_link  # noqa: F401
 from backend.app.models import access_token  # noqa: F401
 from backend.app.models import api_case  # noqa: F401
 from backend.app.models import audit_log  # noqa: F401

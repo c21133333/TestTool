@@ -1,4 +1,5 @@
 __all__ = [
+    "ai_copilot",
     "audit_logs",
     "auth",
     "cases",

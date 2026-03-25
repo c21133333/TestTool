@@ -8,10 +8,24 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.app.models.execution import ExecutionScope, ExecutionStatus
 
 
+class AiExecutionPreparationSelection(BaseModel):
+    selected_test_data_variant_ids: list[str] = Field(default_factory=list)
+    selected_mock_template_ids: list[str] = Field(default_factory=list)
+
+
+class AiExecutionPreparationRead(BaseModel):
+    case_id: int
+    request_body: Any | None = None
+    selected_test_data_variants: list[dict[str, Any]] = Field(default_factory=list)
+    selected_mock_templates: list[dict[str, Any]] = Field(default_factory=list)
+    summary: dict[str, Any] = Field(default_factory=dict)
+
+
 class ExecutionCreateRequest(BaseModel):
     scope: ExecutionScope
     target_id: int
     environment_id: int | None = None
+    ai_preparation: AiExecutionPreparationSelection | None = None
 
 
 class ExecutionItemRead(BaseModel):

@@ -23,8 +23,11 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createApi } from '../api/services';
-import type { ApiCase, Environment, Execution, ExecutionItem, Suite } from '../api/types';
+import type { AiArtifactHistoryItem, AiCopilotPreview, AiDiagnosisResult, ApiCase, Environment, Execution, ExecutionItem, Suite } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { AiArtifactHistoryDrawer } from '../components/ai-copilot/AiArtifactHistoryDrawer';
+import { AiCapabilityActionCard } from '../components/ai-copilot/AiCapabilityActionCard';
+import { AiSuggestionPanel } from '../components/ai-copilot/AiSuggestionPanel';
 import { canManageExecutions } from '../auth/permissions';
 import { PageHero } from '../components/product/PageHero';
 import { StatePanel } from '../components/product/StatePanel';
@@ -123,6 +126,12 @@ export function ExecutionsPage() {
   const [scopeFilter, setScopeFilter] = useState<Execution['scope'] | undefined>();
   const [failedOnly, setFailedOnly] = useState(false);
   const [detailView, setDetailView] = useState<'all' | 'failed'>('all');
+  const [diagnosisPreview, setDiagnosisPreview] = useState<AiCopilotPreview<AiDiagnosisResult> | null>(null);
+  const [diagnosisHistory, setDiagnosisHistory] = useState<AiArtifactHistoryItem[]>([]);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+  const [diagnosisHistoryLoading, setDiagnosisHistoryLoading] = useState(false);
+  const [diagnosisHistoryOpen, setDiagnosisHistoryOpen] = useState(false);
+  const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
 
   async function refreshStaticData() {
@@ -147,6 +156,9 @@ export function ExecutionsPage() {
   async function openExecution(executionId: number, openDrawer = true) {
     setLoadingDetail(true);
     setDetailError(null);
+    setDiagnosisPreview(null);
+    setDiagnosisHistory([]);
+    setDiagnosisError(null);
     try {
       const detail = await api.getExecution(executionId);
       setSelectedExecution(detail);
@@ -162,6 +174,65 @@ export function ExecutionsPage() {
       }
     } finally {
       setLoadingDetail(false);
+    }
+  }
+
+  async function handlePreviewDiagnosis() {
+    if (!selectedExecution) {
+      return;
+    }
+    setDiagnosisLoading(true);
+    setDiagnosisError(null);
+    try {
+      const preview = await api.previewAiDiagnosis({ execution_id: selectedExecution.id });
+      setDiagnosisPreview(preview);
+      const history = await api.listAiDiagnosisHistory(selectedExecution.id);
+      setDiagnosisHistory(history.items);
+      message.success('AI 诊断已生成。');
+    } catch (err) {
+      const nextError = err instanceof Error ? err.message : '生成 AI 诊断失败。';
+      setDiagnosisError(nextError);
+      message.error(nextError);
+    } finally {
+      setDiagnosisLoading(false);
+    }
+  }
+
+  async function handleLoadDiagnosisHistory() {
+    if (!selectedExecution) {
+      return;
+    }
+    setDiagnosisHistoryLoading(true);
+    setDiagnosisError(null);
+    setDiagnosisHistoryOpen(true);
+    try {
+      const history = await api.listAiDiagnosisHistory(selectedExecution.id);
+      setDiagnosisHistory(history.items);
+    } catch (err) {
+      const nextError = err instanceof Error ? err.message : '加载 AI 诊断历史失败。';
+      setDiagnosisError(nextError);
+      message.error(nextError);
+    } finally {
+      setDiagnosisHistoryLoading(false);
+    }
+  }
+
+  async function handleCopyDiagnosis() {
+    if (!diagnosisPreview) {
+      return;
+    }
+    const payload = diagnosisPreview.result;
+    const content = [
+      `Category: ${payload.diagnosis_category}`,
+      `Confidence: ${payload.confidence}`,
+      `Hypothesis: ${payload.root_cause_hypothesis}`,
+      `Next Actions: ${payload.next_actions.join(' | ')}`,
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(content);
+      message.success('AI 诊断已复制。');
+    } catch {
+      message.error('复制 AI 诊断失败。');
     }
   }
 
@@ -538,6 +609,60 @@ export function ExecutionsPage() {
               </Space>
             </Card>
 
+            <AiCapabilityActionCard
+              title="AI 诊断"
+              actions={(
+                <Space>
+                  <Button size="small" loading={diagnosisHistoryLoading} onClick={() => void handleLoadDiagnosisHistory()}>
+                    查看诊断历史
+                  </Button>
+                  <Button size="small" disabled={!diagnosisPreview} onClick={() => void handleCopyDiagnosis()}>
+                    复制建议
+                  </Button>
+                  <Button type="primary" size="small" loading={diagnosisLoading} onClick={() => void handlePreviewDiagnosis()}>
+                    AI 诊断
+                  </Button>
+                </Space>
+              )}
+              error={diagnosisError}
+              warnings={diagnosisPreview?.warnings ?? []}
+              hasContent={Boolean(diagnosisPreview)}
+              empty={<Typography.Text type="secondary">生成后会在这里展示 AI 诊断结论。</Typography.Text>}
+            >
+              {diagnosisPreview ? (
+                <AiSuggestionPanel
+                  items={[
+                    {
+                      key: diagnosisPreview.artifact_id,
+                      title: diagnosisPreview.result.diagnosis_category,
+                      tags: (
+                        <Space wrap>
+                          <Tag color="processing">{diagnosisPreview.status}</Tag>
+                          <Tag>{`confidence: ${diagnosisPreview.result.confidence}`}</Tag>
+                        </Space>
+                      ),
+                      content: (
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <Typography.Text>{diagnosisPreview.result.root_cause_hypothesis}</Typography.Text>
+                          <div>
+                            <Typography.Text strong>建议动作</Typography.Text>
+                            <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+                              {diagnosisPreview.result.next_actions.map((action) => (
+                                <li key={action}>
+                                  <Typography.Text>{action}</Typography.Text>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </Space>
+                      ),
+                    },
+                  ]}
+                  emptyText="当前没有 AI 诊断结果"
+                />
+              ) : null}
+            </AiCapabilityActionCard>
+
             <Card
               size="small"
               title="执行项"
@@ -585,6 +710,39 @@ export function ExecutionsPage() {
           </Space>
         )}
       </Drawer>
+      <AiArtifactHistoryDrawer
+        title={selectedExecution ? `AI 诊断历史 #${selectedExecution.id}` : 'AI 诊断历史'}
+        open={diagnosisHistoryOpen}
+        onClose={() => setDiagnosisHistoryOpen(false)}
+        loading={diagnosisHistoryLoading}
+        error={diagnosisError}
+        items={diagnosisHistory.map((item) => {
+          const output = item.output_json as Record<string, unknown>;
+          const outputActions = Array.isArray(output.next_actions) ? output.next_actions.map((action) => String(action)) : [];
+          return {
+            key: item.artifact_id,
+            label: `${item.artifact_id.slice(0, 8)} · ${String(output.diagnosis_category ?? 'unknown')} · ${item.status}`,
+            content: (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Typography.Text>{String(output.root_cause_hypothesis ?? '')}</Typography.Text>
+                {outputActions.length ? (
+                  <div>
+                    <Typography.Text strong>建议动作</Typography.Text>
+                    <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+                      {outputActions.map((action) => (
+                        <li key={action}>
+                          <Typography.Text>{action}</Typography.Text>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </Space>
+            ),
+          };
+        })}
+        emptyText="当前执行还没有 AI 诊断历史"
+      />
     </div>
   );
 }

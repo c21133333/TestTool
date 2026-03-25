@@ -64,14 +64,24 @@ def create_execution(
 ) -> ApiResponse[ExecutionRead]:
     service = ExecutionService(session)
     if payload.scope == ExecutionScope.case:
-        execution = service.run_case_now(payload.target_id, payload.environment_id, current_user)
+        execution = service.run_case_now(
+            payload.target_id,
+            payload.environment_id,
+            current_user,
+            ai_preparation=payload.ai_preparation,
+        )
         AuditLogService(session).record(
             actor=current_user,
             action="execution.run_case",
             resource_type="execution",
             resource_id=execution.id,
             summary=f"Executed case {execution.target_name}",
-            details={"scope": execution.scope.value, "environment_id": execution.environment_id},
+            details={
+                "scope": execution.scope.value,
+                "environment_id": execution.environment_id,
+                "selected_variant_ids": ((payload.ai_preparation.selected_test_data_variant_ids if payload.ai_preparation else []) or []),
+                "selected_template_ids": ((payload.ai_preparation.selected_mock_template_ids if payload.ai_preparation else []) or []),
+            },
         )
         return ApiResponse.ok(data=ExecutionRead.model_validate(execution), message="Case execution completed.")
     execution = service.queue_suite_execution(payload.target_id, payload.environment_id, current_user)

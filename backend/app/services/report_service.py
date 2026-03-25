@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
 from backend.app.core.observability import get_logger, log_event
+from backend.app.core.timezone import to_beijing_isoformat
 from backend.app.models.execution import Execution
 from backend.app.models.report import Report
 from backend.app.repositories.report_repository import ReportRepository
+from backend.app.services.ai_artifact_service import AiArtifactService
 from requesttool.shared.reporting import ReportGenerator
 
 logger = get_logger("report")
@@ -32,6 +34,19 @@ class ReportService:
         if report is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")
         return report
+
+    def apply_ai_summary(self, artifact_id: str) -> Report:
+        artifact_service = AiArtifactService(self._session)
+        artifact = artifact_service.accept_artifact(artifact_id)
+        if artifact.report_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="AI artifact is not bound to a report.")
+        report = self.get_report(artifact.report_id)
+        metadata = dict(report.metadata_json or {})
+        metadata["ai_summary"] = dict(artifact.output_json or {})
+        report.metadata_json = metadata
+        saved = self._reports.save(report)
+        artifact_service.mark_applied(artifact_id)
+        return saved
 
     def build_execution_report(self, execution: Execution) -> list[Report]:
         log_event(
@@ -70,7 +85,7 @@ class ReportService:
         run_data = {
             "suite_name": execution.target_name,
             "base_url": execution.environment.base_url if execution.environment is not None else "",
-            "execute_time": execution.finished_at.isoformat() if execution.finished_at else execution.created_at.isoformat(),
+            "execute_time": to_beijing_isoformat(execution.finished_at) if execution.finished_at else to_beijing_isoformat(execution.created_at),
             "summary": execution.summary_json,
             "items": items,
         }

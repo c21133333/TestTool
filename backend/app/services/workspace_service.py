@@ -122,6 +122,61 @@ class WorkspaceService:
         case.metadata_json = payload.metadata_json
         return self._workspace.save_case(case)
 
+    def save_case(self, case: ApiCase) -> ApiCase:
+        return self._workspace.save_case(case)
+
+    def save_ai_test_data_variants(
+        self,
+        case_id: int,
+        variants: list[dict],
+        *,
+        override_existing: bool = False,
+    ) -> ApiCase:
+        case = self.get_case(case_id)
+        metadata_json = dict(case.metadata_json or {})
+        existing_variants = [
+            item for item in metadata_json.get("ai_test_data_variants", []) if isinstance(item, dict)
+        ]
+        metadata_json["ai_test_data_variants"] = self._merge_named_items(
+            existing_items=existing_variants,
+            incoming_items=variants,
+            identity_key="variant_id",
+            override_existing=override_existing,
+        )
+        case.metadata_json = metadata_json
+        return self._workspace.save_case(case)
+
+    def save_ai_mock_templates(
+        self,
+        case_id: int,
+        templates: list[dict],
+        *,
+        override_existing: bool = False,
+    ) -> ApiCase:
+        case = self.get_case(case_id)
+        metadata_json = dict(case.metadata_json or {})
+        existing_templates = [
+            item for item in metadata_json.get("ai_mock_templates", []) if isinstance(item, dict)
+        ]
+        metadata_json["ai_mock_templates"] = self._merge_named_items(
+            existing_items=existing_templates,
+            incoming_items=templates,
+            identity_key="template_id",
+            override_existing=override_existing,
+        )
+        case.metadata_json = metadata_json
+        return self._workspace.save_case(case)
+
+    def list_ai_test_data_variants(self, case_id: int) -> list[dict]:
+        case = self.get_case(case_id)
+        metadata_json = dict(case.metadata_json or {})
+        return [dict(item) for item in metadata_json.get("ai_test_data_variants", []) if isinstance(item, dict)]
+
+    def list_ai_mock_templates(self, case_id: int) -> list[dict]:
+        case = self.get_case(case_id)
+        metadata_json = dict(case.metadata_json or {})
+        return [dict(item) for item in metadata_json.get("ai_mock_templates", []) if isinstance(item, dict)]
+
     def delete_case(self, case_id: int) -> None:
         case = self.get_case(case_id)
         self._workspace.delete_case(case)
@@ -176,3 +231,26 @@ class WorkspaceService:
         if environment is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Environment not found.")
         return environment
+
+    def _merge_named_items(
+        self,
+        *,
+        existing_items: list[dict],
+        incoming_items: list[dict],
+        identity_key: str,
+        override_existing: bool,
+    ) -> list[dict]:
+        normalized_incoming = [dict(item) for item in incoming_items if isinstance(item, dict)]
+        if override_existing:
+            return normalized_incoming
+
+        merged_items = [dict(item) for item in existing_items if isinstance(item, dict)]
+        seen_identities = {str(item.get(identity_key) or "") for item in merged_items}
+        for item in normalized_incoming:
+            identity = str(item.get(identity_key) or "")
+            if identity and identity in seen_identities:
+                continue
+            merged_items.append(item)
+            if identity:
+                seen_identities.add(identity)
+        return merged_items

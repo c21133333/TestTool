@@ -114,6 +114,8 @@ def _register_frontend_routes(application: FastAPI) -> None:
 
     @application.get("/{asset_path:path}", include_in_schema=False)
     def frontend_asset_or_index(asset_path: str) -> FileResponse:
+        if asset_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found.")
         requested_path = _resolve_frontend_path(frontend_dist_dir, asset_path)
         if requested_path.is_file():
             return FileResponse(requested_path)

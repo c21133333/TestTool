@@ -2,10 +2,29 @@
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useEffect, useMemo, useState } from 'react';
 
+import { Alert as AlertBox } from 'antd';
 import { createApi } from '../api/services';
-import type { ApiCase, Project, Suite } from '../api/types';
+import type {
+  AiArtifactLineage,
+  AiArtifactHistoryItem,
+  AiAssertionResult,
+  AiAssertionSuggestion,
+  AiCopilotPreview,
+  AiCoverageResult,
+  AiMockResult,
+  AiTestDataResult,
+} from '../api/types';
+import type { ApiCase, Environment, Execution, Project, Suite } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { AiArtifactHistoryDrawer } from '../components/ai-copilot/AiArtifactHistoryDrawer';
+import { AiCapabilityActionCard } from '../components/ai-copilot/AiCapabilityActionCard';
+import { AiCoveragePanel } from '../components/ai-copilot/AiCoveragePanel';
+import { AiExecutionPreparationPanel } from '../components/ai-copilot/AiExecutionPreparationPanel';
+import { AiMockTemplatePanel } from '../components/ai-copilot/AiMockTemplatePanel';
+import { AiSuggestionPanel } from '../components/ai-copilot/AiSuggestionPanel';
+import { AiTestDataPanel } from '../components/ai-copilot/AiTestDataPanel';
 import { canManageWorkspace } from '../auth/permissions';
+import { AiCaseGenerationPanel } from '../components/ai/AiCaseGenerationPanel';
 import { AssertionEditor, type AssertionEditorRow } from '../components/editors/AssertionEditor';
 import { KeyValueEditor, type KeyValueEditorRow } from '../components/editors/KeyValueEditor';
 import { ProcessorEditor, type ProcessorEditorRow } from '../components/editors/ProcessorEditor';
@@ -184,6 +203,126 @@ function processorRowsToPayload(rows: ProcessorEditorRow[]) {
   });
 }
 
+function assertionPayloadKey(assertion: Record<string, unknown>): string {
+  return JSON.stringify({
+    type: assertion.type ?? '',
+    operator: assertion.operator ?? '',
+    path: assertion.path ?? '',
+    header: assertion.header ?? '',
+    expected: assertion.expected ?? null,
+  });
+}
+
+function assertionSuggestionToPayload(suggestion: AiAssertionSuggestion): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    type: suggestion.type,
+    operator: suggestion.operator,
+    expected: suggestion.expected,
+    enabled: suggestion.enabled,
+  };
+  if (suggestion.path) payload.path = suggestion.path;
+  if (suggestion.header) payload.header = suggestion.header;
+  return payload;
+}
+
+function mergeAssertionPayloads(existing: Record<string, unknown>[], suggestions: AiAssertionSuggestion[]): Record<string, unknown>[] {
+  const seen = new Set(existing.map(assertionPayloadKey));
+  const merged = [...existing];
+  for (const suggestion of suggestions) {
+    const payload = assertionSuggestionToPayload(suggestion);
+    const key = assertionPayloadKey(payload);
+    if (seen.has(key)) {
+      continue;
+    }
+    merged.push(payload);
+    seen.add(key);
+  }
+  return merged;
+}
+
+function normalizeCoverageHistoryResult(outputJson: Record<string, unknown>): AiCoverageResult {
+  const missingDimensions = Array.isArray(outputJson.missing_dimensions) ? outputJson.missing_dimensions : [];
+  const suggestedPoints = Array.isArray(outputJson.suggested_points) ? outputJson.suggested_points : [];
+  return {
+    coverage_score: Number(outputJson.coverage_score ?? 0),
+    missing_dimensions: missingDimensions.map((item, index) => {
+      const entry = item as Record<string, unknown>;
+      return {
+        endpoint: String(entry.endpoint ?? `unknown-endpoint-${index}`),
+        dimension: String(entry.dimension ?? 'unknown'),
+        reason: String(entry.reason ?? ''),
+      };
+    }),
+    suggested_points: suggestedPoints.map((item, index) => {
+      const entry = item as Record<string, unknown>;
+      return {
+        title: String(entry.title ?? `coverage-point-${index}`),
+        category: String(entry.category ?? 'unknown'),
+        priority: String(entry.priority ?? 'medium'),
+        reason: String(entry.reason ?? ''),
+      };
+    }),
+  };
+}
+
+function buildCoveragePromptSeed(result: AiCoverageResult): string {
+  const suggestionLines = result.suggested_points.map((item) => `- ${item.title}: ${item.reason}`);
+  const gapLines = result.missing_dimensions.slice(0, 5).map((item) => `- ${item.endpoint} 缺少 ${item.dimension}: ${item.reason}`);
+  return ['请优先补齐以下 coverage 缺口：', ...suggestionLines, ...gapLines].join('\n').trim();
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function normalizeSavedTestDataVariants(apiCase: ApiCase | null): AiTestDataResult['data_variants'] {
+  const rawItems = Array.isArray(apiCase?.metadata_json?.ai_test_data_variants) ? apiCase?.metadata_json.ai_test_data_variants : [];
+  return rawItems.reduce<AiTestDataResult['data_variants']>((result, item, index) => {
+    if (!item || typeof item !== 'object') {
+      return result;
+    }
+    const entry = item as Record<string, unknown>;
+    result.push({
+      variant_id: String(entry.variant_id ?? `saved-variant-${index}`),
+      name: String(entry.name ?? 'unnamed_variant'),
+      category: String(entry.category ?? 'unknown'),
+      payload_patch: typeof entry.payload_patch === 'object' && entry.payload_patch !== null ? (entry.payload_patch as Record<string, unknown>) : {},
+      target_fields: Array.isArray(entry.target_fields) ? entry.target_fields.map((field) => String(field)) : [],
+      reason: String(entry.reason ?? ''),
+      suggested_assertions: Array.isArray(entry.suggested_assertions)
+        ? entry.suggested_assertions.filter((assertion): assertion is Record<string, unknown> => Boolean(assertion && typeof assertion === 'object'))
+        : [],
+    });
+    return result;
+  }, []);
+}
+
+function normalizeSavedMockTemplates(apiCase: ApiCase | null): AiMockResult['mock_templates'] {
+  const rawItems = Array.isArray(apiCase?.metadata_json?.ai_mock_templates) ? apiCase?.metadata_json.ai_mock_templates : [];
+  return rawItems.reduce<AiMockResult['mock_templates']>((result, item, index) => {
+    if (!item || typeof item !== 'object') {
+      return result;
+    }
+    const entry = item as Record<string, unknown>;
+    result.push({
+      template_id: String(entry.template_id ?? `saved-template-${index}`),
+      scenario_name: String(entry.scenario_name ?? 'unnamed_template'),
+      status_code: Number(entry.status_code ?? 200),
+      response_template: typeof entry.response_template === 'object' && entry.response_template !== null ? (entry.response_template as Record<string, unknown>) : {},
+      mock_rules: Array.isArray(entry.mock_rules)
+        ? entry.mock_rules.filter((rule): rule is Record<string, unknown> => Boolean(rule && typeof rule === 'object'))
+        : [],
+      reason: String(entry.reason ?? ''),
+    });
+    return result;
+  }, []);
+}
+
 export function WorkspacePage() {
   const { token, user } = useAuth();
   const api = useMemo(() => createApi(token), [token]);
@@ -205,6 +344,51 @@ export function WorkspacePage() {
   const [assertionRows, setAssertionRows] = useState<AssertionEditorRow[]>([]);
   const [preProcessorRows, setPreProcessorRows] = useState<ProcessorEditorRow[]>([]);
   const [postProcessorRows, setPostProcessorRows] = useState<ProcessorEditorRow[]>([]);
+  const [assertionPreview, setAssertionPreview] = useState<AiCopilotPreview<AiAssertionResult> | null>(null);
+  const [assertionLoading, setAssertionLoading] = useState(false);
+  const [assertionApplyLoading, setAssertionApplyLoading] = useState(false);
+  const [assertionError, setAssertionError] = useState<string | null>(null);
+  const [testDataPreview, setTestDataPreview] = useState<AiCopilotPreview<AiTestDataResult> | null>(null);
+  const [testDataSelectedIds, setTestDataSelectedIds] = useState<string[]>([]);
+  const [testDataLoading, setTestDataLoading] = useState(false);
+  const [testDataApplyLoading, setTestDataApplyLoading] = useState(false);
+  const [testDataExportLoading, setTestDataExportLoading] = useState(false);
+  const [testDataError, setTestDataError] = useState<string | null>(null);
+  const [testDataHistoryOpen, setTestDataHistoryOpen] = useState(false);
+  const [testDataHistoryLoading, setTestDataHistoryLoading] = useState(false);
+  const [testDataHistoryError, setTestDataHistoryError] = useState<string | null>(null);
+  const [testDataHistory, setTestDataHistory] = useState<AiArtifactHistoryItem[]>([]);
+  const [mockPreview, setMockPreview] = useState<AiCopilotPreview<AiMockResult> | null>(null);
+  const [mockSelectedIds, setMockSelectedIds] = useState<string[]>([]);
+  const [mockLoading, setMockLoading] = useState(false);
+  const [mockApplyLoading, setMockApplyLoading] = useState(false);
+  const [mockExportLoading, setMockExportLoading] = useState(false);
+  const [mockError, setMockError] = useState<string | null>(null);
+  const [mockHistoryOpen, setMockHistoryOpen] = useState(false);
+  const [mockHistoryLoading, setMockHistoryLoading] = useState(false);
+  const [mockHistoryError, setMockHistoryError] = useState<string | null>(null);
+  const [mockHistory, setMockHistory] = useState<AiArtifactHistoryItem[]>([]);
+  const [designProjectId, setDesignProjectId] = useState<number | null>(null);
+  const [designSuiteId, setDesignSuiteId] = useState<number | null>(null);
+  const [coveragePreview, setCoveragePreview] = useState<AiCopilotPreview<AiCoverageResult> | null>(null);
+  const [coverageLoading, setCoverageLoading] = useState(false);
+  const [coverageError, setCoverageError] = useState<string | null>(null);
+  const [coverageHistoryOpen, setCoverageHistoryOpen] = useState(false);
+  const [coverageHistoryLoading, setCoverageHistoryLoading] = useState(false);
+  const [coverageHistoryError, setCoverageHistoryError] = useState<string | null>(null);
+  const [coverageHistory, setCoverageHistory] = useState<AiArtifactHistoryItem[]>([]);
+  const [coveragePromptSeed, setCoveragePromptSeed] = useState('');
+  const [executionPreparationVariantIds, setExecutionPreparationVariantIds] = useState<string[]>([]);
+  const [executionPreparationTemplateIds, setExecutionPreparationTemplateIds] = useState<string[]>([]);
+  const [executionPreparationEnvironmentId, setExecutionPreparationEnvironmentId] = useState<number | null>(null);
+  const [executionPreparationLoading, setExecutionPreparationLoading] = useState(false);
+  const [executionPreparationError, setExecutionPreparationError] = useState<string | null>(null);
+  const [executionPreparationResult, setExecutionPreparationResult] = useState<Execution | null>(null);
+  const [lineageOpen, setLineageOpen] = useState(false);
+  const [lineageLoading, setLineageLoading] = useState(false);
+  const [lineageError, setLineageError] = useState<string | null>(null);
+  const [lineageData, setLineageData] = useState<AiArtifactLineage | null>(null);
+  const [lineageTitle, setLineageTitle] = useState('AI Artifact Lineage');
   const [projectForm] = Form.useForm<{ name: string; description: string }>();
   const [suiteForm] = Form.useForm<{ project_id: number; name: string; description: string }>();
   const [caseForm] = Form.useForm<{
@@ -222,6 +406,33 @@ export function WorkspacePage() {
     timeout_ms: string;
     metadata_extra_json: string;
   }>();
+  const editingCase = useMemo(() => cases.find((item) => item.id === editingCaseId) ?? null, [cases, editingCaseId]);
+  const editingSuite = useMemo(() => suites.find((item) => item.id === editingCase?.suite_id) ?? null, [suites, editingCase]);
+  const editingProject = useMemo(() => projects.find((item) => item.id === editingSuite?.project_id) ?? null, [projects, editingSuite]);
+  const editingEnvironments = useMemo(() => editingProject?.environments ?? [], [editingProject]);
+  const savedTestDataVariants = useMemo(() => normalizeSavedTestDataVariants(editingCase), [editingCase]);
+  const savedMockTemplates = useMemo(() => normalizeSavedMockTemplates(editingCase), [editingCase]);
+  const savedAssertions = useMemo(
+    () => ((editingCase?.assertions_json ?? []).filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))),
+    [editingCase],
+  );
+  const suggestedAssertions = assertionPreview?.result.suggested_assertions ?? [];
+  const appendPreviewAssertions = useMemo(() => mergeAssertionPayloads(savedAssertions, suggestedAssertions), [savedAssertions, suggestedAssertions]);
+  const unsavedAssertionChanges =
+    JSON.stringify(assertionRowsToPayload(assertionRows)) !== JSON.stringify(editingCase?.assertions_json ?? []);
+
+  function syncEditingCaseMetadata(apiCase: ApiCase) {
+    const metadataFields = splitMetadata(apiCase.metadata_json);
+    caseForm.setFieldsValue({
+      category: metadataFields.category,
+      precondition: metadataFields.precondition,
+      priority: metadataFields.priority,
+      owner: metadataFields.owner,
+      tags: metadataFields.tags,
+      timeout_ms: metadataFields.timeout_ms,
+      metadata_extra_json: metadataFields.metadata_extra_json,
+    });
+  }
 
   async function refresh() {
     const [nextProjects, nextSuites, nextCases] = await Promise.all([api.listProjects(), api.listSuites(), api.listCases()]);
@@ -233,6 +444,32 @@ export function WorkspacePage() {
   useEffect(() => {
     void refresh();
   }, [api]);
+
+  useEffect(() => {
+    if (designProjectId !== null) {
+      return;
+    }
+    if (projects.length) {
+      setDesignProjectId(projects[0].id);
+    }
+  }, [projects, designProjectId]);
+
+  useEffect(() => {
+    if (designSuiteId === null) {
+      return;
+    }
+    if (!suites.some((suite) => suite.id === designSuiteId && suite.project_id === designProjectId)) {
+      setDesignSuiteId(null);
+    }
+  }, [designProjectId, designSuiteId, suites]);
+
+  useEffect(() => {
+    setExecutionPreparationVariantIds(savedTestDataVariants.map((item) => item.variant_id));
+    setExecutionPreparationTemplateIds(savedMockTemplates.map((item) => item.template_id));
+    setExecutionPreparationEnvironmentId(null);
+    setExecutionPreparationResult(null);
+    setExecutionPreparationError(null);
+  }, [editingCaseId, savedTestDataVariants, savedMockTemplates]);
 
   function resetProjectForm() {
     setEditingProjectId(null);
@@ -264,6 +501,20 @@ export function WorkspacePage() {
     setAssertionRows([]);
     setPreProcessorRows([]);
     setPostProcessorRows([]);
+    setAssertionPreview(null);
+    setAssertionError(null);
+    setTestDataPreview(null);
+    setTestDataSelectedIds([]);
+    setTestDataError(null);
+    setTestDataHistory([]);
+    setTestDataHistoryError(null);
+    setTestDataHistoryOpen(false);
+    setMockPreview(null);
+    setMockSelectedIds([]);
+    setMockError(null);
+    setMockHistory([]);
+    setMockHistoryError(null);
+    setMockHistoryOpen(false);
   }
 
   useEffect(() => {
@@ -357,6 +608,359 @@ export function WorkspacePage() {
     await refresh();
   }
 
+  async function handlePreviewAssertions() {
+    if (editingCaseId === null) {
+      message.warning('AI 补断言只支持已保存的用例。');
+      return;
+    }
+    setAssertionLoading(true);
+    setAssertionError(null);
+    try {
+      const result = await api.previewAiAssertions({ case_id: editingCaseId });
+      setAssertionPreview(result);
+      if (result.result.suggested_assertions.length) {
+        message.success('AI 补断言建议已生成。');
+      } else {
+        message.warning('AI 没有生成新的断言建议。');
+      }
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '生成 AI 补断言失败。';
+      setAssertionError(nextError);
+      message.error(nextError);
+    } finally {
+      setAssertionLoading(false);
+    }
+  }
+
+  async function handleApplyAssertions(overrideExisting: boolean) {
+    if (!assertionPreview) {
+      return;
+    }
+    setAssertionApplyLoading(true);
+    setAssertionError(null);
+    try {
+      const updatedCase = await api.applyAiAssertions(assertionPreview.artifact_id, { override_existing: overrideExisting });
+      setCases((current) => current.map((item) => (item.id === updatedCase.id ? updatedCase : item)));
+      if (updatedCase.id === editingCaseId) {
+        setAssertionRows(assertionRowsFromCase(updatedCase));
+      }
+      setAssertionPreview((current) => (current ? { ...current, status: 'applied' } : current));
+      message.success(overrideExisting ? 'AI 断言建议已覆盖应用。' : 'AI 断言建议已追加应用。');
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '应用 AI 断言失败。';
+      setAssertionError(nextError);
+      message.error(nextError);
+    } finally {
+      setAssertionApplyLoading(false);
+    }
+  }
+
+  async function handlePreviewTestData() {
+    if (editingCaseId === null) {
+      message.warning('AI 测试数据只支持已保存的用例。');
+      return;
+    }
+    setTestDataLoading(true);
+    setTestDataError(null);
+    try {
+      const result = await api.previewAiTestData({ case_id: editingCaseId });
+      setTestDataPreview(result);
+      setTestDataSelectedIds(result.result.data_variants.map((item) => item.variant_id));
+      if (result.result.data_variants.length) {
+        message.success('AI 测试数据变体已生成。');
+      } else {
+        message.warning('AI 没有生成新的测试数据变体。');
+      }
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '生成 AI 测试数据失败。';
+      setTestDataError(nextError);
+      message.error(nextError);
+    } finally {
+      setTestDataLoading(false);
+    }
+  }
+
+  async function handleOpenTestDataHistory() {
+    if (editingCaseId === null) {
+      message.warning('请先选择已保存的用例。');
+      return;
+    }
+    setTestDataHistoryOpen(true);
+    setTestDataHistoryLoading(true);
+    setTestDataHistoryError(null);
+    try {
+      const result = await api.listAiTestDataHistory(editingCaseId);
+      setTestDataHistory(result.items);
+    } catch (error) {
+      setTestDataHistoryError(error instanceof Error ? error.message : '加载 AI 测试数据历史失败。');
+    } finally {
+      setTestDataHistoryLoading(false);
+    }
+  }
+
+  async function handleApplyTestData(overrideExisting: boolean) {
+    if (!testDataPreview) {
+      return;
+    }
+    setTestDataApplyLoading(true);
+    setTestDataError(null);
+    try {
+      const updatedCase = await api.applyAiTestData(testDataPreview.artifact_id, {
+        selected_variant_ids: testDataSelectedIds,
+        override_existing: overrideExisting,
+      });
+      setCases((current) => current.map((item) => (item.id === updatedCase.id ? updatedCase : item)));
+      if (updatedCase.id === editingCaseId) {
+        syncEditingCaseMetadata(updatedCase);
+      }
+      setTestDataPreview((current) => (current ? { ...current, status: 'applied' } : current));
+      message.success(overrideExisting ? 'AI 测试数据已覆盖应用。' : 'AI 测试数据已追加应用。');
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '应用 AI 测试数据失败。';
+      setTestDataError(nextError);
+      message.error(nextError);
+    } finally {
+      setTestDataApplyLoading(false);
+    }
+  }
+
+  async function handleExportTestData() {
+    if (!testDataPreview) {
+      return;
+    }
+    setTestDataExportLoading(true);
+    setTestDataError(null);
+    try {
+      const blob = await api.exportAiTestData(testDataPreview.artifact_id);
+      downloadBlob(blob, `ai-test-data-${testDataPreview.artifact_id}.json`);
+      message.success('AI 测试数据 JSON 已导出。');
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '导出 AI 测试数据失败。';
+      setTestDataError(nextError);
+      message.error(nextError);
+    } finally {
+      setTestDataExportLoading(false);
+    }
+  }
+
+  async function handlePreviewMock() {
+    if (editingCaseId === null) {
+      message.warning('AI Mock 只支持已保存的用例。');
+      return;
+    }
+    setMockLoading(true);
+    setMockError(null);
+    try {
+      const result = await api.previewAiMock({ case_id: editingCaseId });
+      setMockPreview(result);
+      setMockSelectedIds(result.result.mock_templates.map((item) => item.template_id));
+      if (result.result.mock_templates.length) {
+        message.success('AI Mock 模板已生成。');
+      } else {
+        message.warning('AI 没有生成新的 Mock 模板。');
+      }
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '生成 AI Mock 失败。';
+      setMockError(nextError);
+      message.error(nextError);
+    } finally {
+      setMockLoading(false);
+    }
+  }
+
+  async function handleOpenMockHistory() {
+    if (editingCaseId === null) {
+      message.warning('请先选择已保存的用例。');
+      return;
+    }
+    setMockHistoryOpen(true);
+    setMockHistoryLoading(true);
+    setMockHistoryError(null);
+    try {
+      const result = await api.listAiMockHistory(editingCaseId);
+      setMockHistory(result.items);
+    } catch (error) {
+      setMockHistoryError(error instanceof Error ? error.message : '加载 AI Mock 历史失败。');
+    } finally {
+      setMockHistoryLoading(false);
+    }
+  }
+
+  async function handleApplyMock(overrideExisting: boolean) {
+    if (!mockPreview) {
+      return;
+    }
+    setMockApplyLoading(true);
+    setMockError(null);
+    try {
+      const updatedCase = await api.applyAiMock(mockPreview.artifact_id, {
+        selected_template_ids: mockSelectedIds,
+        override_existing: overrideExisting,
+      });
+      setCases((current) => current.map((item) => (item.id === updatedCase.id ? updatedCase : item)));
+      if (updatedCase.id === editingCaseId) {
+        syncEditingCaseMetadata(updatedCase);
+      }
+      setMockPreview((current) => (current ? { ...current, status: 'applied' } : current));
+      message.success(overrideExisting ? 'AI Mock 模板已覆盖应用。' : 'AI Mock 模板已追加应用。');
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '应用 AI Mock 失败。';
+      setMockError(nextError);
+      message.error(nextError);
+    } finally {
+      setMockApplyLoading(false);
+    }
+  }
+
+  async function handleRunPreparedExecution() {
+    if (editingCaseId === null) {
+      return;
+    }
+    setExecutionPreparationLoading(true);
+    setExecutionPreparationError(null);
+    try {
+      const execution = await api.runExecution({
+        scope: 'case',
+        target_id: editingCaseId,
+        environment_id: executionPreparationEnvironmentId ?? undefined,
+        ai_preparation: {
+          selected_test_data_variant_ids: executionPreparationVariantIds,
+          selected_mock_template_ids: executionPreparationTemplateIds,
+        },
+      });
+      setExecutionPreparationResult(execution);
+      message.success(`已触发 case execution #${execution.id}。`);
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '执行 AI 准备后的用例失败。';
+      setExecutionPreparationError(nextError);
+      message.error(nextError);
+    } finally {
+      setExecutionPreparationLoading(false);
+    }
+  }
+
+  async function handleExportMock() {
+    if (!mockPreview) {
+      return;
+    }
+    setMockExportLoading(true);
+    setMockError(null);
+    try {
+      const blob = await api.exportAiMock(mockPreview.artifact_id);
+      downloadBlob(blob, `ai-mock-${mockPreview.artifact_id}.json`);
+      message.success('AI Mock JSON 已导出。');
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '导出 AI Mock 失败。';
+      setMockError(nextError);
+      message.error(nextError);
+    } finally {
+      setMockExportLoading(false);
+    }
+  }
+
+  async function handleScanCoverage() {
+    if (!designProjectId && !designSuiteId) {
+      message.warning('请先选择 coverage 扫描目标。');
+      return;
+    }
+    setCoverageLoading(true);
+    setCoverageError(null);
+    try {
+      const result = await api.scanAiCoverage({
+        project_id: designSuiteId ? undefined : designProjectId ?? undefined,
+        suite_id: designSuiteId ?? undefined,
+      });
+      setCoveragePreview(result);
+      message.success('AI coverage 扫描已生成。');
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : 'AI coverage 扫描失败。';
+      setCoverageError(nextError);
+      message.error(nextError);
+    } finally {
+      setCoverageLoading(false);
+    }
+  }
+
+  async function handleOpenCoverageHistory() {
+    const targetType = designSuiteId ? 'suite' : 'project';
+    const targetId = designSuiteId ?? designProjectId;
+    if (!targetId) {
+      message.warning('请先选择 coverage 历史的 target。');
+      return;
+    }
+    setCoverageHistoryOpen(true);
+    setCoverageHistoryLoading(true);
+    setCoverageHistoryError(null);
+    try {
+      const result = await api.listAiCoverageHistory(targetType, targetId);
+      setCoverageHistory(result.items);
+    } catch (error) {
+      setCoverageHistoryError(error instanceof Error ? error.message : '加载 coverage 历史失败。');
+    } finally {
+      setCoverageHistoryLoading(false);
+    }
+  }
+
+  function handleTransferCoverageToPrompt() {
+    if (!coveragePreview) {
+      return;
+    }
+    setCoveragePromptSeed(buildCoveragePromptSeed(coveragePreview.result));
+    message.success('已把 coverage 缺口带入测试点提示词。');
+  }
+
+  function applyCoverageHistoryItem(item: AiArtifactHistoryItem) {
+    setCoveragePreview({
+      artifact_id: item.artifact_id,
+      capability: 'coverage',
+      status: item.status,
+      warnings: item.warnings_json,
+      result: normalizeCoverageHistoryResult(item.output_json),
+    });
+    setCoverageHistoryOpen(false);
+  }
+
+  function applyTestDataHistoryItem(item: AiArtifactHistoryItem, result: AiTestDataResult) {
+    setTestDataPreview({
+      artifact_id: item.artifact_id,
+      capability: 'test_data',
+      status: item.status,
+      warnings: item.warnings_json,
+      result,
+    });
+    setTestDataSelectedIds(result.data_variants.map((entry) => entry.variant_id));
+    setTestDataHistoryOpen(false);
+  }
+
+  function applyMockHistoryItem(item: AiArtifactHistoryItem, result: AiMockResult) {
+    setMockPreview({
+      artifact_id: item.artifact_id,
+      capability: 'mock',
+      status: item.status,
+      warnings: item.warnings_json,
+      result,
+    });
+    setMockSelectedIds(result.mock_templates.map((entry) => entry.template_id));
+    setMockHistoryOpen(false);
+  }
+
+  async function handleViewLineage(item: AiArtifactHistoryItem) {
+    setLineageOpen(true);
+    setLineageLoading(true);
+    setLineageError(null);
+    setLineageTitle(`Artifact ${item.artifact_id.slice(0, 8)} Lineage`);
+    try {
+      const result = await api.getAiArtifactLineage(item.artifact_id);
+      setLineageData(result);
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : '加载 lineage 失败。';
+      setLineageError(nextError);
+      message.error(nextError);
+    } finally {
+      setLineageLoading(false);
+    }
+  }
+
   function loadCaseIntoEditor(apiCase: ApiCase) {
     const caseBodyText = stringifyJson(apiCase.body_json, '{}');
     const caseBodyMode = isPlainObject(apiCase.body_json) ? 'structured' : 'raw';
@@ -383,6 +987,20 @@ export function WorkspacePage() {
     setAssertionRows(assertionRowsFromCase(apiCase));
     setPreProcessorRows(processorRowsFromCase(apiCase.pre_processors_json, `pre-${apiCase.id}`));
     setPostProcessorRows(processorRowsFromCase(apiCase.post_processors_json, `post-${apiCase.id}`));
+    setAssertionPreview(null);
+    setAssertionError(null);
+    setTestDataPreview(null);
+    setTestDataSelectedIds([]);
+    setTestDataError(null);
+    setTestDataHistory([]);
+    setTestDataHistoryError(null);
+    setTestDataHistoryOpen(false);
+    setMockPreview(null);
+    setMockSelectedIds([]);
+    setMockError(null);
+    setMockHistory([]);
+    setMockHistoryError(null);
+    setMockHistoryOpen(false);
   }
 
   function handleBodyModeChange(nextMode: string) {
@@ -566,6 +1184,51 @@ export function WorkspacePage() {
                         </Button>
                       </Space>
                     </Card>
+
+                    <Card className="glass-card" title="AI 生成接口用例">
+                      <Space direction="vertical" style={{ width: '100%' }} size="large">
+                        <Space wrap style={{ width: '100%' }}>
+                          <Select
+                            placeholder="选择设计项目"
+                            value={designProjectId ?? undefined}
+                            onChange={setDesignProjectId}
+                            options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                            disabled={!canEdit}
+                            style={{ width: 200 }}
+                          />
+                          <Select
+                            allowClear
+                            placeholder="基于套件扫描/设计（可选）"
+                            value={designSuiteId ?? undefined}
+                            onChange={(value) => setDesignSuiteId(value ?? null)}
+                            options={suites
+                              .filter((suite) => !designProjectId || suite.project_id === designProjectId)
+                              .map((suite) => ({ value: suite.id, label: suite.name }))}
+                            disabled={!canEdit || !designProjectId}
+                            style={{ width: 220 }}
+                          />
+                        </Space>
+                        <AiCoveragePanel
+                          targetLabel={designSuiteId ? `suite #${designSuiteId}` : designProjectId ? `project #${designProjectId}` : '未选择 target'}
+                          preview={coveragePreview}
+                          loading={coverageLoading}
+                          error={coverageError}
+                          onScan={() => void handleScanCoverage()}
+                          onOpenHistory={() => void handleOpenCoverageHistory()}
+                          onUseSuggestedPoints={handleTransferCoverageToPrompt}
+                        />
+                        <AiCaseGenerationPanel
+                          api={api}
+                          projects={projects}
+                          suites={suites}
+                          canEdit={canEdit}
+                          onImported={refresh}
+                          defaultProjectId={designProjectId}
+                          defaultSuiteId={designSuiteId}
+                          seedPromptHints={coveragePromptSeed}
+                        />
+                      </Space>
+                    </Card>
                   </Space>
                 </Col>
 
@@ -677,7 +1340,160 @@ export function WorkspacePage() {
                         </Space>
                       </Form.Item>
                       <Form.Item label="断言">
-                        <AssertionEditor rows={assertionRows} onChange={setAssertionRows} disabled={!canEdit} />
+                        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                          {editingCaseId !== null ? (
+                            <AiCapabilityActionCard
+                              title="AI 补断言"
+                              actions={(
+                                <Space wrap>
+                                  <Button loading={assertionLoading} onClick={() => void handlePreviewAssertions()} disabled={!canEdit}>
+                                    AI 补断言
+                                  </Button>
+                                  <Button
+                                    type="primary"
+                                    loading={assertionApplyLoading}
+                                    disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}
+                                    onClick={() => void handleApplyAssertions(false)}
+                                  >
+                                    应用追加
+                                  </Button>
+                                  <Popconfirm
+                                    title="覆盖后会用 AI 建议替换当前已保存断言，确认继续？"
+                                    onConfirm={() => void handleApplyAssertions(true)}
+                                    disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}
+                                  >
+                                    <Button danger loading={assertionApplyLoading} disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}>
+                                      覆盖应用
+                                    </Button>
+                                  </Popconfirm>
+                                </Space>
+                              )}
+                              error={assertionError}
+                              warnings={assertionPreview?.warnings ?? []}
+                              hasContent={Boolean(assertionPreview) || unsavedAssertionChanges}
+                              empty={<Typography.Text type="secondary">生成后会在这里展示建议列表、追加后结果和覆盖后的差异。</Typography.Text>}
+                            >
+                              <>
+                                {unsavedAssertionChanges ? (
+                                  <AlertBox
+                                    type="warning"
+                                    showIcon
+                                    message="当前编辑器里有未保存断言改动。AI 应用会以服务端已保存断言为基线，并刷新当前断言编辑区。"
+                                  />
+                                ) : null}
+                                {assertionPreview ? (
+                                  <Space direction="vertical" style={{ width: '100%' }}>
+                                    <Typography.Text>
+                                      当前已保存断言 {savedAssertions.length} 条，追加后 {appendPreviewAssertions.length} 条，覆盖后 {suggestedAssertions.length} 条。
+                                    </Typography.Text>
+                                    <AiSuggestionPanel
+                                      items={suggestedAssertions.map((item, index) => ({
+                                        key: `suggestion-${index}-${item.type}-${item.path ?? item.header ?? 'value'}`,
+                                        title: `${item.type} ${item.path ?? item.header ?? ''}`.trim(),
+                                        tags: <Typography.Text type="secondary">{`confidence: ${(item.confidence * 100).toFixed(0)}%`}</Typography.Text>,
+                                        content: (
+                                          <Space direction="vertical" style={{ width: '100%' }}>
+                                            <Typography.Text>{`operator: ${item.operator}`}</Typography.Text>
+                                            <Typography.Text>{`expected: ${stringifyValue(item.expected)}`}</Typography.Text>
+                                            <Typography.Text type="secondary">{item.reason}</Typography.Text>
+                                          </Space>
+                                        ),
+                                      }))}
+                                      emptyText="当前没有可应用的新断言建议。"
+                                    />
+                                    {suggestedAssertions.length ? (
+                                      <Card size="small" title="差异预览">
+                                        <Space direction="vertical" style={{ width: '100%' }}>
+                                          <Typography.Text>{`追加模式会保留当前 ${savedAssertions.length} 条断言，并新增 ${appendPreviewAssertions.length - savedAssertions.length} 条。`}</Typography.Text>
+                                          <Typography.Text>{`覆盖模式会把断言集替换为 AI 建议的 ${suggestedAssertions.length} 条。`}</Typography.Text>
+                                        </Space>
+                                      </Card>
+                                    ) : null}
+                                  </Space>
+                                ) : null}
+                              </>
+                            </AiCapabilityActionCard>
+                          ) : (
+                            <Typography.Text type="secondary">先保存用例，再生成 AI 补断言建议。</Typography.Text>
+                          )}
+                          <AssertionEditor rows={assertionRows} onChange={setAssertionRows} disabled={!canEdit} />
+                        </Space>
+                      </Form.Item>
+                      <Form.Item label="AI 预执行准备">
+                        {editingCaseId !== null ? (
+                          <>
+                            <Row gutter={[12, 12]}>
+                              <Col span={12}>
+                                <AiTestDataPanel
+                                  preview={testDataPreview}
+                                  selectedVariantIds={testDataSelectedIds}
+                                  canEdit={canEdit}
+                                  loading={testDataLoading}
+                                  applyLoading={testDataApplyLoading}
+                                  exportLoading={testDataExportLoading}
+                                  error={testDataError}
+                                  historyOpen={testDataHistoryOpen}
+                                  historyLoading={testDataHistoryLoading}
+                                  historyError={testDataHistoryError}
+                                  historyItems={testDataHistory}
+                                  onPreview={() => void handlePreviewTestData()}
+                                  onApplyAppend={() => void handleApplyTestData(false)}
+                                  onApplyOverride={() => void handleApplyTestData(true)}
+                                  onExport={() => void handleExportTestData()}
+                                  onSelectionChange={setTestDataSelectedIds}
+                                  onOpenHistory={() => void handleOpenTestDataHistory()}
+                                  onCloseHistory={() => setTestDataHistoryOpen(false)}
+                                  onLoadHistory={applyTestDataHistoryItem}
+                                  onViewLineage={(item) => void handleViewLineage(item)}
+                                />
+                              </Col>
+                              <Col span={12}>
+                                <AiMockTemplatePanel
+                                  preview={mockPreview}
+                                  selectedTemplateIds={mockSelectedIds}
+                                  canEdit={canEdit}
+                                  loading={mockLoading}
+                                  applyLoading={mockApplyLoading}
+                                  exportLoading={mockExportLoading}
+                                  error={mockError}
+                                  historyOpen={mockHistoryOpen}
+                                  historyLoading={mockHistoryLoading}
+                                  historyError={mockHistoryError}
+                                  historyItems={mockHistory}
+                                  onPreview={() => void handlePreviewMock()}
+                                  onApplyAppend={() => void handleApplyMock(false)}
+                                  onApplyOverride={() => void handleApplyMock(true)}
+                                  onExport={() => void handleExportMock()}
+                                  onSelectionChange={setMockSelectedIds}
+                                  onOpenHistory={() => void handleOpenMockHistory()}
+                                  onCloseHistory={() => setMockHistoryOpen(false)}
+                                  onLoadHistory={applyMockHistoryItem}
+                                  onViewLineage={(item) => void handleViewLineage(item)}
+                                />
+                              </Col>
+                            </Row>
+                            <div style={{ marginTop: 12 }}>
+                              <AiExecutionPreparationPanel
+                                canEdit={canEdit}
+                                availableVariants={savedTestDataVariants}
+                                availableTemplates={savedMockTemplates}
+                                selectedVariantIds={executionPreparationVariantIds}
+                                selectedTemplateIds={executionPreparationTemplateIds}
+                                selectedEnvironmentId={executionPreparationEnvironmentId}
+                                environments={editingEnvironments as Environment[]}
+                                loading={executionPreparationLoading}
+                                error={executionPreparationError}
+                                lastExecution={executionPreparationResult}
+                                onChangeVariantIds={setExecutionPreparationVariantIds}
+                                onChangeTemplateIds={setExecutionPreparationTemplateIds}
+                                onChangeEnvironmentId={setExecutionPreparationEnvironmentId}
+                                onRun={() => void handleRunPreparedExecution()}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <Typography.Text type="secondary">先保存用例，再生成 AI 测试数据和 AI Mock 模板。</Typography.Text>
+                        )}
                       </Form.Item>
                       <Form.Item label="前置处理器">
                         <ProcessorEditor title="前置处理器" rows={preProcessorRows} onChange={setPreProcessorRows} disabled={!canEdit} />
@@ -771,6 +1587,55 @@ export function WorkspacePage() {
             ),
           },
         ]}
+      />
+      <AiArtifactHistoryDrawer
+        title="AI Coverage 历史"
+        open={coverageHistoryOpen}
+        onClose={() => setCoverageHistoryOpen(false)}
+        loading={coverageHistoryLoading}
+        error={coverageHistoryError}
+        items={coverageHistory.map((item) => {
+          const result = normalizeCoverageHistoryResult(item.output_json);
+          return {
+            key: item.artifact_id,
+            label: `${item.artifact_id.slice(0, 8)} · score ${result.coverage_score} · ${item.status}`,
+            content: (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Typography.Text type="secondary">
+                  target: {item.target_type} #{item.target_id}
+                </Typography.Text>
+                <Typography.Text>
+                  缺口 {result.missing_dimensions.length}，建议点 {result.suggested_points.length}
+                </Typography.Text>
+                <Button size="small" onClick={() => applyCoverageHistoryItem(item)}>
+                  加载为当前扫描结果
+                </Button>
+              </Space>
+            ),
+          };
+        })}
+        emptyText="当前 target 还没有 AI coverage 历史。"
+      />
+      <AiArtifactHistoryDrawer
+        title={lineageTitle}
+        open={lineageOpen}
+        onClose={() => setLineageOpen(false)}
+        loading={lineageLoading}
+        error={lineageError}
+        headerContent={lineageData ? <Typography.Text type="secondary">root artifact: {lineageData.root_artifact_id}</Typography.Text> : null}
+        items={(lineageData?.items ?? []).map((item, index) => ({
+          key: `${item.resource_type}-${item.resource_key}-${index}`,
+          label: `${item.resource_type} · ${item.link_type}`,
+          content: (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Typography.Text>{item.resource_key}</Typography.Text>
+              {item.capability ? <Typography.Text type="secondary">capability: {item.capability}</Typography.Text> : null}
+              {item.status ? <Typography.Text type="secondary">status: {item.status}</Typography.Text> : null}
+              {item.created_at ? <Typography.Text type="secondary">{item.created_at}</Typography.Text> : null}
+            </Space>
+          ),
+        }))}
+        emptyText="当前 artifact 还没有 lineage 记录。"
       />
     </div>
   );

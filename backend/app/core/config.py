@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, computed_field, field_validator, model_validator
+from pydantic import AliasChoices, Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     worker_poll_interval_seconds: float = Field(default=2.0, gt=0, le=3600)
     legacy_imports_enabled: bool = True
     legacy_imports_sunset_date: date | None = None
+    ai_provider: str = Field(default="", validation_alias=AliasChoices("DATATEST_AI_PROVIDER"))
+    ai_endpoint: str = Field(default="", validation_alias=AliasChoices("DATATEST_AI_ENDPOINT"))
+    ai_model: str = Field(default="", validation_alias=AliasChoices("DATATEST_AI_MODEL"))
+    ai_timeout_seconds: int = Field(default=60, ge=1, le=600, validation_alias=AliasChoices("DATATEST_AI_TIMEOUT_SECONDS"))
+    ai_api_key: str = Field(default="", validation_alias=AliasChoices("OPENAI_API_KEY", "DATATEST_AI_API_KEY"))
+    ai_use_env_proxy: bool = Field(default=False, validation_alias=AliasChoices("DATATEST_AI_USE_ENV_PROXY"))
 
     @field_validator("api_prefix")
     @classmethod

@@ -39,6 +39,14 @@ export class ApiClient {
       ...init,
       headers,
     });
+    const contentType = response.headers.get('Content-Type') ?? '';
+    if (!contentType.includes('application/json')) {
+      const fallbackMessage = await this.readErrorMessage(response, '服务返回了非 JSON 响应，请检查后端是否已重启并加载最新路由。');
+      if (!response.ok) {
+        throw new Error(fallbackMessage);
+      }
+      throw new Error('服务返回了非 JSON 响应，请检查后端是否已重启并加载最新路由。');
+    }
     const payload = (await response.json()) as ApiResponse<T> | ApiErrorResponse | { detail?: string };
     if (!response.ok) {
       if ('error' in payload && payload.error) {

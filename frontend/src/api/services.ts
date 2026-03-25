@@ -1,11 +1,27 @@
 import { ApiClient } from './client';
 import type {
   ApiCase,
+  AiCaseDraft,
+  AiCaseDraftBatch,
+  AiCaseDraftHistoryList,
+  AiCaseDraftImportResult,
+  AiArtifactHistoryList,
+  AiArtifactLineage,
+  AiAssertionResult,
+  AiCoverageResult,
+  AiCopilotPreview,
+  AiDesignTargetType,
+  AiDiagnosisResult,
+  AiMockResult,
+  AiReportSummaryResult,
+  AiTestDataResult,
+  AiTestPointResult,
   AuditLogListResult,
   AuthSession,
   Environment,
   Execution,
   ExecutionListResult,
+  AiExecutionPreparationSelection,
   LegacyImportPolicy,
   PaginatedResult,
   Project,
@@ -140,7 +156,7 @@ export function createApi(token: string | null) {
       const suffix = query.toString() ? `?${query.toString()}` : '';
       return client.request<ExecutionListResult>(`/executions${suffix}`);
     },
-    runExecution: (payload: { scope: 'case' | 'suite'; target_id: number; environment_id?: number }) =>
+    runExecution: (payload: { scope: 'case' | 'suite'; target_id: number; environment_id?: number; ai_preparation?: AiExecutionPreparationSelection }) =>
       client.request<Execution>('/executions', { method: 'POST', body: JSON.stringify(payload) }),
     getExecution: (executionId: number) => client.request<Execution>(`/executions/${executionId}`),
     cancelExecution: (executionId: number) =>
@@ -191,6 +207,109 @@ export function createApi(token: string | null) {
         { method: 'POST', body: formData },
       );
     },
+    previewAiCaseDrafts: (payload: {
+      project_id: number;
+      suite_name: string;
+      markdown_text: string;
+      provider?: string;
+      model?: string;
+      base_url?: string;
+      api_key?: string;
+      timeout_seconds?: number;
+      prompt_preset?: string;
+      prompt_hints?: string;
+    }) => client.request<AiCaseDraftBatch>('/ai-case-drafts/preview', { method: 'POST', body: JSON.stringify(payload) }),
+    listAiCaseDraftHistory: (projectId?: number) => {
+      const suffix = projectId ? `?project_id=${projectId}` : '';
+      return client.request<AiCaseDraftHistoryList>(`/ai-case-drafts/history${suffix}`);
+    },
+    getAiCaseDraftHistory: (historyId: string) => client.request<AiCaseDraftBatch>(`/ai-case-drafts/history/${historyId}`),
+    rerunAiCaseDraftHistory: (
+      historyId: string,
+      payload: {
+        provider?: string;
+        model?: string;
+        base_url?: string;
+        api_key?: string;
+        timeout_seconds?: number;
+      },
+    ) => client.request<AiCaseDraftBatch>(`/ai-case-drafts/history/${historyId}/rerun`, { method: 'POST', body: JSON.stringify(payload) }),
+    fetchAiCaseDraftHistoryExcel: async (historyId: string) => {
+      const response = await fetch(`/api/v1/ai-case-drafts/history/${historyId}/export.xlsx`, { headers: authHeaders });
+      if (!response.ok) {
+        throw new Error(await client.readErrorMessage(response, '下载 AI Excel 失败。'));
+      }
+      return response.blob();
+    },
+    importAiCaseDrafts: (payload: { project_id: number; suite_name: string; drafts: Array<{
+      draft_id: string;
+      selected: boolean;
+      case: AiCaseDraft['case'];
+      source_excerpt: string;
+      source_location: Record<string, unknown>;
+    }> }) => client.request<AiCaseDraftImportResult>('/ai-case-drafts/import', { method: 'POST', body: JSON.stringify(payload) }),
+    previewAiTestPoints: (payload: { project_id?: number; suite_id?: number; markdown_text?: string; prompt_hints?: string }) =>
+      client.request<AiCopilotPreview<AiTestPointResult>>('/ai-copilot/test-points/preview', { method: 'POST', body: JSON.stringify(payload) }),
+    generateAiDraftsFromTestPoints: (payload: {
+      artifact_id: string;
+      selected_point_ids: string[];
+      project_id: number;
+      suite_name: string;
+      provider?: string;
+      model?: string;
+      base_url?: string;
+      api_key?: string;
+      timeout_seconds?: number;
+    }) => client.request<AiCaseDraftBatch>('/ai-copilot/test-points/generate-drafts', { method: 'POST', body: JSON.stringify(payload) }),
+    scanAiCoverage: (payload: { project_id?: number; suite_id?: number }) =>
+      client.request<AiCopilotPreview<AiCoverageResult>>('/ai-copilot/coverage/scan', { method: 'POST', body: JSON.stringify(payload) }),
+    listAiCoverageHistory: (targetType: AiDesignTargetType, targetId: number) =>
+      client.request<AiArtifactHistoryList>(`/ai-copilot/coverage/history?target_type=${targetType}&target_id=${targetId}`),
+    listAiTestPointHistory: (targetType: AiDesignTargetType, targetId: number) =>
+      client.request<AiArtifactHistoryList>(`/ai-copilot/test-points/history?target_type=${targetType}&target_id=${targetId}`),
+    previewAiDiagnosis: (payload: { execution_id: number }) =>
+      client.request<AiCopilotPreview<AiDiagnosisResult>>('/ai-copilot/diagnosis/preview', { method: 'POST', body: JSON.stringify(payload) }),
+    listAiDiagnosisHistory: (executionId: number) =>
+      client.request<AiArtifactHistoryList>(`/ai-copilot/diagnosis/history?execution_id=${executionId}`),
+    getAiArtifactLineage: (artifactId: string) =>
+      client.request<AiArtifactLineage>(`/ai-copilot/artifacts/${artifactId}/lineage`),
+    previewAiAssertions: (payload: { case_id: number }) =>
+      client.request<AiCopilotPreview<AiAssertionResult>>('/ai-copilot/assertions/preview', { method: 'POST', body: JSON.stringify(payload) }),
+    applyAiAssertions: (artifactId: string, payload: { override_existing: boolean }) =>
+      client.request<ApiCase>(`/ai-copilot/assertions/${artifactId}/apply`, { method: 'POST', body: JSON.stringify(payload) }),
+    previewAiTestData: (payload: { case_id: number }) =>
+      client.request<AiCopilotPreview<AiTestDataResult>>('/ai-copilot/test-data/preview', { method: 'POST', body: JSON.stringify(payload) }),
+    listAiTestDataHistory: (caseId: number) =>
+      client.request<AiArtifactHistoryList>(`/ai-copilot/test-data/history?case_id=${caseId}`),
+    applyAiTestData: (artifactId: string, payload: { selected_variant_ids: string[]; override_existing: boolean }) =>
+      client.request<ApiCase>(`/ai-copilot/test-data/${artifactId}/apply`, { method: 'POST', body: JSON.stringify(payload) }),
+    exportAiTestData: async (artifactId: string) => {
+      const response = await fetch(`/api/v1/ai-copilot/test-data/${artifactId}/export`, { headers: authHeaders });
+      if (!response.ok) {
+        throw new Error(await client.readErrorMessage(response, '导出 AI 测试数据失败。'));
+      }
+      return response.blob();
+    },
+    previewAiMock: (payload: { case_id: number }) =>
+      client.request<AiCopilotPreview<AiMockResult>>('/ai-copilot/mock/preview', { method: 'POST', body: JSON.stringify(payload) }),
+    listAiMockHistory: (caseId: number) =>
+      client.request<AiArtifactHistoryList>(`/ai-copilot/mock/history?case_id=${caseId}`),
+    applyAiMock: (artifactId: string, payload: { selected_template_ids: string[]; override_existing: boolean }) =>
+      client.request<ApiCase>(`/ai-copilot/mock/${artifactId}/apply`, { method: 'POST', body: JSON.stringify(payload) }),
+    exportAiMock: async (artifactId: string) => {
+      const response = await fetch(`/api/v1/ai-copilot/mock/${artifactId}/export`, { headers: authHeaders });
+      if (!response.ok) {
+        throw new Error(await client.readErrorMessage(response, '导出 AI Mock 模板失败。'));
+      }
+      return response.blob();
+    },
+    previewAiReportSummary: (payload: { report_id: number }) =>
+      client.request<AiCopilotPreview<AiReportSummaryResult>>('/ai-copilot/report-summary/preview', { method: 'POST', body: JSON.stringify(payload) }),
+    applyAiReportSummary: (artifactId: string) =>
+      client.request<{ report_id: number; ai_summary: AiReportSummaryResult }>(`/ai-copilot/report-summary/${artifactId}/apply`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
     listUsers: async () => {
       const result = await client.request<PaginatedResult<User>>(`/users?page=1&page_size=${listPageSize}`);
       return result.items;

@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
+from backend.app.core.timezone import to_beijing_isoformat
 from backend.app.models.execution import ExecutionStatus
 from backend.app.repositories.execution_repository import ExecutionRepository
 from backend.app.schemas.health import HealthDependencyRead, HealthMetricsRead, HealthRead, HealthRuntimeRead
@@ -32,7 +33,7 @@ class HealthService:
             status="ok" if readiness else "degraded",
             service=settings.app_name,
             version=settings.app_version,
-            checked_at=_utc_now().isoformat(),
+            checked_at=to_beijing_isoformat(_utc_now()),
             readiness=readiness,
             dependencies=dependencies,
             metrics=self._collect_execution_metrics(),
@@ -106,7 +107,7 @@ class HealthService:
             counts[status] = counts.get(status, 0) + 1
             created_at = row.get("created_at")
             if isinstance(created_at, datetime):
-                created_at_text = created_at.isoformat()
+                created_at_text = to_beijing_isoformat(created_at)
                 if last_execution_at is None or created_at_text > last_execution_at:
                     last_execution_at = created_at_text
             summary = row.get("summary")

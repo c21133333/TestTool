@@ -1,8 +1,89 @@
 
 > eazytest-web@0.1.0 dev
-> vite --host 127.0.0.1 --port 5173
+> vite
 
 
-  [32m[1mVITE[22m v6.4.1[39m  [2mready in [0m[1m229[22m[2m[0m ms[22m
+  [32m[1mVITE[22m v6.4.1[39m  [2mready in [0m[1m238[22m[2m[0m ms[22m
 
   [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2m15:19:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai/AiCaseDraftTable.tsx[22m
+[2m15:20:22[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai/AiCaseDraftTable.tsx[22m
+[2m15:29:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai/AiCaseDraftTable.tsx[22m
+[2m15:29:35[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/index.css[22m
+[2m15:32:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai/AiCaseDraftTable.tsx[22m
+[2m15:32:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/index.css[22m
+[2m15:41:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai/AiCaseGenerationPanel.tsx[22m
+[2m16:22:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:22:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m16:22:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:22:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ExecutionsPage.tsx[22m
+[2m16:23:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:23:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m16:23:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:27:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReportsPage.tsx[22m
+[2m16:27:48[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReportsPage.tsx[22m
+[2m16:30:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReportsPage.tsx[22m
+[2m16:30:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:30:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m16:30:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:39:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:39:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m16:39:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx[22m
+[2m16:43:45[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:44:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:44:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:44:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:44:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:44:40[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:44:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:45:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:45:22[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:45:37[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:45:42[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:48:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ExecutionsPage.tsx[22m
+[2m16:48:57[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ExecutionsPage.tsx[22m
+[2m16:49:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ExecutionsPage.tsx[22m
+[2m16:49:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ExecutionsPage.tsx[22m
+[2m16:49:37[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ExecutionsPage.tsx[22m
+[2m16:49:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReportsPage.tsx[22m
+[2m16:50:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReportsPage.tsx[22m
+[2m16:50:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:50:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m16:51:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiCapabilityActionCard.tsx[22m
+[2m16:51:18[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ExecutionsPage.tsx[22m
+[2m16:51:21[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/ReportsPage.tsx[22m
+[2m16:51:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m17:13:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m17:13:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m17:13:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m09:41:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m09:41:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m09:41:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m09:44:21[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai/AiCaseGenerationPanel.tsx[22m
+[2m09:44:41[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m09:44:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m09:44:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m09:45:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m09:45:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m09:45:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m09:45:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m10:03:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m10:03:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m10:03:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m10:31:35[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m10:31:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m10:32:17[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m10:32:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m10:32:42[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m10:32:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiTestDataPanel.tsx[22m
+[2m10:32:53[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiMockTemplatePanel.tsx[22m
+[2m10:52:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/auth/AuthContext.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m10:52:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/auth/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m10:52:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/components/shell/AppShell.tsx, /src/pages/WorkspacePage.tsx, /src/pages/DashboardPage.tsx, /src/pages/EnvironmentsPage.tsx, /src/pages/ExecutionsPage.tsx, /src/pages/ReportsPage.tsx, /src/pages/AuditLogsPage.tsx, /src/pages/UsersPage.tsx[22m
+[2m11:04:32[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiArtifactHistoryDrawer.tsx[22m
+[2m11:06:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiTestDataPanel.tsx[22m
+[2m11:06:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiMockTemplatePanel.tsx[22m
+[2m11:07:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m
+[2m11:44:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiTestDataPanel.tsx[22m
+[2m11:44:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/ai-copilot/AiMockTemplatePanel.tsx[22m
+[2m11:44:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/WorkspacePage.tsx[22m

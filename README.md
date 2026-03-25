@@ -306,6 +306,21 @@ python -m pytest
 
 ## Security Baseline
 
+## AI Copilot Phase 4
+
+- `WorkspacePage` 的用例编辑区现在包含 `AI 预执行准备` 卡片，可直接选择已保存的 `AI 测试数据变体` 与 `AI Mock 模板`，然后触发单次 case execution。
+- execution preparation 只会把显式选中的 artifact 注入本次执行请求，不会静默改写 `api_cases.metadata_json` 或当前编辑中的请求体。
+- 执行完成后，可在 execution 的 `summary_json.ai_preparation` 中查看本次命中的 variant/template 数量、选择摘要，以及最终的 deterministic preparation 结果。
+- `AI 测试数据` 与 `AI Mock` 历史抽屉现在支持 `Lineage` 入口，可回看 artifact 到派生对象/历史记录之间的 bridge 关系。
+- 所有 LLM-backed artifact 现在统一记录 provider/runtime trace；deterministic capability 也会显式记录 `call_mode=deterministic`，便于审计与观测。
+
+### 推荐使用方式
+
+1. 先在用例编辑区生成并应用 `AI 测试数据` 或 `AI Mock`，把需要复用的 artifact 保存进 case metadata。
+2. 在同一页面的 `AI 预执行准备` 卡片中选择本次执行要携带的 variant/template，必要时再选择 environment。
+3. 触发执行后，去执行记录查看 `summary_json.ai_preparation`，确认本次到底带入了哪些准备项。
+4. 如果需要追踪来源，打开对应 artifact 的历史抽屉并点击 `Lineage`，即可查看 artifact lineage bridge 与相关派生节点。
+
 - Bootstrap admin is disabled by default and requires explicit credentials when enabled for local development.
 - `EAZYTEST_DEPLOYMENT_ENV=production` rejects `EAZYTEST_BOOTSTRAP_ADMIN_ENABLED=true`.
 - Access tokens use a fixed TTL from `EAZYTEST_AUTH_TOKEN_TTL_HOURS` and a per-user live-token cap from `EAZYTEST_AUTH_MAX_ACTIVE_TOKENS_PER_USER`.

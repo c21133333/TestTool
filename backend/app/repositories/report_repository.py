@@ -15,6 +15,11 @@ class ReportRepository:
         self._session.flush()
         return report
 
+    def save(self, report: Report) -> Report:
+        self._session.add(report)
+        self._session.flush()
+        return report
+
     def get(self, report_id: int) -> Report | None:
         return self._session.get(Report, report_id)
 

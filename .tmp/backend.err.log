@@ -1,4 +1,4 @@
-INFO:     Started server process [33952]
+INFO:     Started server process [20792]
 INFO:     Waiting for application startup.
 INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
 INFO  [alembic.runtime.migration] Will assume transactional DDL.

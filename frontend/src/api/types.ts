@@ -115,6 +115,19 @@ export type Execution = {
   items: ExecutionItem[];
 };
 
+export type AiExecutionPreparationSelection = {
+  selected_test_data_variant_ids: string[];
+  selected_mock_template_ids: string[];
+};
+
+export type AiExecutionPreparation = {
+  case_id: number;
+  request_body: unknown;
+  selected_test_data_variants: Record<string, unknown>[];
+  selected_mock_templates: Record<string, unknown>[];
+  summary: Record<string, unknown>;
+};
+
 export type ExecutionListResult = PaginatedResult<Execution>;
 
 export type Report = {
@@ -155,4 +168,225 @@ export type LegacyImportPolicy = {
     target: string;
   }>;
   retirement_plan: string[];
+};
+
+export type AiCaseDraftValidationStatus = 'valid' | 'warning' | 'invalid';
+
+export type AiCaseDraftPayload = {
+  name: string;
+  method: string;
+  url: string;
+  description: string;
+  headers_json: Record<string, string>;
+  body_json: unknown;
+  assertions_json: Record<string, unknown>[];
+  metadata_json: Record<string, unknown>;
+};
+
+export type AiCaseDraft = {
+  draft_id: string;
+  selected: boolean;
+  validation_status: AiCaseDraftValidationStatus;
+  validation_errors: string[];
+  review_warnings: string[];
+  case: AiCaseDraftPayload;
+  source_excerpt: string;
+  source_location: Record<string, unknown>;
+};
+
+export type AiCaseDraftBatch = {
+  history_id: string;
+  created_at: string;
+  suite_name: string;
+  doc_summary: {
+    section_count: number;
+    endpoint_count: number;
+  };
+  drafts: AiCaseDraft[];
+  warnings: string[];
+  prompt_preset: string;
+  prompt_hints_effective: string;
+};
+
+export type AiCaseDraftImportResult = {
+  suite_id: number;
+  suite_name: string;
+  created_cases: number;
+  skipped_cases: number;
+  failures: Array<{
+    draft_id: string;
+    reason: string;
+  }>;
+};
+
+export type AiCaseDraftHistorySummary = {
+  history_id: string;
+  created_at: string;
+  project_id: number;
+  suite_name: string;
+  provider: string;
+  model: string;
+  prompt_preset: string;
+  draft_count: number;
+  warning_count: number;
+};
+
+export type AiCaseDraftHistoryList = {
+  items: AiCaseDraftHistorySummary[];
+};
+
+export type AiCopilotPreview<T> = {
+  artifact_id: string;
+  capability: 'test_point' | 'coverage' | 'diagnosis' | 'assertion' | 'test_data' | 'mock' | 'report_summary';
+  status: 'draft' | 'accepted' | 'rejected' | 'applied' | 'superseded';
+  warnings: string[];
+  result: T;
+  call_trace?: AiCallTrace | null;
+};
+
+export type AiArtifactHistoryItem = {
+  artifact_id: string;
+  capability: 'test_point' | 'coverage' | 'diagnosis' | 'assertion' | 'test_data' | 'mock' | 'report_summary';
+  target_type: 'project' | 'suite' | 'case' | 'execution' | 'report';
+  target_id: number;
+  project_id: number | null;
+  suite_id: number | null;
+  case_id: number | null;
+  execution_id: number | null;
+  report_id: number | null;
+  input_json: Record<string, unknown>;
+  output_json: Record<string, unknown>;
+  warnings_json: string[];
+  status: 'draft' | 'accepted' | 'rejected' | 'applied' | 'superseded';
+  provider: string;
+  model: string;
+  call_trace?: AiCallTrace | null;
+};
+
+export type AiArtifactHistoryList = {
+  items: AiArtifactHistoryItem[];
+};
+
+export type AiProviderConfig = {
+  provider: string;
+  model: string;
+  base_url: string;
+  timeout_seconds?: number | null;
+};
+
+export type AiCallTrace = {
+  call_mode: string;
+  provider?: AiProviderConfig | null;
+  latency_ms?: number | null;
+  failure_category: string;
+  trace_json: Record<string, unknown>;
+};
+
+export type AiArtifactLineageNode = {
+  artifact_id: string;
+  resource_type: string;
+  resource_key: string;
+  link_type: string;
+  capability?: 'test_point' | 'coverage' | 'diagnosis' | 'assertion' | 'test_data' | 'mock' | 'report_summary' | null;
+  status?: 'draft' | 'accepted' | 'rejected' | 'applied' | 'superseded' | null;
+  created_at?: string;
+};
+
+export type AiArtifactLineage = {
+  root_artifact_id: string;
+  items: AiArtifactLineageNode[];
+};
+
+export type AiDesignTargetType = 'project' | 'suite';
+
+export type AiTestPoint = {
+  id: string;
+  title: string;
+  category: string;
+  risk_level: string;
+  reason: string;
+  covered_by_existing_cases: boolean;
+  suggested_case_count: number;
+};
+
+export type AiTestPointResult = {
+  test_points: AiTestPoint[];
+};
+
+export type AiCoverageMissingDimension = {
+  endpoint: string;
+  dimension: string;
+  reason: string;
+};
+
+export type AiCoverageSuggestedPoint = {
+  title: string;
+  category: string;
+  priority: string;
+  reason: string;
+};
+
+export type AiCoverageResult = {
+  coverage_score: number;
+  missing_dimensions: AiCoverageMissingDimension[];
+  suggested_points: AiCoverageSuggestedPoint[];
+};
+
+export type AiDiagnosisResult = {
+  diagnosis_category: string;
+  root_cause_hypothesis: string;
+  confidence: number;
+  next_actions: string[];
+};
+
+export type AiAssertionSuggestion = {
+  type: string;
+  operator: string;
+  path?: string;
+  header?: string;
+  expected: unknown;
+  enabled: boolean;
+  reason: string;
+  confidence: number;
+};
+
+export type AiAssertionResult = {
+  suggested_assertions: AiAssertionSuggestion[];
+};
+
+export type AiTestDataVariant = {
+  variant_id: string;
+  name: string;
+  category: string;
+  payload_patch: Record<string, unknown>;
+  target_fields: string[];
+  reason: string;
+  suggested_assertions: Record<string, unknown>[];
+};
+
+export type AiTestDataResult = {
+  data_variants: AiTestDataVariant[];
+};
+
+export type AiMockTemplate = {
+  template_id: string;
+  scenario_name: string;
+  status_code: number;
+  response_template: Record<string, unknown>;
+  mock_rules: Record<string, unknown>[];
+  reason: string;
+};
+
+export type AiMockResult = {
+  mock_templates: AiMockTemplate[];
+};
+
+export type AiReportSummaryResult = {
+  executive_summary: string;
+  risk_summary: string;
+  top_failures: Array<{
+    category: string;
+    count: number;
+  }>;
+  recommended_actions: string[];
 };

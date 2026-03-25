@@ -4,26 +4,29 @@ import json
 import logging
 import sys
 from contextvars import ContextVar, Token
-from datetime import UTC, date, datetime, time
+from datetime import date, datetime, time
 from enum import Enum
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from backend.app.core.config import settings
+from backend.app.core.timezone import beijing_now_isoformat, to_beijing_isoformat, utc_now
 
 _request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
 _component_context: ContextVar[str] = ContextVar("component", default="app")
 
 
 def _utc_now() -> datetime:
-    return datetime.now(UTC)
+    return utc_now()
 
 
 def _serialize_log_value(value: Any) -> Any:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
-    if isinstance(value, (datetime, date, time)):
+    if isinstance(value, datetime):
+        return to_beijing_isoformat(value)
+    if isinstance(value, (date, time)):
         return value.isoformat()
     if isinstance(value, Enum):
         return value.value
@@ -39,7 +42,7 @@ def _serialize_log_value(value: Any) -> Any:
 class JsonLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
-            "timestamp": _utc_now().isoformat(),
+            "timestamp": beijing_now_isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),

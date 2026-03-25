@@ -1,0 +1,81 @@
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+Traceback (most recent call last):
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\works\python\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.OperationalError: consuming input failed: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\works\project\ezTest\TestTool\src\requesttool\__main__.py", line 4, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "D:\works\project\ezTest\TestTool\src\requesttool\cli.py", line 41, in main
+    return _run_worker(run_once=args.once)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\project\ezTest\TestTool\src\requesttool\cli.py", line 59, in _run_worker
+    return worker_main()
+           ^^^^^^^^^^^^^
+  File "D:\works\project\ezTest\TestTool\backend\app\worker.py", line 50, in main
+    processed = run_once()
+                ^^^^^^^^^^
+  File "D:\works\project\ezTest\TestTool\backend\app\worker.py", line 19, in run_once
+    execution = ExecutionService(session).process_next_pending_execution()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\project\ezTest\TestTool\backend\app\services\execution_service.py", line 186, in process_next_pending_execution
+    def process_next_pending_execution(self) -> Execution | None:
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\project\ezTest\TestTool\backend\app\services\execution_service.py", line 195, in recover_stale_executions
+    cutoff = _utc_now() - timedelta(seconds=settings.execution_stale_timeout_seconds)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\project\ezTest\TestTool\backend\app\repositories\execution_repository.py", line 91, in list_stale_running_executions
+    return list(self._session.scalars(stmt).unique().all())
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\orm\session.py", line 2459, in scalars
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "D:\works\python\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "D:\works\python\Lib\site-packages\psycopg\cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.OperationalError: (psycopg.OperationalError) consuming input failed: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+[SQL: SELECT executions.id, executions.project_id, executions.suite_id, executions.environment_id, executions.triggered_by_user_id, executions.scope, executions.status, executions.target_name, executions.summary_json, executions.error_message, executions.started_at, executions.finished_at, executions.created_at, executions.updated_at 
+FROM executions 
+WHERE executions.scope = %(scope_1)s AND executions.status = %(status_1)s AND executions.started_at IS NOT NULL AND executions.started_at < %(started_at_1)s::TIMESTAMP WITH TIME ZONE ORDER BY executions.started_at ASC, executions.id ASC]
+[parameters: {'scope_1': 'suite', 'status_1': 'running', 'started_at_1': datetime.datetime(2026, 3, 25, 2, 11, 8, 327469, tzinfo=datetime.timezone.utc)}]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)

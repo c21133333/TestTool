@@ -1,0 +1,8 @@
+INFO:     Will watch for changes in these directories: ['D:\\works\\project\\ezTest\\TestTool']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [8208] using WatchFiles
+INFO:     Started server process [33552]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\core\config.py'. Reloading...

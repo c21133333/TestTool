@@ -1,9 +1,11 @@
-import { Alert, App, Button, Card, Descriptions, Drawer, Empty, Row, Col, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Col, Descriptions, Drawer, Empty, Row, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 
 import { createApi } from '../api/services';
-import type { Report } from '../api/types';
+import type { AiCopilotPreview, AiReportSummaryResult, Report } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { AiCapabilityActionCard } from '../components/ai-copilot/AiCapabilityActionCard';
+import { AiSuggestionPanel } from '../components/ai-copilot/AiSuggestionPanel';
 import { PageHero } from '../components/product/PageHero';
 import { StatePanel } from '../components/product/StatePanel';
 import { formatDateTime } from '../utils/display';
@@ -32,6 +34,10 @@ export function ReportsPage() {
   const [previewContent, setPreviewContent] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'html' | 'json'>('all');
+  const [summaryPreview, setSummaryPreview] = useState<AiCopilotPreview<AiReportSummaryResult> | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryApplyLoading, setSummaryApplyLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -66,6 +72,8 @@ export function ReportsPage() {
     setPreviewOpen(true);
     setPreviewLoading(true);
     setPreviewError(null);
+    setSummaryPreview(null);
+    setSummaryError(null);
     try {
       if (report.report_type === 'html') {
         const blob = await api.fetchReportBlob(report.id);
@@ -104,6 +112,87 @@ export function ReportsPage() {
       message.success('已开始下载报告。');
     } catch (err) {
       message.error(err instanceof Error ? err.message : '下载报告失败。');
+    }
+  }
+
+  async function handlePreviewSummary() {
+    if (!previewReport) {
+      return;
+    }
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const result = await api.previewAiReportSummary({ report_id: previewReport.id });
+      setSummaryPreview(result);
+      message.success('AI 总结已生成。');
+    } catch (err) {
+      const nextError = err instanceof Error ? err.message : '生成 AI 总结失败。';
+      setSummaryError(nextError);
+      message.error(nextError);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
+
+  async function handleApplySummary() {
+    if (!summaryPreview || !previewReport) {
+      return;
+    }
+    setSummaryApplyLoading(true);
+    setSummaryError(null);
+    try {
+      const result = await api.applyAiReportSummary(summaryPreview.artifact_id);
+      setSummaryPreview((current) => (current ? { ...current, status: 'applied', result: result.ai_summary } : current));
+      setReports((current) =>
+        current.map((report) =>
+          report.id === previewReport.id
+            ? {
+                ...report,
+                metadata_json: {
+                  ...report.metadata_json,
+                  ai_summary: result.ai_summary,
+                },
+              }
+            : report,
+        ),
+      );
+      setPreviewReport((current) =>
+        current
+          ? {
+              ...current,
+              metadata_json: {
+                ...current.metadata_json,
+                ai_summary: result.ai_summary,
+              },
+            }
+          : current,
+      );
+      message.success('AI 总结已应用到报告元数据。');
+    } catch (err) {
+      const nextError = err instanceof Error ? err.message : '应用 AI 总结失败。';
+      setSummaryError(nextError);
+      message.error(nextError);
+    } finally {
+      setSummaryApplyLoading(false);
+    }
+  }
+
+  async function handleCopySummary() {
+    const reportSummary = previewReport?.metadata_json.ai_summary as AiReportSummaryResult | undefined;
+    const summary = summaryPreview?.result ?? reportSummary;
+    if (!summary) {
+      return;
+    }
+    const content = [
+      summary.executive_summary,
+      summary.risk_summary,
+      ...summary.recommended_actions.map((item) => `- ${item}`),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(content);
+      message.success('业务摘要已复制。');
+    } catch {
+      message.error('复制业务摘要失败。');
     }
   }
 
@@ -224,6 +313,19 @@ export function ReportsPage() {
         extra={
           previewReport ? (
             <Space>
+              <Button loading={summaryLoading} onClick={() => void handlePreviewSummary()}>
+                AI 总结
+              </Button>
+              <Button
+                loading={summaryApplyLoading}
+                disabled={!summaryPreview || summaryPreview.status === 'applied'}
+                onClick={() => void handleApplySummary()}
+              >
+                应用总结
+              </Button>
+              <Button disabled={!summaryPreview && !previewReport.metadata_json.ai_summary} onClick={() => void handleCopySummary()}>
+                复制业务摘要
+              </Button>
               <Button onClick={() => void openInNewTab(previewReport)}>新标签打开</Button>
               <Button type="primary" onClick={() => void downloadReport(previewReport)}>
                 下载
@@ -247,6 +349,75 @@ export function ReportsPage() {
               <Descriptions.Item label="创建时间">{formatDateTime(previewReport.created_at)}</Descriptions.Item>
               <Descriptions.Item label="路径">{previewReport.file_path}</Descriptions.Item>
             </Descriptions>
+
+            <AiCapabilityActionCard
+              title="AI 总结"
+              error={summaryError}
+              hasContent={Boolean(summaryPreview?.result ?? (previewReport.metadata_json.ai_summary as AiReportSummaryResult | undefined))}
+              empty={<Typography.Text type="secondary">生成后会在这里展示 AI 总结，并可应用到报告元数据。</Typography.Text>}
+            >
+              {(() => {
+                const reportSummary = previewReport.metadata_json.ai_summary as AiReportSummaryResult | undefined;
+                const summary = summaryPreview?.result ?? reportSummary;
+                if (!summary) {
+                  return null;
+                }
+                return (
+                  <AiSuggestionPanel
+                    items={[
+                      {
+                        key: 'executive-summary',
+                        title: '执行摘要',
+                        tags: (
+                          <Space wrap>
+                            <Tag color="processing">{summaryPreview ? summaryPreview.status : 'applied'}</Tag>
+                            <Tag>{`top failures: ${summary.top_failures.length}`}</Tag>
+                          </Space>
+                        ),
+                        content: (
+                          <Space direction="vertical" style={{ width: '100%' }}>
+                            <Typography.Text>{summary.executive_summary}</Typography.Text>
+                            <Typography.Text strong>风险摘要</Typography.Text>
+                            <Typography.Text>{summary.risk_summary}</Typography.Text>
+                          </Space>
+                        ),
+                      },
+                      ...(summary.top_failures.length
+                        ? [{
+                            key: 'top-failures',
+                            title: 'Top Failures',
+                            content: (
+                              <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 20 }}>
+                                {summary.top_failures.map((item) => (
+                                  <li key={`${item.category}-${item.count}`}>
+                                    <Typography.Text>{`${item.category}: ${item.count}`}</Typography.Text>
+                                  </li>
+                                ))}
+                              </ul>
+                            ),
+                          }]
+                        : []),
+                      ...(summary.recommended_actions.length
+                        ? [{
+                            key: 'recommended-actions',
+                            title: 'Recommended Actions',
+                            content: (
+                              <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 20 }}>
+                                {summary.recommended_actions.map((item) => (
+                                  <li key={item}>
+                                    <Typography.Text>{item}</Typography.Text>
+                                  </li>
+                                ))}
+                              </ul>
+                            ),
+                          }]
+                        : []),
+                    ]}
+                    emptyText="当前没有 AI 总结结果"
+                  />
+                );
+              })()}
+            </AiCapabilityActionCard>
 
             {previewMode === 'html' && previewUrl ? (
               <iframe title={previewReport.file_path} src={previewUrl} className="report-frame" />

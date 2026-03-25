@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
 from backend.app.core.observability import get_logger, log_event
+from backend.app.core.timezone import to_beijing_isoformat
 from backend.app.models.execution import Execution, ExecutionItem, ExecutionScope, ExecutionStatus
 from backend.app.models.user import User
 from backend.app.repositories.execution_repository import ExecutionRepository
+from backend.app.schemas.execution import AiExecutionPreparationSelection
+from backend.app.services.ai_execution_preparation_service import AiExecutionPreparationService
 from backend.app.services.report_service import ReportService
 from backend.app.services.workspace_service import WorkspaceService
 from backend.app.testing.runtime import execute_case_payload
@@ -30,6 +33,7 @@ class ExecutionService:
         self._session = session
         self._executions = ExecutionRepository(session)
         self._workspace = WorkspaceService(session)
+        self._preparation_service = AiExecutionPreparationService(session)
         self._reports = ReportService(session)
 
     def list_executions(
@@ -57,9 +61,17 @@ class ExecutionService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found.")
         return execution
 
-    def run_case_now(self, case_id: int, environment_id: int | None, actor: User | None) -> Execution:
+    def run_case_now(
+        self,
+        case_id: int,
+        environment_id: int | None,
+        actor: User | None,
+        *,
+        ai_preparation: AiExecutionPreparationSelection | None = None,
+    ) -> Execution:
         case = self._workspace.get_case(case_id)
         environment = self._workspace.get_environment(environment_id) if environment_id is not None else None
+        preparation = self._preparation_service.build_case_preparation(case_id=case_id, selection=ai_preparation)
         project_id = case.suite.project_id
         execution = Execution(
             project_id=project_id,
@@ -84,10 +96,10 @@ class ExecutionService:
 
         results: list[dict[str, Any]] = []
         try:
-            result = self._execute_case_with_retries(case, environment)
+            result = self._execute_case_with_retries(case, environment, preparation=preparation)
             self._append_item(execution, case.id, 1, result)
             results.append(result)
-            self._finalize_execution(execution, results)
+            self._finalize_execution(execution, results, ai_preparation_summary=preparation.summary)
             self._session.commit()
             self._build_reports_if_items(execution)
             log_event(
@@ -98,7 +110,13 @@ class ExecutionService:
                 summary=execution.summary_json,
             )
         except Exception as exc:  # noqa: BLE001
-            self._fail_execution(execution, results, failure_category="runtime_error", message=str(exc))
+            self._fail_execution(
+                execution,
+                results,
+                failure_category="runtime_error",
+                message=str(exc),
+                ai_preparation_summary=preparation.summary,
+            )
             self._session.commit()
             self._build_reports_if_items(execution)
             log_event(
@@ -157,7 +175,7 @@ class ExecutionService:
         control["_control"] = {
             **(control.get("_control") or {}),
             "cancel_requested": True,
-            "cancel_requested_at": _utc_now().isoformat(),
+            "cancel_requested_at": to_beijing_isoformat(_utc_now()),
         }
         execution.summary_json = control
         self._executions.save_execution(execution)
@@ -202,7 +220,7 @@ class ExecutionService:
                 {
                     "cancel_requested": False,
                     "worker_stale": True,
-                    "recovered_at": recovered_at.isoformat(),
+                    "recovered_at": to_beijing_isoformat(recovered_at),
                 },
             )
             execution.summary_json = self._build_summary_from_items(execution.items, control=control)
@@ -263,7 +281,8 @@ class ExecutionService:
                         summary=execution.summary_json,
                     )
                     return self.get_execution(execution.id)
-                result = self._execute_case_with_retries(case, environment)
+                preparation = self._preparation_service.build_case_preparation(case_id=case.id, selection=None)
+                result = self._execute_case_with_retries(case, environment, preparation=preparation)
                 self._append_item(execution, case.id, index, result)
                 results.append(result)
                 self._session.commit()
@@ -291,11 +310,11 @@ class ExecutionService:
             )
         return self.get_execution(execution.id)
 
-    def _execute_case_with_retries(self, case, environment) -> dict[str, Any]:
+    def _execute_case_with_retries(self, case, environment, *, preparation) -> dict[str, Any]:
         retry_history: list[dict[str, Any]] = []
         max_attempts = settings.execution_retry_limit + 1
         for attempt in range(1, max_attempts + 1):
-            payload = self._build_case_payload(case, environment)
+            payload = self._build_case_payload(case, environment, preparation=preparation)
             try:
                 result = execute_case_payload(payload)
             except Exception as exc:  # noqa: BLE001
@@ -321,7 +340,7 @@ class ExecutionService:
             return enriched
         return enriched
 
-    def _build_case_payload(self, case, environment) -> dict[str, Any]:
+    def _build_case_payload(self, case, environment, *, preparation) -> dict[str, Any]:
         metadata = case.metadata_json if isinstance(case.metadata_json, dict) else {}
         configured_timeout = metadata.get("timeout_seconds") or metadata.get("timeout")
         try:
@@ -333,7 +352,7 @@ class ExecutionService:
             "method": case.method,
             "url": case.url,
             "headers": case.headers_json or {},
-            "body": case.body_json,
+            "body": preparation.request_body,
             "timeout": timeout_seconds,
         }
         if environment is not None:
@@ -349,6 +368,7 @@ class ExecutionService:
             "assertions": case.assertions_json or [],
             "preProcessors": case.pre_processors_json or [],
             "postProcessors": case.post_processors_json or [],
+            "aiPreparation": preparation.summary,
         }
 
     def _append_item(self, execution: Execution, case_id: int | None, order_index: int, result: dict[str, Any]) -> None:
@@ -380,8 +400,14 @@ class ExecutionService:
             )
         )
 
-    def _finalize_execution(self, execution: Execution, results: list[dict[str, Any]]) -> None:
-        execution.summary_json = self._build_summary_from_results(results)
+    def _finalize_execution(
+        self,
+        execution: Execution,
+        results: list[dict[str, Any]],
+        *,
+        ai_preparation_summary: dict[str, Any] | None = None,
+    ) -> None:
+        execution.summary_json = self._build_summary_from_results(results, ai_preparation_summary=ai_preparation_summary)
         execution.status = ExecutionStatus.success if execution.summary_json.get("ng", 0) == 0 else ExecutionStatus.failed
         execution.error_message = execution.summary_json.get("first_failure", {}).get("message", "") if execution.status == ExecutionStatus.failed else ""
         execution.finished_at = _utc_now()
@@ -393,12 +419,14 @@ class ExecutionService:
         *,
         failure_category: str,
         message: str,
+        ai_preparation_summary: dict[str, Any] | None = None,
     ) -> None:
         control = self._merge_control(execution.summary_json, {})
         execution.summary_json = self._build_summary_from_results(
             results,
             control=control,
             extra_failure={"category": failure_category, "message": message},
+            ai_preparation_summary=ai_preparation_summary,
         )
         execution.status = ExecutionStatus.failed
         execution.error_message = message
@@ -427,7 +455,7 @@ class ExecutionService:
                 "cancel_requested": False,
                 "canceled": True,
                 "cancel_stage": stage,
-                "canceled_at": _utc_now().isoformat(),
+                "canceled_at": to_beijing_isoformat(_utc_now()),
             },
         )
         execution.summary_json = self._build_summary_from_results(
@@ -536,6 +564,7 @@ class ExecutionService:
         *,
         control: dict[str, Any] | None = None,
         extra_failure: dict[str, Any] | None = None,
+        ai_preparation_summary: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         total = len(results)
         passed = sum(1 for result in results if result.get("result") == "PASS")
@@ -593,6 +622,8 @@ class ExecutionService:
         }
         if first_failure is not None:
             summary["first_failure"] = first_failure
+        if ai_preparation_summary:
+            summary["ai_preparation"] = dict(ai_preparation_summary)
         if control:
             summary["_control"] = control
         return summary
