@@ -10,6 +10,30 @@ type Props = {
   onSelectionChange: (selectedPointIds: string[]) => void;
 };
 
+const categoryLabels: Record<string, string> = {
+  happy_path: '主流程',
+  negative_path: '异常流程',
+  boundary_path: '边界场景',
+  auth: '鉴权场景',
+  idempotent: '幂等场景',
+  pagination: '分页场景',
+  assertion_hardening: '断言加固',
+};
+
+const riskLabels: Record<string, string> = {
+  high: '高',
+  medium: '中',
+  low: '低',
+};
+
+function localizePointTitle(point: AiTestPoint): string {
+  const suffix = ` ${point.category}`;
+  if (point.title.endsWith(suffix)) {
+    return `${point.title.slice(0, -suffix.length)} ${categoryLabels[point.category] ?? point.category}`;
+  }
+  return point.title;
+}
+
 export function AiTestPointTable({ testPoints, selectedPointIds, canEdit, onSelectionChange }: Props) {
   const columns: ColumnsType<AiTestPoint> = [
     {
@@ -18,7 +42,7 @@ export function AiTestPointTable({ testPoints, selectedPointIds, canEdit, onSele
       width: 240,
       render: (_, point) => (
         <Typography.Paragraph style={{ marginBottom: 0 }} ellipsis={{ rows: 2, expandable: true, symbol: '展开' }}>
-          {point.title}
+          {localizePointTitle(point)}
         </Typography.Paragraph>
       ),
     },
@@ -26,13 +50,21 @@ export function AiTestPointTable({ testPoints, selectedPointIds, canEdit, onSele
       title: '分类',
       dataIndex: 'category',
       width: 140,
-      render: (value: string) => <Tag color={value === 'happy_path' ? 'green' : value === 'negative_path' ? 'gold' : 'blue'}>{value}</Tag>,
+      render: (value: string) => (
+        <Tag color={value === 'happy_path' ? 'green' : value === 'negative_path' ? 'gold' : 'blue'}>
+          {categoryLabels[value] ?? value}
+        </Tag>
+      ),
     },
     {
       title: '风险',
       dataIndex: 'risk_level',
       width: 100,
-      render: (value: string) => <Tag color={value === 'high' ? 'red' : value === 'medium' ? 'orange' : 'default'}>{value}</Tag>,
+      render: (value: string) => (
+        <Tag color={value === 'high' ? 'red' : value === 'medium' ? 'orange' : 'default'}>
+          {riskLabels[value] ?? value}
+        </Tag>
+      ),
     },
     {
       title: '现有覆盖',

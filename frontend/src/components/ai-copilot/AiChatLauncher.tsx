@@ -1,10 +1,32 @@
-import { CommentOutlined, LoadingOutlined, StopOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Drawer, Empty, FloatButton, Input, Segmented, Select, Space, Spin, Tag, Typography } from 'antd';
+import {
+  CommentOutlined,
+  DeleteOutlined,
+  InfoCircleOutlined,
+  LoadingOutlined,
+  PlusOutlined,
+  StopOutlined,
+} from '@ant-design/icons';
+import {
+  App,
+  Button,
+  Drawer,
+  Empty,
+  FloatButton,
+  Input,
+  Popconfirm,
+  Popover,
+  Segmented,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { createApi } from '../../api/services';
-import type { Project } from '../../api/types';
+import type { AiChatSessionSummary, Project } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
 
 const PROJECT_STORAGE_KEY = 'eazytest-ai-chat-project-id';
@@ -19,6 +41,7 @@ type ChatMessage = {
 };
 
 type ChatMeta = {
+  session_id?: number;
   chat_mode?: ChatMode;
   project_id?: number | null;
   project_name?: string | null;
@@ -90,6 +113,10 @@ function appendAssistantDelta(messages: ChatMessage[], delta: string) {
   return [...nextMessages, createMessage('assistant', delta)];
 }
 
+function uniqueLines(lines: string[]) {
+  return Array.from(new Set(lines.map((item) => item.trim()).filter(Boolean)));
+}
+
 export function AiChatLauncher() {
   const { token } = useAuth();
   const { message } = App.useApp();
@@ -98,6 +125,7 @@ export function AiChatLauncher() {
   const listRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const projectsRequestRef = useRef<Promise<void> | null>(null);
+  const sessionsRequestRef = useRef<Promise<void> | null>(null);
   const [open, setOpen] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = window.localStorage.getItem(CHAT_MODE_STORAGE_KEY);
@@ -105,7 +133,10 @@ export function AiChatLauncher() {
   });
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [sessions, setSessions] = useState<AiChatSessionSummary[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [chatMeta, setChatMeta] = useState<ChatMeta | null>(null);
@@ -113,6 +144,111 @@ export function AiChatLauncher() {
   const [streamError, setStreamError] = useState<string | null>(null);
 
   const currentPageTitle = pageTitleFor(location.pathname);
+  const contextNotes = useMemo(() => {
+    const baseNotes = chatMode === 'project'
+      ? [
+          '聊天上下文仅包含当前项目的业务快照。',
+          '环境中的敏感字段会自动脱敏。',
+          '不会读取或输出用户、令牌、审计、系统表等敏感信息。',
+        ]
+      : [
+          '自由对话不读取项目、套件、用例、执行或报告快照。',
+          '适合通用问答、思路讨论和非项目化交流。',
+        ];
+    return uniqueLines([...baseNotes, ...(chatMeta?.warnings ?? [])]);
+  }, [chatMeta?.warnings, chatMode]);
+  const contextPopoverContent = (
+    <div className="ai-chat-context-popover">
+      <Typography.Text className="ai-chat-context-popover__lead">
+        {chatMode === 'project'
+          ? 'AI 会基于当前项目快照回答，但不会吞掉聊天空间。'
+          : '当前处于自由对话模式，不绑定任何项目业务资产。'}
+      </Typography.Text>
+      <div className="ai-chat-context-popover__tags">
+        {contextNotes.map((note) => (
+          <Tag key={note}>{note}</Tag>
+        ))}
+      </div>
+    </div>
+  );
+
+  function resetDraftState() {
+    setMessages([]);
+    setDraft('');
+    setChatMeta(null);
+    setStreamError(null);
+  }
+
+  function startNewConversation() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    setActiveSessionId(null);
+    resetDraftState();
+  }
+
+  async function refreshChatSessions() {
+    if (sessionsRequestRef.current) {
+      await sessionsRequestRef.current;
+      return;
+    }
+    setSessionsLoading(true);
+    const request = api.listAiChatSessions()
+      .then((result) => {
+        setSessions(result.items);
+        if (activeSessionId !== null && !result.items.some((item) => item.session_id === activeSessionId)) {
+          setActiveSessionId(null);
+        }
+      })
+      .catch((error: Error) => {
+        message.error(error.message || '加载聊天历史失败。');
+      })
+      .finally(() => {
+        sessionsRequestRef.current = null;
+        setSessionsLoading(false);
+      });
+    sessionsRequestRef.current = request;
+    await request;
+  }
+
+  async function openChatSession(sessionId: number) {
+    setSessionsLoading(true);
+    try {
+      const session = await api.getAiChatSession(sessionId);
+      setActiveSessionId(session.session_id);
+      setChatMode(session.chat_mode);
+      setSelectedProjectId(session.project_id);
+      setMessages(session.messages.map((item) => createMessage(item.role, item.content)));
+      setChatMeta({
+        session_id: session.session_id,
+        chat_mode: session.chat_mode,
+        project_id: session.project_id,
+        project_name: session.project_name,
+        warnings: [],
+        redaction_applied: true,
+      });
+      setStreamError(null);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '加载聊天会话失败。');
+    } finally {
+      setSessionsLoading(false);
+    }
+  }
+
+  async function deleteCurrentConversation() {
+    if (activeSessionId === null) {
+      return;
+    }
+    const deletingSessionId = activeSessionId;
+    try {
+      await api.deleteAiChatSession(deletingSessionId);
+      startNewConversation();
+      await refreshChatSessions();
+      message.success('聊天记录已删除。');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '删除聊天记录失败。');
+    }
+  }
 
   useEffect(() => {
     if (chatMode !== 'project' || !open || projects.length > 0 || projectsLoading || projectsRequestRef.current) {
@@ -138,6 +274,13 @@ export function AiChatLauncher() {
       });
     projectsRequestRef.current = request;
   }, [api, chatMode, message, open, projects.length, projectsLoading]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    void refreshChatSessions();
+  }, [open]);
 
   useEffect(() => {
     window.localStorage.setItem(CHAT_MODE_STORAGE_KEY, chatMode);
@@ -203,6 +346,7 @@ export function AiChatLauncher() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          session_id: activeSessionId ?? undefined,
           chat_mode: chatMode,
           project_id: chatMode === 'project' ? selectedProjectId ?? undefined : undefined,
           page_path: location.pathname,
@@ -228,13 +372,18 @@ export function AiChatLauncher() {
 
         for (const event of parsed.events) {
           if (event.event === 'meta') {
+            const nextSessionId = typeof event.payload.session_id === 'number' ? event.payload.session_id : undefined;
             setChatMeta({
+              session_id: nextSessionId,
               chat_mode: event.payload.chat_mode === 'free' ? 'free' : 'project',
               project_id: typeof event.payload.project_id === 'number' ? event.payload.project_id : null,
               project_name: typeof event.payload.project_name === 'string' ? event.payload.project_name : null,
               warnings: Array.isArray(event.payload.warnings) ? event.payload.warnings.map((item) => String(item)) : [],
               redaction_applied: Boolean(event.payload.redaction_applied),
             });
+            if (nextSessionId !== undefined) {
+              setActiveSessionId(nextSessionId);
+            }
             continue;
           }
           if (event.event === 'delta') {
@@ -254,6 +403,11 @@ export function AiChatLauncher() {
                   : item,
               ),
             );
+            void refreshChatSessions();
+            continue;
+          }
+          if (event.event === 'done') {
+            void refreshChatSessions();
           }
         }
 
@@ -294,13 +448,7 @@ export function AiChatLauncher() {
   }
 
   function resetConversation() {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setStreaming(false);
-    setMessages([]);
-    setDraft('');
-    setChatMeta(null);
-    setStreamError(null);
+    startNewConversation();
   }
 
   return (
@@ -346,12 +494,49 @@ export function AiChatLauncher() {
           ]}
           onChange={(value) => {
             setChatMode(value);
-            setMessages([]);
-            setDraft('');
-            setChatMeta(null);
-            setStreamError(null);
+            setActiveSessionId(null);
+            resetDraftState();
           }}
         />
+        <div className="ai-chat-drawer__history">
+          <Select
+            className="ai-chat-drawer__history-select"
+            value={activeSessionId ?? undefined}
+            placeholder={sessionsLoading ? '加载历史中...' : '切换历史会话'}
+            loading={sessionsLoading}
+            allowClear
+            disabled={streaming}
+            optionFilterProp="label"
+            options={sessions.map((session) => ({
+              value: session.session_id,
+              label: `${session.title}${session.project_name ? ` · ${session.project_name}` : session.chat_mode === 'free' ? ' · 自由对话' : ''}`,
+            }))}
+            onChange={(value) => {
+              if (typeof value !== 'number') {
+                startNewConversation();
+                return;
+              }
+              void openChatSession(value);
+            }}
+          />
+          <Space size="small">
+            <Button icon={<PlusOutlined />} onClick={startNewConversation} disabled={streaming}>
+              新对话
+            </Button>
+            <Popconfirm
+              title="删除当前会话？"
+              description="删除后不可恢复，并会记录审计日志。"
+              okText="删除"
+              cancelText="取消"
+              onConfirm={() => void deleteCurrentConversation()}
+              disabled={activeSessionId === null}
+            >
+              <Button icon={<DeleteOutlined />} danger disabled={activeSessionId === null || streaming}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        </div>
         <div className="ai-chat-drawer__toolbar">
           {chatMode === 'project' ? (
             <div className="ai-chat-drawer__project">
@@ -365,9 +550,8 @@ export function AiChatLauncher() {
                 options={projects.map((project) => ({ value: project.id, label: `${project.name} #${project.id}` }))}
                 onChange={(value) => {
                   setSelectedProjectId(value ?? null);
-                  setMessages([]);
-                  setChatMeta(null);
-                  setStreamError(null);
+                  setActiveSessionId(null);
+                  resetDraftState();
                 }}
               />
             </div>
@@ -380,28 +564,23 @@ export function AiChatLauncher() {
           <div className="ai-chat-drawer__page">
             <Tag color="blue">{currentPageTitle}</Tag>
             <Typography.Text type="secondary">{location.pathname}</Typography.Text>
+            <Popover
+              placement="bottomRight"
+              trigger="click"
+              overlayClassName="ai-chat-context-popover__overlay"
+              content={contextPopoverContent}
+            >
+              <Button
+                type="text"
+                size="small"
+                className="ai-chat-drawer__context-trigger"
+                icon={<InfoCircleOutlined />}
+              >
+                上下文说明
+              </Button>
+            </Popover>
           </div>
         </div>
-
-        <Alert
-          className="ai-chat-drawer__notice"
-          type="info"
-          showIcon
-          message={chatMode === 'project' ? 'AI 仅读取当前项目业务数据快照' : 'AI 当前处于自由对话模式'}
-          description={
-            chatMode === 'project'
-              ? '不会读取或输出用户、令牌、审计、系统表等信息；环境中的敏感字段会自动脱敏。'
-              : '自由对话不绑定项目信息，适合做通用问答、思路讨论和非项目化交流。'
-          }
-        />
-
-        {chatMeta?.warnings?.length ? (
-          <div className="ai-chat-drawer__warnings">
-            {chatMeta.warnings.map((warning) => (
-              <Tag key={warning}>{warning}</Tag>
-            ))}
-          </div>
-        ) : null}
 
         <div ref={listRef} className="ai-chat-drawer__messages">
           {!messages.length ? (

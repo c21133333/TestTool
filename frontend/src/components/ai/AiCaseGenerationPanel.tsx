@@ -9,6 +9,7 @@ import type {
   AiCaseDraft,
   AiCaseDraftHistorySummary,
   AiCopilotPreview,
+  AiCoverageResult,
   AiDesignTargetType,
   AiTestPoint,
   AiTestPointResult,
@@ -18,6 +19,7 @@ import type {
 import { formatDateTime } from '../../utils/display';
 import { AiArtifactHistoryDrawer } from '../ai-copilot/AiArtifactHistoryDrawer';
 import { AiCapabilityActionCard } from '../ai-copilot/AiCapabilityActionCard';
+import { AiCoveragePanel } from '../ai-copilot/AiCoveragePanel';
 import { AiTestPointTable } from '../ai-copilot/AiTestPointTable';
 import { AiCaseDraftTable } from './AiCaseDraftTable';
 import { AiJsonEditorModal } from './AiJsonEditorModal';
@@ -43,7 +45,60 @@ type Props = {
   defaultProjectId?: number | null;
   defaultSuiteId?: number | null;
   seedPromptHints?: string;
+  triggerLabel?: string;
+  hideTriggerDescription?: boolean;
 };
+
+function normalizeCoverageHistoryResult(outputJson: Record<string, unknown>): AiCoverageResult {
+  const missingDimensions = Array.isArray(outputJson.missing_dimensions) ? outputJson.missing_dimensions : [];
+  const suggestedPoints = Array.isArray(outputJson.suggested_points) ? outputJson.suggested_points : [];
+  return {
+    coverage_score: Number(outputJson.coverage_score ?? 0),
+    missing_dimensions: missingDimensions.map((item, index) => {
+      const entry = item as Record<string, unknown>;
+      return {
+        endpoint: String(entry.endpoint ?? `unknown-endpoint-${index}`),
+        dimension: String(entry.dimension ?? 'unknown'),
+        reason: String(entry.reason ?? ''),
+      };
+    }),
+    suggested_points: suggestedPoints.map((item, index) => {
+      const entry = item as Record<string, unknown>;
+      return {
+        title: String(entry.title ?? `coverage-point-${index}`),
+        category: String(entry.category ?? 'unknown'),
+        priority: String(entry.priority ?? 'medium'),
+        reason: String(entry.reason ?? ''),
+      };
+    }),
+  };
+}
+
+function coverageLabel(value: string): string {
+  const labels: Record<string, string> = {
+    project: '项目',
+    suite: '套件',
+    draft: '草稿',
+    accepted: '已接受',
+    rejected: '已拒绝',
+    applied: '已应用',
+    superseded: '已替代',
+    happy_path: '主流程',
+    negative_path: '异常流程',
+    boundary_path: '边界场景',
+    auth: '鉴权场景',
+    idempotent: '幂等场景',
+    pagination: '分页场景',
+    assertion_hardening: '断言加固',
+  };
+  return labels[value] ?? value;
+}
+
+function buildCoveragePromptSeed(result: AiCoverageResult): string {
+  const suggestionLines = result.suggested_points.map((item) => `- ${item.title}: ${item.reason}`);
+  const gapLines = result.missing_dimensions.map((item) => `- ${item.endpoint} 缺少${coverageLabel(item.dimension)}: ${item.reason}`);
+  return ['请优先补齐以下 coverage 缺口：', ...suggestionLines, ...gapLines].join('\n').trim();
+}
 
 function validateDraft(draft: AiCaseDraft): AiCaseDraft {
   const validationErrors: string[] = [];
@@ -147,6 +202,8 @@ export function AiCaseGenerationPanel({
   defaultProjectId = null,
   defaultSuiteId = null,
   seedPromptHints = '',
+  triggerLabel = '打开 AI 设计器',
+  hideTriggerDescription = false,
 }: Props) {
   const { message } = App.useApp();
   const [open, setOpen] = useState(false);
@@ -167,6 +224,13 @@ export function AiCaseGenerationPanel({
   const [historyId, setHistoryId] = useState('');
   const [historyItems, setHistoryItems] = useState<AiCaseDraftHistorySummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [coveragePreview, setCoveragePreview] = useState<AiCopilotPreview<AiCoverageResult> | null>(null);
+  const [coverageLoading, setCoverageLoading] = useState(false);
+  const [coverageError, setCoverageError] = useState<string | null>(null);
+  const [coverageHistory, setCoverageHistory] = useState<AiArtifactHistoryItem[]>([]);
+  const [coverageHistoryLoading, setCoverageHistoryLoading] = useState(false);
+  const [coverageHistoryError, setCoverageHistoryError] = useState<string | null>(null);
+  const [coverageHistoryOpen, setCoverageHistoryOpen] = useState(false);
   const [testPointPreview, setTestPointPreview] = useState<AiCopilotPreview<AiTestPointResult> | null>(null);
   const [testPointLoading, setTestPointLoading] = useState(false);
   const [testPointHistory, setTestPointHistory] = useState<AiArtifactHistoryItem[]>([]);
@@ -184,6 +248,9 @@ export function AiCaseGenerationPanel({
   const designTargetType: AiDesignTargetType | null = suiteId ? 'suite' : projectId ? 'project' : null;
   const designTargetId = suiteId ?? projectId;
   const testPoints = testPointPreview?.result.test_points ?? [];
+  const coverageMissingDimensions = coveragePreview?.result.missing_dimensions ?? [];
+  const testPointCallTrace = testPointPreview?.call_trace ?? null;
+  const testPointFallbackReason = typeof testPointCallTrace?.trace_json?.fallback_reason === 'string' ? testPointCallTrace.trace_json.fallback_reason : '';
   const selectedValidCount = useMemo(() => drafts.filter((draft) => draft.selected && draft.validation_status !== 'invalid').length, [drafts]);
   const invalidCount = useMemo(() => drafts.filter((draft) => draft.validation_status === 'invalid').length, [drafts]);
   const warningCount = useMemo(() => drafts.filter((draft) => draft.validation_status === 'warning').length, [drafts]);
@@ -262,6 +329,19 @@ export function AiCaseGenerationPanel({
     }
   }
 
+  async function refreshCoverageHistory(targetType: AiDesignTargetType, targetId: number) {
+    setCoverageHistoryLoading(true);
+    setCoverageHistoryError(null);
+    try {
+      const result = await api.listAiCoverageHistory(targetType, targetId);
+      setCoverageHistory(result.items);
+    } catch (error) {
+      setCoverageHistoryError(error instanceof Error ? error.message : '加载 coverage 历史失败。');
+    } finally {
+      setCoverageHistoryLoading(false);
+    }
+  }
+
   function resetState() {
     setProjectId(defaultProjectId);
     setSuiteId(defaultSuiteId);
@@ -278,6 +358,11 @@ export function AiCaseGenerationPanel({
     setDocSummary(null);
     setEffectiveHints('');
     setHistoryId('');
+    setCoveragePreview(null);
+    setCoverageError(null);
+    setCoverageHistory([]);
+    setCoverageHistoryError(null);
+    setCoverageHistoryOpen(false);
     setTestPointPreview(null);
     setTestPointHistory([]);
     setTestPointHistoryError(null);
@@ -332,13 +417,82 @@ export function AiCaseGenerationPanel({
       status: item.status,
       warnings: item.warnings_json,
       result: { test_points: nextPoints },
+      call_trace: item.call_trace ?? null,
     });
     const defaultSelection = nextPoints.filter((point) => !point.covered_by_existing_cases).map((point) => point.id);
     setSelectedPointIds(defaultSelection.length ? defaultSelection : nextPoints.map((point) => point.id));
     setTestPointHistoryOpen(false);
   }
 
-  async function handlePreviewTestPoints() {
+  function applyCoverageHistoryItem(item: AiArtifactHistoryItem) {
+    setCoveragePreview({
+      artifact_id: item.artifact_id,
+      capability: 'coverage',
+      status: item.status,
+      warnings: item.warnings_json,
+      result: normalizeCoverageHistoryResult(item.output_json),
+    });
+    setCoverageHistoryOpen(false);
+  }
+
+  function mergePromptHintsWithCoverage(seed: string): string {
+    const trimmedSeed = seed.trim();
+    const coverageSeed = coveragePreview ? buildCoveragePromptSeed(coveragePreview.result) : '';
+    if (!coverageSeed) {
+      return trimmedSeed;
+    }
+    if (!trimmedSeed) {
+      return coverageSeed;
+    }
+    return trimmedSeed.includes(coverageSeed) ? trimmedSeed : `${trimmedSeed}\n${coverageSeed}`;
+  }
+
+  async function handleTransferCoverageToPrompt() {
+    if (!coveragePreview) {
+      return;
+    }
+    const nextPromptHints = mergePromptHintsWithCoverage(promptHints);
+    if (!nextPromptHints) {
+      return;
+    }
+    setPromptHints(nextPromptHints);
+    message.success('已把 coverage 缺口带入测试点提示词，并开始生成测试点。');
+    await handlePreviewTestPoints(nextPromptHints);
+  }
+
+  async function handleScanCoverage() {
+    if (!designTargetType || !designTargetId) {
+      message.warning('请先选择 coverage 扫描目标。');
+      return;
+    }
+    setCoverageLoading(true);
+    setCoverageError(null);
+    try {
+      const result = await api.scanAiCoverage({
+        project_id: designTargetType === 'project' ? designTargetId : undefined,
+        suite_id: designTargetType === 'suite' ? designTargetId : undefined,
+      });
+      setCoveragePreview(result);
+      message.success('AI coverage 扫描已生成。');
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : 'AI coverage 扫描失败。';
+      setCoverageError(nextError);
+      message.error(nextError);
+    } finally {
+      setCoverageLoading(false);
+    }
+  }
+
+  async function handleOpenCoverageHistory() {
+    if (!designTargetType || !designTargetId) {
+      message.warning('请先选择 coverage 历史 target。');
+      return;
+    }
+    setCoverageHistoryOpen(true);
+    await refreshCoverageHistory(designTargetType, designTargetId);
+  }
+
+  async function handlePreviewTestPoints(promptHintsOverride?: string) {
     if (!designTargetType || !designTargetId) {
       message.warning('请先选择测试设计的目标项目或套件。');
       return;
@@ -351,11 +505,19 @@ export function AiCaseGenerationPanel({
         project_id: designTargetType === 'project' ? designTargetId : undefined,
         suite_id: designTargetType === 'suite' ? designTargetId : undefined,
         markdown_text: markdownText?.trim() ? markdownText : undefined,
-        prompt_hints: promptHints.trim() || undefined,
+        prompt_hints: (promptHintsOverride ?? promptHints).trim() || undefined,
+        coverage_missing_dimensions: coverageMissingDimensions.length ? coverageMissingDimensions : undefined,
       });
       setTestPointPreview(result);
       const defaultSelection = result.result.test_points.filter((point) => !point.covered_by_existing_cases).map((point) => point.id);
       setSelectedPointIds(defaultSelection.length ? defaultSelection : result.result.test_points.map((point) => point.id));
+      const fallbackReason =
+        result.call_trace?.call_mode !== 'llm' && typeof result.call_trace?.trace_json?.fallback_reason === 'string'
+          ? result.call_trace.trace_json.fallback_reason
+          : '';
+      if (fallbackReason) {
+        message.warning(`本次未调用模型：${fallbackReason}`);
+      }
       message.success(`已生成 ${result.result.test_points.length} 条测试点。`);
       await refreshTestPointHistory(designTargetType, designTargetId);
     } catch (error) {
@@ -521,12 +683,18 @@ export function AiCaseGenerationPanel({
 
   return (
     <>
-      <Space direction="vertical" style={{ width: '100%' }}>
+      {hideTriggerDescription ? (
+        <Button onClick={() => setOpen(true)} disabled={!canEdit}>
+          {triggerLabel}
+        </Button>
+      ) : (
+        <Space direction="vertical" style={{ width: '100%' }}>
         <Typography.Text type="secondary">先产出测试点，再决定哪些点落成草稿，最后复用原有导入闭环。</Typography.Text>
         <Button type="primary" onClick={() => setOpen(true)} disabled={!canEdit}>
           打开 AI 设计器
         </Button>
-      </Space>
+        </Space>
+      )}
 
       <Modal
         title="AI 生成接口测试用例"
@@ -608,6 +776,19 @@ export function AiCaseGenerationPanel({
             />
           </Space>
 
+          <AiCoveragePanel
+            title="AI 覆盖率扫描 · 第一步"
+            targetLabel={designTargetType ? `${coverageLabel(designTargetType)} #${designTargetId}` : '未选择 target'}
+            preview={coveragePreview}
+            loading={coverageLoading}
+            error={coverageError}
+            onScan={() => void handleScanCoverage()}
+            onOpenHistory={() => void handleOpenCoverageHistory()}
+            onUseSuggestedPoints={() => void handleTransferCoverageToPrompt()}
+            useSuggestedPointsLabel="带入并生成测试点"
+            useSuggestedPointsLoading={testPointLoading}
+          />
+
           <Space wrap style={{ width: '100%' }}>
             <Select
               value={promptPreset}
@@ -679,7 +860,18 @@ export function AiCaseGenerationPanel({
                   <Tag color="green">测试点 {testPoints.length}</Tag>
                   <Tag color="cyan">待落草稿 {selectedPointIds.length}</Tag>
                   <Tag color="default">artifact {testPointPreview.artifact_id.slice(0, 8)}</Tag>
+                  <Tag color={testPointCallTrace?.call_mode === 'llm' ? 'success' : 'warning'}>
+                    {testPointCallTrace?.call_mode === 'llm' ? 'LLM 增强' : '规则回退'}
+                  </Tag>
+                  {testPointCallTrace?.provider?.model ? <Tag color="processing">{testPointCallTrace.provider.model}</Tag> : null}
+                  {typeof testPointCallTrace?.latency_ms === 'number' ? <Tag color="purple">{testPointCallTrace.latency_ms} ms</Tag> : null}
+                  {coverageMissingDimensions.length ? <Tag color="gold">coverage 缺口 {coverageMissingDimensions.length}</Tag> : null}
                 </Space>
+                {testPointCallTrace?.call_mode !== 'llm' && testPointFallbackReason ? (
+                  <Typography.Paragraph type="warning" style={{ marginBottom: 0 }}>
+                    本次未调用模型：{testPointFallbackReason}
+                  </Typography.Paragraph>
+                ) : null}
                 <AiTestPointTable
                   testPoints={testPoints}
                   selectedPointIds={selectedPointIds}
@@ -754,6 +946,35 @@ export function AiCaseGenerationPanel({
           ) : null}
         </Space>
       </Modal>
+
+      <AiArtifactHistoryDrawer
+        title="AI Coverage 历史"
+        open={coverageHistoryOpen}
+        onClose={() => setCoverageHistoryOpen(false)}
+        loading={coverageHistoryLoading}
+        error={coverageHistoryError}
+        items={coverageHistory.map((item) => {
+          const result = normalizeCoverageHistoryResult(item.output_json);
+          return {
+            key: item.artifact_id,
+            label: `${item.artifact_id.slice(0, 8)} · 覆盖率 ${result.coverage_score} · ${coverageLabel(item.status)}`,
+            content: (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Typography.Text type="secondary">
+                  目标: {coverageLabel(item.target_type)} #{item.target_id}
+                </Typography.Text>
+                <Typography.Text>
+                  缺口 {result.missing_dimensions.length}，建议点 {result.suggested_points.length}
+                </Typography.Text>
+                <Button size="small" onClick={() => applyCoverageHistoryItem(item)}>
+                  加载为当前扫描结果
+                </Button>
+              </Space>
+            ),
+          };
+        })}
+        emptyText="当前 target 还没有 AI coverage 历史。"
+      />
 
       <AiArtifactHistoryDrawer
         title="AI 测试点历史"

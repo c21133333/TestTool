@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.models.api_case import ApiCase
@@ -15,6 +17,13 @@ from backend.app.services.workspace_service import WorkspaceService
 
 
 class AiChatContextService:
+    _VISIBLE_SUITE_LIMIT = 12
+    _CASE_SAMPLE_LIMIT = 24
+    _CASE_SAMPLE_PER_SUITE = 3
+    _ENVIRONMENT_SAMPLE_LIMIT = 12
+    _EXECUTION_SAMPLE_LIMIT = 6
+    _REPORT_SAMPLE_LIMIT = 6
+
     _SENSITIVE_MARKERS = (
         "authorization",
         "cookie",
@@ -44,25 +53,20 @@ class AiChatContextService:
         project = self._workspace.get_project(project_id)
         suites = self._session.query(Suite).filter(Suite.project_id == project_id).order_by(Suite.id.asc()).all()
         suite_ids = [suite.id for suite in suites]
-        cases = (
-            self._session.query(ApiCase)
-            .filter(ApiCase.suite_id.in_(suite_ids) if suite_ids else False)
-            .order_by(ApiCase.id.asc())
-            .limit(24)
-            .all()
-        )
+        suite_case_counts = self._build_suite_case_counts(suite_ids)
+        cases = self._build_case_samples(suites)
         environments = (
             self._session.query(Environment)
             .filter(Environment.project_id == project_id)
             .order_by(Environment.id.asc())
-            .limit(12)
+            .limit(self._ENVIRONMENT_SAMPLE_LIMIT)
             .all()
         )
         executions = (
             self._session.query(Execution)
             .filter(Execution.project_id == project_id)
             .order_by(Execution.created_at.desc())
-            .limit(6)
+            .limit(self._EXECUTION_SAMPLE_LIMIT)
             .all()
         )
         reports = (
@@ -70,16 +74,17 @@ class AiChatContextService:
             .join(Execution, Report.execution_id == Execution.id)
             .filter(Execution.project_id == project_id)
             .order_by(Report.created_at.desc())
-            .limit(6)
+            .limit(self._REPORT_SAMPLE_LIMIT)
             .all()
         )
 
         suite_name_by_id = {suite.id: suite.name for suite in suites}
         execution_by_id = {execution.id: execution for execution in executions}
+        total_case_count = sum(suite_case_counts.values())
 
         return {
             "scope": "project",
-            "summary": f"当前项目 `{project.name}` 共包含 {len(suites)} 个套件、{len(cases)} 个采样用例、{len(environments)} 个环境。",
+            "summary": f"当前项目 `{project.name}` 共包含 {len(suites)} 个套件、{total_case_count} 个用例、{len(environments)} 个环境。",
             "project": {
                 "id": project.id,
                 "name": project.name,
@@ -90,9 +95,9 @@ class AiChatContextService:
                     "id": suite.id,
                     "name": suite.name,
                     "description": suite.description,
-                    "case_count": sum(1 for api_case in cases if api_case.suite_id == suite.id),
+                    "case_count": suite_case_counts.get(suite.id, 0),
                 }
-                for suite in suites[:12]
+                for suite in suites[:self._VISIBLE_SUITE_LIMIT]
             ],
             "cases": [
                 {
@@ -156,10 +161,55 @@ class AiChatContextService:
             ],
             "warnings": [
                 "聊天上下文仅包含当前项目的业务快照。",
+                "用例明细为抽样快照，数量统计以套件 case_count 为准。",
                 "敏感字段已脱敏，系统表与认证数据不会提供给模型。",
             ],
             "redaction_applied": True,
         }
+
+    def _build_suite_case_counts(self, suite_ids: list[int]) -> dict[int, int]:
+        if not suite_ids:
+            return {}
+        rows = (
+            self._session.query(ApiCase.suite_id, func.count(ApiCase.id))
+            .filter(ApiCase.suite_id.in_(suite_ids))
+            .group_by(ApiCase.suite_id)
+            .all()
+        )
+        return {int(suite_id): int(case_count) for suite_id, case_count in rows}
+
+    def _build_case_samples(self, suites: list[Suite]) -> list[ApiCase]:
+        visible_suites = suites[:self._VISIBLE_SUITE_LIMIT]
+        visible_suite_ids = [suite.id for suite in visible_suites]
+        if not visible_suite_ids:
+            return []
+
+        cases = (
+            self._session.query(ApiCase)
+            .filter(ApiCase.suite_id.in_(visible_suite_ids))
+            .order_by(ApiCase.suite_id.asc(), ApiCase.id.asc())
+            .all()
+        )
+        cases_by_suite_id: dict[int, list[ApiCase]] = defaultdict(list)
+        for api_case in cases:
+            cases_by_suite_id[api_case.suite_id].append(api_case)
+
+        samples: list[ApiCase] = []
+        sampled_case_ids: set[int] = set()
+        for suite in visible_suites:
+            for api_case in cases_by_suite_id.get(suite.id, [])[:self._CASE_SAMPLE_PER_SUITE]:
+                samples.append(api_case)
+                sampled_case_ids.add(api_case.id)
+                if len(samples) >= self._CASE_SAMPLE_LIMIT:
+                    return samples
+
+        for api_case in cases:
+            if api_case.id in sampled_case_ids:
+                continue
+            samples.append(api_case)
+            if len(samples) >= self._CASE_SAMPLE_LIMIT:
+                break
+        return samples
 
     def _redact_payload(self, payload: Any) -> Any:
         if isinstance(payload, dict):

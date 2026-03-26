@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import HTTPException, status
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -77,6 +78,72 @@ class _FakeCoverageLlmService:
             ),
             [],
         )
+
+
+class _RetryingTestPointLlmService:
+    def __init__(self, *, fail_first: bool = False) -> None:
+        self.fail_first = fail_first
+        self.calls: list[dict[str, object]] = []
+        self.last_call_trace = {"call_mode": "deterministic", "trace_json": {}}
+
+    def resolve_runtime(self):
+        return object()
+
+    def analyze_points(
+        self,
+        *,
+        runtime,
+        input_snapshot: dict,
+        baseline_points: list[dict],
+        markdown_text: str,
+        prompt_hints: str,
+        has_rule_baseline: bool,
+        required_pairs: list[dict[str, str]] | None = None,
+        enforce_required_pairs: bool = False,
+    ):
+        call_index = len(self.calls) + 1
+        self.calls.append(
+            {
+                "enforce_required_pairs": enforce_required_pairs,
+                "required_pairs": list(required_pairs or []),
+                "baseline_size": len(baseline_points),
+            }
+        )
+        if self.fail_first and call_index == 1:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI returned invalid test point payload.")
+
+        self.last_call_trace = {
+            "call_mode": "llm",
+            "provider": {
+                "provider": "openai_compatible",
+                "model": "gpt-5.4",
+                "base_url": "https://example.com",
+                "timeout_seconds": 30,
+            },
+            "latency_ms": 88,
+            "failure_category": "",
+            "trace_json": {"llm_call_index": call_index},
+        }
+        points = []
+        for item in required_pairs or []:
+            endpoint = str(item.get("endpoint") or "").strip()
+            category = str(item.get("category") or "").strip()
+            if not endpoint or not category:
+                continue
+            method, path = endpoint.split(" ", 1)
+            points.append(
+                {
+                    "id": f"tp_{method.lower()}_{path.strip('/').replace('/', '_')}_{category}",
+                    "title": f"{method} {path} {category}",
+                    "category": category,
+                    "risk_level": "medium",
+                    "reason": f"LLM supplemented {category} coverage for {endpoint}.",
+                    "covered_by_existing_cases": False,
+                    "suggested_case_count": 1,
+                    "confidence": 0.79,
+                }
+            )
+        return points, []
 
 
 def _make_session() -> Session:
@@ -458,6 +525,144 @@ def test_ai_test_point_preview_supports_markdown_plus_suite_context():
     assert {item["category"] for item in result["result"]["test_points"]} == {"happy_path", "negative_path", "boundary_path"}
     assert any(item["title"] == "GET /profile happy_path" for item in result["result"]["test_points"])
     assert any(item["title"] == "POST /login boundary_path" for item in result["result"]["test_points"])
+
+
+def test_ai_test_point_preview_expands_categories_from_coverage_prompt_hints():
+    session = _make_session()
+    _, suite_id, _, _ = _seed_design_workspace(session)
+
+    result = AiTestPointService(session).generate_preview(
+        {
+            "capability": "test_point",
+            "target_type": "suite",
+            "target_id": suite_id,
+            "markdown_text": "GET /profile",
+            "prompt_hints": "\n".join(
+                [
+                    "- 为 GET /profile 补充鉴权相关用例并标记 auth",
+                    "- 为 GET /profile 增加重复请求一致性校验并标记 idempotent",
+                    "- 确认 GET /profile 是否存在分页能力，若支持则补充分页用例并标记 pagination",
+                    "- 为 GET /profile 补充状态码断言",
+                ]
+            ),
+            "input_snapshot": AiContextAssembler(session).build_suite_context(suite_id),
+        }
+    )
+
+    profile_points = [item for item in result["result"]["test_points"] if item["title"].startswith("GET /profile ")]
+    assert {"auth", "idempotent", "pagination", "assertion_hardening"}.issubset({item["category"] for item in profile_points})
+    assert any(item["title"] == "GET /profile auth" for item in profile_points)
+    assert any(item["title"] == "GET /profile assertion_hardening" for item in profile_points)
+
+
+def test_ai_test_point_preview_expands_categories_from_structured_coverage_missing_dimensions():
+    session = _make_session()
+    _, suite_id, _, _ = _seed_design_workspace(session)
+
+    result = AiTestPointService(session).generate_preview(
+        {
+            "capability": "test_point",
+            "target_type": "suite",
+            "target_id": suite_id,
+            "markdown_text": "GET /profile",
+            "coverage_missing_dimensions": [
+                {
+                    "endpoint": "GET https://example.com/profile",
+                    "dimension": "auth",
+                    "reason": "缺少鉴权成功与失败场景。",
+                },
+                {
+                    "endpoint": "GET https://example.com/profile",
+                    "dimension": "idempotent",
+                    "reason": "缺少幂等性验证。",
+                },
+                {
+                    "endpoint": "GET https://example.com/profile",
+                    "dimension": "pagination",
+                    "reason": "缺少分页场景。",
+                },
+                {
+                    "endpoint": "GET https://example.com/profile",
+                    "dimension": "status_code",
+                    "reason": "缺少状态码断言。",
+                },
+            ],
+            "input_snapshot": AiContextAssembler(session).build_suite_context(suite_id),
+        }
+    )
+
+    profile_points = [item for item in result["result"]["test_points"] if item["title"].startswith("GET /profile ")]
+    assert {"auth", "idempotent", "pagination", "assertion_hardening"}.issubset({item["category"] for item in profile_points})
+
+
+def test_ai_test_point_preview_asks_llm_to_supplement_missing_required_categories(monkeypatch):
+    session = _make_session()
+    _, suite_id, _, _ = _seed_design_workspace(session)
+    llm_service = _RetryingTestPointLlmService()
+    service = AiTestPointService(session, llm_service=llm_service)
+    reference_service = AiTestPointService(session)
+
+    def _core_only_rule_points(*, input_snapshot, markdown_text, requested_category_map):
+        return reference_service._build_rule_points(
+            input_snapshot=input_snapshot,
+            markdown_text=markdown_text,
+            requested_category_map={},
+        )
+
+    monkeypatch.setattr(service, "_build_rule_points", _core_only_rule_points)
+
+    result = service.generate_preview(
+        {
+            "enable_llm": True,
+            "markdown_text": "GET /profile",
+            "coverage_missing_dimensions": [
+                {"endpoint": "GET /profile", "dimension": "auth", "reason": "缺少鉴权覆盖。"},
+                {"endpoint": "GET /profile", "dimension": "pagination", "reason": "缺少分页覆盖。"},
+            ],
+            "input_snapshot": AiContextAssembler(session).build_suite_context(suite_id),
+        }
+    )
+
+    profile_points = [item for item in result["result"]["test_points"] if item["title"].startswith("GET /profile ")]
+    assert {"auth", "pagination"}.issubset({item["category"] for item in profile_points})
+    assert llm_service.calls[0]["enforce_required_pairs"] is True
+    assert result["call_trace"]["call_mode"] == "llm"
+
+
+def test_ai_test_point_preview_retries_llm_once_before_rule_fallback(monkeypatch):
+    session = _make_session()
+    _, suite_id, _, _ = _seed_design_workspace(session)
+    llm_service = _RetryingTestPointLlmService(fail_first=True)
+    service = AiTestPointService(session, llm_service=llm_service)
+    reference_service = AiTestPointService(session)
+
+    def _core_only_rule_points(*, input_snapshot, markdown_text, requested_category_map):
+        core_points, warnings = reference_service._build_rule_points(
+            input_snapshot=input_snapshot,
+            markdown_text=markdown_text,
+            requested_category_map={},
+        )
+        return core_points, warnings
+
+    monkeypatch.setattr(service, "_build_rule_points", _core_only_rule_points)
+
+    result = service.generate_preview(
+        {
+            "enable_llm": True,
+            "markdown_text": "GET /profile",
+            "coverage_missing_dimensions": [
+                {"endpoint": "GET /profile", "dimension": "assertion_hardening", "reason": "缺少断言覆盖。"},
+            ],
+            "input_snapshot": AiContextAssembler(session).build_suite_context(suite_id),
+        }
+    )
+
+    profile_points = [item for item in result["result"]["test_points"] if item["title"].startswith("GET /profile ")]
+    assert any(item["category"] == "assertion_hardening" for item in profile_points)
+    assert len(llm_service.calls) == 2
+    assert result["call_trace"]["call_mode"] == "llm"
+    assert result["call_trace"]["trace_json"]["retry_used"] is True
+    assert any("自动重试成功" in warning for warning in result["warnings"])
 
 
 def test_ai_test_point_history_filters_by_target():

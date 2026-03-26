@@ -96,11 +96,18 @@ class AiArtifactLineageRead(BaseModel):
     items: list[AiArtifactLineageNodeRead] = Field(default_factory=list)
 
 
+class AiCoverageMissingDimensionInput(BaseModel):
+    endpoint: str
+    dimension: str
+    reason: str = ""
+
+
 class AiTestPointPreviewRequest(BaseModel):
     project_id: int | None = None
     suite_id: int | None = None
     markdown_text: str = ""
     prompt_hints: str = ""
+    coverage_missing_dimensions: list[AiCoverageMissingDimensionInput] = Field(default_factory=list)
 
 
 class AiTestPointGenerateDraftsRequest(BaseModel):
@@ -118,7 +125,6 @@ class AiTestPointGenerateDraftsRequest(BaseModel):
 class AiCoverageScanRequest(BaseModel):
     project_id: int | None = None
     suite_id: int | None = None
-
 
 class AiTestPointRead(BaseModel):
     id: str
@@ -226,7 +232,36 @@ class AiChatMessage(BaseModel):
     content: str = ""
 
 
+class AiChatSessionSummaryRead(BaseModel):
+    session_id: int
+    title: str = ""
+    chat_mode: Literal["project", "free"] = "project"
+    project_id: int | None = None
+    project_name: str | None = None
+    latest_message_preview: str = ""
+    message_count: int = 0
+    updated_at: str
+
+
+class AiChatSessionListRead(BaseModel):
+    items: list[AiChatSessionSummaryRead] = Field(default_factory=list)
+
+
+class AiChatMessageRead(BaseModel):
+    message_id: int
+    role: Literal["user", "assistant"]
+    content: str = ""
+    created_at: str
+
+
+class AiChatSessionRead(AiChatSessionSummaryRead):
+    page_path: str = ""
+    page_title: str = ""
+    messages: list[AiChatMessageRead] = Field(default_factory=list)
+
+
 class AiChatStreamRequest(BaseModel):
+    session_id: int | None = None
     chat_mode: Literal["project", "free"] = "project"
     project_id: int | None = None
     page_path: str = ""

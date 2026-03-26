@@ -8,6 +8,8 @@ import type {
   AiArtifactHistoryList,
   AiArtifactLineage,
   AiAssertionResult,
+  AiChatSession,
+  AiChatSessionList,
   AiCoverageResult,
   AiCopilotPreview,
   AiDesignTargetType,
@@ -78,6 +80,9 @@ export function createApi(token: string | null) {
       }),
     me: () => client.request<User>('/auth/me'),
     logout: () => client.request<null>('/auth/logout', { method: 'POST' }),
+    listAiChatSessions: () => client.request<AiChatSessionList>('/ai-copilot/chat/sessions'),
+    getAiChatSession: (sessionId: number) => client.request<AiChatSession>(`/ai-copilot/chat/sessions/${sessionId}`),
+    deleteAiChatSession: (sessionId: number) => client.request<null>(`/ai-copilot/chat/sessions/${sessionId}`, { method: 'DELETE' }),
     listProjects: async () => {
       const result = await client.request<PaginatedResult<Project>>(`/projects?page=1&page_size=${listPageSize}`);
       return result.items;
@@ -248,7 +253,13 @@ export function createApi(token: string | null) {
       source_excerpt: string;
       source_location: Record<string, unknown>;
     }> }) => client.request<AiCaseDraftImportResult>('/ai-case-drafts/import', { method: 'POST', body: JSON.stringify(payload) }),
-    previewAiTestPoints: (payload: { project_id?: number; suite_id?: number; markdown_text?: string; prompt_hints?: string }) =>
+    previewAiTestPoints: (payload: {
+      project_id?: number;
+      suite_id?: number;
+      markdown_text?: string;
+      prompt_hints?: string;
+      coverage_missing_dimensions?: Array<{ endpoint: string; dimension: string; reason: string }>;
+    }) =>
       client.request<AiCopilotPreview<AiTestPointResult>>('/ai-copilot/test-points/preview', { method: 'POST', body: JSON.stringify(payload) }),
     generateAiDraftsFromTestPoints: (payload: {
       artifact_id: string;

@@ -2,6 +2,7 @@ from backend.app.services.ai_artifact_service import AiArtifactService
 from backend.app.services.ai_artifact_lineage_service import AiArtifactLineageService
 from backend.app.services.ai_client_service import AiClientService
 from backend.app.services.ai_chat_context_service import AiChatContextService
+from backend.app.services.ai_chat_history_service import AiChatHistoryService
 from backend.app.services.ai_chat_service import AiChatService
 from backend.app.services.ai_assertion_llm_service import AiAssertionLlmService
 from backend.app.services.ai_assertion_service import AiAssertionService
@@ -37,6 +38,7 @@ __all__ = [
     "AiArtifactLineageService",
     "AiClientService",
     "AiChatContextService",
+    "AiChatHistoryService",
     "AiChatService",
     "AiAssertionLlmService",
     "AiAssertionService",

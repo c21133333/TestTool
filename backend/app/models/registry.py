@@ -4,6 +4,8 @@ from __future__ import annotations
 from backend.app.models import ai_case_history  # noqa: F401
 from backend.app.models import ai_artifact  # noqa: F401
 from backend.app.models import ai_artifact_link  # noqa: F401
+from backend.app.models import ai_chat_message  # noqa: F401
+from backend.app.models import ai_chat_session  # noqa: F401
 from backend.app.models import access_token  # noqa: F401
 from backend.app.models import api_case  # noqa: F401
 from backend.app.models import audit_log  # noqa: F401

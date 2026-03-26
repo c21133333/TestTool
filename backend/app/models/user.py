@@ -25,3 +25,4 @@ class User(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     tokens = relationship("AccessToken", back_populates="user", cascade="all, delete-orphan")
+    ai_chat_sessions = relationship("AiChatSession", back_populates="user", cascade="all, delete-orphan")

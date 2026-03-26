@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from backend.app.schemas.ai_copilot import AiChatMessage
 from backend.app.services.ai_chat_context_service import AiChatContextService
+from backend.app.services.ai_chat_history_service import AiChatHistoryService
 from backend.app.services.ai_client_service import AiClientService
 from backend.app.services.ai_provider_registry import AiProviderRegistry
 
@@ -17,16 +18,20 @@ class AiChatService:
         self,
         *,
         context_service: AiChatContextService,
+        history_service: AiChatHistoryService,
         client_service: AiClientService | None = None,
         provider_registry: AiProviderRegistry | None = None,
     ) -> None:
         self._context_service = context_service
+        self._history_service = history_service
         self._client_service = client_service or AiClientService()
         self._provider_registry = provider_registry or AiProviderRegistry()
 
     def stream_reply(
         self,
         *,
+        user_id: int,
+        session_id: int | None,
         chat_mode: str,
         project_id: int | None,
         page_path: str,
@@ -40,6 +45,15 @@ class AiChatService:
         if not latest_user_message:
             raise HTTPException(status_code=400, detail="The latest user question is required.")
 
+        chat_session = self._history_service.ensure_session(
+            user_id=user_id,
+            session_id=session_id,
+            chat_mode=chat_mode,
+            project_id=project_id,
+            page_path=page_path,
+            page_title=page_title,
+            seed_title=latest_user_message,
+        )
         snapshot = self._build_snapshot(chat_mode=chat_mode, project_id=project_id)
         history_messages = self._build_history_messages(messages)
         system_prompt = self._build_system_prompt(chat_mode=chat_mode)
@@ -54,6 +68,7 @@ class AiChatService:
         yield self._event(
             "meta",
             {
+                "session_id": chat_session.id,
                 "chat_mode": chat_mode,
                 "project_id": project_id,
                 "project_name": snapshot.get("project", {}).get("name") if isinstance(snapshot.get("project"), dict) else None,
@@ -65,6 +80,7 @@ class AiChatService:
         try:
             runtime = self._provider_registry.resolve_runtime()
             request_messages = [*history_messages, {"role": "user", "content": user_prompt}]
+            assistant_chunks: list[str] = []
             stream, call_trace = self._client_service.stream_text(
                 runtime=runtime,
                 system_prompt=system_prompt,
@@ -75,6 +91,7 @@ class AiChatService:
                 if not chunk:
                     continue
                 streamed_chunk_count += 1
+                assistant_chunks.append(chunk)
                 yield self._event("delta", {"content": chunk})
             if streamed_chunk_count == 0:
                 fallback_text, fallback_trace = self._client_service.generate_text(
@@ -82,6 +99,7 @@ class AiChatService:
                     system_prompt=system_prompt,
                     messages=request_messages,
                 )
+                assistant_chunks = [fallback_text or "当前模型未返回可显示内容。"]
                 for chunk in self._chunk_text(fallback_text or "当前模型未返回可显示内容。"):
                     yield self._event("delta", {"content": chunk})
                 call_trace = {
@@ -91,12 +109,23 @@ class AiChatService:
                         "stream_fallback": "non_stream_chunked",
                     },
                 }
+            self._history_service.append_turn(
+                session=chat_session,
+                user_message=latest_user_message,
+                assistant_message="".join(assistant_chunks),
+            )
             yield self._event("done", {"call_trace": call_trace})
         except HTTPException as exc:
+            error_message = self._error_message(exc)
+            self._history_service.append_turn(
+                session=chat_session,
+                user_message=latest_user_message,
+                assistant_message=f"当前无法完成回答：{error_message}",
+            )
             yield self._event(
                 "error",
                 {
-                    "message": self._error_message(exc),
+                    "message": error_message,
                     "status_code": exc.status_code,
                 },
             )

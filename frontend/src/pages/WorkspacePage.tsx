@@ -1,4 +1,4 @@
-﻿import { App, Button, Card, Col, Form, Input, Popconfirm, Row, Segmented, Select, Space, Table, Tabs, Typography, Upload } from 'antd';
+﻿import { App, Button, Card, Col, Form, Input, Modal, Popconfirm, Row, Segmented, Select, Space, Table, Tabs, Typography, Upload } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -27,6 +27,7 @@ import { AiCaseGenerationPanel } from '../components/ai/AiCaseGenerationPanel';
 import { AssertionEditor, type AssertionEditorRow } from '../components/editors/AssertionEditor';
 import { KeyValueEditor, type KeyValueEditorRow } from '../components/editors/KeyValueEditor';
 import { ProcessorEditor, type ProcessorEditorRow } from '../components/editors/ProcessorEditor';
+import { formatDateTime } from '../utils/display';
 
 const TABLE_PAGINATION = {
   pageSize: 10,
@@ -123,6 +124,8 @@ type StructuredMetadataForm = {
   timeout_ms: string;
   metadata_extra_json: string;
 };
+
+type SuiteImportMode = 'excel' | 'desktop';
 
 function splitMetadata(metadata: Record<string, unknown> | undefined): StructuredMetadataForm {
   const source = metadata ?? {};
@@ -388,6 +391,9 @@ export function WorkspacePage() {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [editingSuiteId, setEditingSuiteId] = useState<number | null>(null);
   const [editingCaseId, setEditingCaseId] = useState<number | null>(null);
+  const [suiteModalOpen, setSuiteModalOpen] = useState(false);
+  const [suiteImportModalOpen, setSuiteImportModalOpen] = useState(false);
+  const [suiteImportMode, setSuiteImportMode] = useState<SuiteImportMode>('excel');
   const [importProjectId, setImportProjectId] = useState<number | null>(null);
   const [importFileList, setImportFileList] = useState<UploadFile[]>([]);
   const [legacyImportProjectId, setLegacyImportProjectId] = useState<number | null>(null);
@@ -495,6 +501,18 @@ export function WorkspacePage() {
       return matchesProject && matchesKeyword;
     });
   }, [suiteKeyword, suiteProjectFilter, suites]);
+  const sortedFilteredSuites = useMemo(
+    () =>
+      [...filteredSuites].sort((left, right) => {
+        const rightTimestamp = Date.parse(right.created_at);
+        const leftTimestamp = Date.parse(left.created_at);
+        if (!Number.isNaN(rightTimestamp) && !Number.isNaN(leftTimestamp) && rightTimestamp !== leftTimestamp) {
+          return rightTimestamp - leftTimestamp;
+        }
+        return right.id - left.id;
+      }),
+    [filteredSuites],
+  );
   const filteredCases = useMemo(() => {
     const keyword = caseKeyword.trim().toLowerCase();
     return cases.filter((apiCase) => {
@@ -600,6 +618,40 @@ export function WorkspacePage() {
     suiteForm.resetFields();
   }
 
+  function openCreateSuiteModal() {
+    resetSuiteForm();
+    setSuiteModalOpen(true);
+  }
+
+  function openEditSuiteModal(suite: Suite) {
+    setEditingSuiteId(suite.id);
+    suiteForm.setFieldsValue({ project_id: suite.project_id, name: suite.name, description: suite.description });
+    setSuiteModalOpen(true);
+  }
+
+  function closeSuiteModal() {
+    setSuiteModalOpen(false);
+    resetSuiteForm();
+  }
+
+  function resetSuiteImportState() {
+    setSuiteImportMode('excel');
+    setImportProjectId(null);
+    setImportFileList([]);
+    setLegacyImportProjectId(null);
+    setLegacyImportFileList([]);
+  }
+
+  function openSuiteImportModal() {
+    resetSuiteImportState();
+    setSuiteImportModalOpen(true);
+  }
+
+  function closeSuiteImportModal() {
+    setSuiteImportModalOpen(false);
+    resetSuiteImportState();
+  }
+
   function resetCaseForm(closeEditor = false) {
     setEditingCaseId(null);
     if (closeEditor) {
@@ -668,7 +720,7 @@ export function WorkspacePage() {
       await api.updateSuite(editingSuiteId, values);
       message.success('套件已更新。');
     }
-    resetSuiteForm();
+    closeSuiteModal();
     await refresh();
   }
 
@@ -718,7 +770,7 @@ export function WorkspacePage() {
     }
     const result = await api.importExcel(importProjectId, importFileList[0].originFileObj);
     message.success(`已导入 ${result.created_cases} 条用例到套件 ${result.suite_name}。`);
-    setImportFileList([]);
+    closeSuiteImportModal();
     await refresh();
   }
 
@@ -731,8 +783,16 @@ export function WorkspacePage() {
     message.success(
       `已导入 ${result.created_suites} 个套件、${result.created_cases} 条用例、${result.created_environments} 个环境和 ${result.created_executions} 条执行记录。`,
     );
-    setLegacyImportFileList([]);
+    closeSuiteImportModal();
     await refresh();
+  }
+
+  async function handleSubmitSuiteImport() {
+    if (suiteImportMode === 'excel') {
+      await handleExcelImport();
+      return;
+    }
+    await handleLegacyProjectImport();
   }
 
   async function handlePreviewAssertions() {
@@ -1250,194 +1310,124 @@ export function WorkspacePage() {
             key: 'suites',
             label: '套件',
             children: (
-              <Row gutter={[18, 18]}>
-                <Col xs={24} xl={8}>
-                  <Space direction="vertical" style={{ width: '100%' }} size="large">
-                    <Card className="glass-card" title={editingSuiteId ? '编辑套件' : '新建套件'}>
-                      <Form form={suiteForm} layout="vertical" onFinish={(values) => void submitSuite(values)} disabled={!canEdit}>
-                        <Form.Item name="project_id" label="所属项目" rules={[{ required: true }]}>
-                          <Select options={projects.map((project) => ({ value: project.id, label: project.name }))} />
-                        </Form.Item>
-                        <Form.Item name="name" label="名称" rules={[{ required: true }]}>
-                          <Input />
-                        </Form.Item>
-                        <Form.Item name="description" label="描述">
-                          <Input.TextArea rows={4} />
-                        </Form.Item>
-                        <Space>
-                          <Button type="primary" htmlType="submit" disabled={!canEdit}>
-                            {editingSuiteId ? '保存' : '创建'}
-                          </Button>
-                          <Button onClick={resetSuiteForm}>重置</Button>
-                        </Space>
-                      </Form>
-                    </Card>
-
-                    <Card className="glass-card" title="导入 Excel">
-                      <Space direction="vertical" style={{ width: '100%' }}>
-                        <Select
-                          placeholder="选择目标项目"
-                          value={importProjectId ?? undefined}
-                          onChange={setImportProjectId}
-                          options={projects.map((project) => ({ value: project.id, label: project.name }))}
-                          disabled={!canEdit}
-                        />
-                        <Upload
-                          beforeUpload={() => false}
-                          maxCount={1}
-                          fileList={importFileList}
-                          onChange={({ fileList }) => setImportFileList(fileList)}
-                          disabled={!canEdit}
-                        >
-                          <Button disabled={!canEdit}>选择 Excel</Button>
-                        </Upload>
-                        <Button type="primary" onClick={() => void handleExcelImport()} disabled={!canEdit}>
-                          开始导入
-                        </Button>
-                      </Space>
-                    </Card>
-
-                    <Card className="glass-card" title="导入桌面端项目">
-                      <Space direction="vertical" style={{ width: '100%' }}>
-                        <Typography.Text type="secondary">
-                          将旧版桌面端 `project.json` 树导入当前 Web 项目，加速桌面端资产迁移。
-                        </Typography.Text>
-                        <Select
-                          placeholder="选择目标项目"
-                          value={legacyImportProjectId ?? undefined}
-                          onChange={setLegacyImportProjectId}
-                          options={projects.map((project) => ({ value: project.id, label: project.name }))}
-                          disabled={!canEdit}
-                        />
-                        <Upload
-                          beforeUpload={() => false}
-                          maxCount={1}
-                          fileList={legacyImportFileList}
-                          onChange={({ fileList }) => setLegacyImportFileList(fileList)}
-                          disabled={!canEdit}
-                        >
-                          <Button disabled={!canEdit}>选择 project.json</Button>
-                        </Upload>
-                        <Button type="primary" onClick={() => void handleLegacyProjectImport()} disabled={!canEdit}>
-                          开始导入
-                        </Button>
-                      </Space>
-                    </Card>
-
-                    <Card className="glass-card" title="AI 生成接口用例">
-                      <Space direction="vertical" style={{ width: '100%' }} size="large">
-                        <Space wrap style={{ width: '100%' }}>
-                          <Select
-                            placeholder="选择设计项目"
-                            value={designProjectId ?? undefined}
-                            onChange={setDesignProjectId}
-                            options={projects.map((project) => ({ value: project.id, label: project.name }))}
-                            disabled={!canEdit}
-                            style={{ width: 200 }}
-                          />
-                          <Select
-                            allowClear
-                            placeholder="基于套件扫描/设计（可选）"
-                            value={designSuiteId ?? undefined}
-                            onChange={(value) => setDesignSuiteId(value ?? null)}
-                            options={suites
-                              .filter((suite) => !designProjectId || suite.project_id === designProjectId)
-                              .map((suite) => ({ value: suite.id, label: suite.name }))}
-                            disabled={!canEdit || !designProjectId}
-                            style={{ width: 220 }}
-                          />
-                        </Space>
-                        <AiCoveragePanel
-                          targetLabel={designSuiteId ? `suite #${designSuiteId}` : designProjectId ? `project #${designProjectId}` : '未选择 target'}
-                          preview={coveragePreview}
-                          loading={coverageLoading}
-                          error={coverageError}
-                          onScan={() => void handleScanCoverage()}
-                          onOpenHistory={() => void handleOpenCoverageHistory()}
-                          onUseSuggestedPoints={handleTransferCoverageToPrompt}
-                        />
-                        <AiCaseGenerationPanel
-                          api={api}
-                          projects={projects}
-                          suites={suites}
-                          canEdit={canEdit}
-                          onImported={refresh}
-                          defaultProjectId={designProjectId}
-                          defaultSuiteId={designSuiteId}
-                          seedPromptHints={coveragePromptSeed}
-                        />
-                      </Space>
-                    </Card>
-                  </Space>
-                </Col>
-
-                <Col xs={24} xl={16}>
-                  <Card
-                    className="glass-card"
-                    title="套件列表"
-                    extra={<Typography.Text type="secondary">{`共 ${filteredSuites.length} / ${suites.length} 个套件`}</Typography.Text>}
-                  >
-                    <div className="workspace-filter-bar">
-                      <Select
-                        allowClear
-                        value={suiteProjectFilter}
-                        onChange={(value) => setSuiteProjectFilter(value)}
-                        placeholder="按项目筛选"
-                        options={projects.map((project) => ({ value: project.id, label: project.name }))}
-                        style={{ width: 220 }}
-                      />
-                      <Input
-                        allowClear
-                        value={suiteKeyword}
-                        onChange={(event) => setSuiteKeyword(event.target.value)}
-                        placeholder="按套件名称或描述筛选"
-                      />
-                      <Button
-                        onClick={() => {
-                          setSuiteProjectFilter(undefined);
-                          setSuiteKeyword('');
-                        }}
-                      >
-                        重置筛选
-                      </Button>
-                    </div>
-                    <Table<Suite>
-                      rowKey="id"
-                      pagination={TABLE_PAGINATION}
-                      dataSource={filteredSuites}
-                      scroll={{ x: 900 }}
-                      columns={[
-                        { title: '套件', dataIndex: 'name' },
-                        { title: '所属项目', dataIndex: 'project_id', render: (value: number) => projectNameById.get(value) ?? `项目 #${value}` },
-                        { title: '描述', dataIndex: 'description' },
-                        { title: '用例数', render: (_, suite) => suite.cases.length },
-                        {
-                          title: '操作',
-                          render: (_, suite) => (
-                            <Space>
-                              <Button
-                                size="small"
-                                disabled={!canEdit}
-                                onClick={() => {
-                                  setEditingSuiteId(suite.id);
-                                  suiteForm.setFieldsValue({ project_id: suite.project_id, name: suite.name, description: suite.description });
-                                }}
-                              >
-                                编辑
-                              </Button>
-                              <Popconfirm title="确认删除套件？" disabled={!canEdit} onConfirm={() => void api.deleteSuite(suite.id).then(refresh)}>
-                                <Button size="small" danger disabled={!canEdit}>
-                                  删除
-                                </Button>
-                              </Popconfirm>
-                            </Space>
-                          ),
-                        },
-                      ]}
+              <Card
+                className="glass-card workspace-section-card"
+                title="套件列表"
+                extra={
+                  <Space wrap size={[10, 10]}>
+                    <Typography.Text type="secondary">{`共 ${sortedFilteredSuites.length} / ${suites.length} 个套件`}</Typography.Text>
+                    <Button onClick={openSuiteImportModal} disabled={!canEdit}>
+                      导入
+                    </Button>
+                    <AiCaseGenerationPanel
+                      api={api}
+                      projects={projects}
+                      suites={suites}
+                      canEdit={canEdit}
+                      onImported={refresh}
+                      defaultProjectId={suiteProjectFilter ?? null}
+                      triggerLabel="AI生成接口用例"
+                      hideTriggerDescription
                     />
-                  </Card>
-                </Col>
-              </Row>
+                    <Button type="primary" onClick={openCreateSuiteModal} disabled={!canEdit}>
+                      新增套件
+                    </Button>
+                  </Space>
+                }
+              >
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <Typography.Text type="secondary">
+                    进入套件页默认只看清单。创建、导入和 AI 设计都通过弹窗处理，避免列表视图被工具面板打断。
+                  </Typography.Text>
+                  <div className="workspace-filter-bar">
+                    <Select
+                      allowClear
+                      value={suiteProjectFilter}
+                      onChange={(value) => setSuiteProjectFilter(value)}
+                      placeholder="按项目筛选"
+                      options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                      style={{ width: 220 }}
+                    />
+                    <Input
+                      allowClear
+                      value={suiteKeyword}
+                      onChange={(event) => setSuiteKeyword(event.target.value)}
+                      placeholder="按套件名称或描述筛选"
+                    />
+                    <Button
+                      onClick={() => {
+                        setSuiteProjectFilter(undefined);
+                        setSuiteKeyword('');
+                      }}
+                    >
+                      重置筛选
+                    </Button>
+                  </div>
+                  <Table<Suite>
+                    rowKey="id"
+                    pagination={{ ...TABLE_PAGINATION, pageSize: 10 }}
+                    dataSource={sortedFilteredSuites}
+                    scroll={{ x: 1280 }}
+                    columns={[
+                      {
+                        title: '套件信息',
+                        width: 260,
+                        render: (_, suite) => (
+                          <Space direction="vertical" size={2}>
+                            <Typography.Text strong>{suite.name}</Typography.Text>
+                            <Typography.Text type="secondary">{`#${suite.id}`}</Typography.Text>
+                          </Space>
+                        ),
+                      },
+                      {
+                        title: '所属项目',
+                        dataIndex: 'project_id',
+                        width: 180,
+                        render: (value: number) => projectNameById.get(value) ?? `项目 #${value}`,
+                      },
+                      {
+                        title: '描述',
+                        dataIndex: 'description',
+                        render: (value: string) => (
+                          <Typography.Text style={{ whiteSpace: 'pre-wrap' }}>
+                            {value?.trim() ? value : '暂无描述'}
+                          </Typography.Text>
+                        ),
+                      },
+                      {
+                        title: '用例数',
+                        width: 100,
+                        align: 'center',
+                        render: (_, suite) => suite.cases.length,
+                      },
+                      {
+                        title: '创建时间',
+                        dataIndex: 'created_at',
+                        width: 180,
+                        render: (value: string) => formatDateTime(value),
+                        sorter: (left, right) => Date.parse(left.created_at) - Date.parse(right.created_at),
+                        defaultSortOrder: 'descend',
+                      },
+                      {
+                        title: '操作',
+                        width: 160,
+                        render: (_, suite) => (
+                          <Space>
+                            <Button size="small" disabled={!canEdit} onClick={() => openEditSuiteModal(suite)}>
+                              编辑
+                            </Button>
+                            <Popconfirm title="确认删除套件？" disabled={!canEdit} onConfirm={() => void api.deleteSuite(suite.id).then(refresh)}>
+                              <Button size="small" danger disabled={!canEdit}>
+                                删除
+                              </Button>
+                            </Popconfirm>
+                          </Space>
+                        ),
+                      },
+                    ]}
+                  />
+                </Space>
+              </Card>
             ),
           },
           {
@@ -1821,6 +1811,107 @@ export function WorkspacePage() {
           },
         ]}
       />
+      <Modal
+        title={editingSuiteId === null ? '新增套件' : '编辑套件'}
+        open={suiteModalOpen}
+        onCancel={closeSuiteModal}
+        footer={null}
+        destroyOnHidden
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            填好所属项目、套件名称和描述后即可保存。这里保留完整信息录入，不压缩字段。
+          </Typography.Text>
+          <Form form={suiteForm} layout="vertical" onFinish={(values) => void submitSuite(values)} disabled={!canEdit}>
+            <Form.Item name="project_id" label="所属项目" rules={[{ required: true, message: '请选择所属项目' }]}>
+              <Select options={projects.map((project) => ({ value: project.id, label: project.name }))} />
+            </Form.Item>
+            <Form.Item name="name" label="套件名称" rules={[{ required: true, message: '请输入套件名称' }]}>
+              <Input placeholder="例如：用户中心回归套件" />
+            </Form.Item>
+            <Form.Item name="description" label="套件描述">
+              <Input.TextArea rows={4} placeholder="补充接口范围、使用场景、回归目标等信息。" />
+            </Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" disabled={!canEdit}>
+                {editingSuiteId === null ? '创建套件' : '保存修改'}
+              </Button>
+              <Button onClick={closeSuiteModal}>取消</Button>
+            </Space>
+          </Form>
+        </Space>
+      </Modal>
+      <Modal
+        title="导入"
+        open={suiteImportModalOpen}
+        onCancel={closeSuiteImportModal}
+        onOk={() => void handleSubmitSuiteImport()}
+        okText={suiteImportMode === 'excel' ? '开始导入 Excel' : '开始导入桌面端项目'}
+        cancelText="取消"
+        okButtonProps={{ disabled: !canEdit }}
+        destroyOnHidden
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            在一个入口里完成导入。先选择导入类型，再填写目标项目和文件，避免把 Excel 与桌面端迁移入口分散在页面上。
+          </Typography.Text>
+          <Segmented
+            block
+            value={suiteImportMode}
+            onChange={(value) => setSuiteImportMode(value as SuiteImportMode)}
+            options={[
+              { label: 'Excel 导入', value: 'excel' },
+              { label: '桌面端项目导入', value: 'desktop' },
+            ]}
+            disabled={!canEdit}
+          />
+          {suiteImportMode === 'excel' ? (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Typography.Text type="secondary">将 Excel 中的接口用例批量导入指定项目。</Typography.Text>
+              <Select
+                placeholder="选择目标项目"
+                value={importProjectId ?? undefined}
+                onChange={setImportProjectId}
+                options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                disabled={!canEdit}
+              />
+              <Upload
+                beforeUpload={() => false}
+                maxCount={1}
+                accept=".xlsx,.xls"
+                fileList={importFileList}
+                onChange={({ fileList }) => setImportFileList(fileList)}
+                disabled={!canEdit}
+              >
+                <Button disabled={!canEdit}>选择 Excel 文件</Button>
+              </Upload>
+            </Space>
+          ) : (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Typography.Text type="secondary">
+                将旧版桌面端 `project.json` 树导入当前 Web 项目，用于历史资产迁移和回放。
+              </Typography.Text>
+              <Select
+                placeholder="选择目标项目"
+                value={legacyImportProjectId ?? undefined}
+                onChange={setLegacyImportProjectId}
+                options={projects.map((project) => ({ value: project.id, label: project.name }))}
+                disabled={!canEdit}
+              />
+              <Upload
+                beforeUpload={() => false}
+                maxCount={1}
+                accept=".json"
+                fileList={legacyImportFileList}
+                onChange={({ fileList }) => setLegacyImportFileList(fileList)}
+                disabled={!canEdit}
+              >
+                <Button disabled={!canEdit}>选择 project.json</Button>
+              </Upload>
+            </Space>
+          )}
+        </Space>
+      </Modal>
       <AiArtifactHistoryDrawer
         title="AI Coverage 历史"
         open={coverageHistoryOpen}
@@ -1873,3 +1964,4 @@ export function WorkspacePage() {
     </div>
   );
 }
+

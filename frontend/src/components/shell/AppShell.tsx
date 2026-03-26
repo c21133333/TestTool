@@ -103,8 +103,8 @@ export function AppShell() {
           <Space size="middle" className="app-shell__header-side">
             {roleMeta ? <Tag color={roleMeta.color} className="app-shell__role-tag">{roleMeta.label}</Tag> : null}
             <div className="app-shell__user-meta">
-              <Typography.Text>{user?.display_name}</Typography.Text>
-              <Typography.Text type="secondary">{user?.username}</Typography.Text>
+              <Typography.Text className="app-shell__user-name">{user?.display_name}</Typography.Text>
+              <Typography.Text type="secondary" className="app-shell__user-handle">{user?.username}</Typography.Text>
             </div>
             <Button type="primary" className="app-shell__logout" icon={<LogoutOutlined />} onClick={() => void logout()}>
               退出登录

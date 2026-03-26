@@ -1,0 +1,47 @@
+INFO:     Will watch for changes in these directories: ['D:\\works\\project\\ezTest\\TestTool']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [25188] using WatchFiles
+INFO:     Started server process [15904]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'tests\test_ai_chat_context_service.py', 'backend\app\services\ai_chat_context_service.py'. Reloading...
+INFO:     Started server process [24160]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\models\ai_chat_session.py', 'backend\app\models\ai_chat_message.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'alembic\versions\20260326_000006_ai_chat_history.py', 'backend\app\models\registry.py', 'backend\app\schemas\ai_copilot.py', 'backend\app\models\user.py', 'backend\app\services\ai_chat_service.py', 'backend\app\models\__init__.py', 'backend\app\services\ai_chat_history_service.py'. Reloading...
+INFO:     Started server process [7876]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260325_000005 -> 20260326_000006, Add AI chat sessions and messages.
+INFO:     Started server process [2780]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\api\routes\ai_copilot.py'. Reloading...
+D:\works\project\ezTest\TestTool\backend\app\repositories\user_repository.py:43: SAWarning: relationship 'User.ai_chat_sessions' will copy column users.id to column ai_chat_sessions.user_id, which conflicts with relationship(s): 'AiChatSession.user' (copies users.id to ai_chat_sessions.user_id). If this is not the intention, consider if these relationships should be linked with back_populates, or if viewonly=True should be applied to one or more if they are read-only. For the less common case that foreign key constraints are partially overlapping, the orm.foreign() annotation can be used to isolate the columns that should be written towards.   To silence this warning, add the parameter 'overlaps="user"' to the 'User.ai_chat_sessions' relationship. (Background on this warning at: https://sqlalche.me/e/20/qzyx) (This warning originated from the `configure_mappers()` process, which was invoked automatically in response to a user-initiated operation.)
+  return self._session.scalar(select(AccessToken).where(AccessToken.token_hash == token_hash))
+WARNING:  WatchFiles detected changes in 'backend\app\services\__init__.py', 'backend\app\api\routes\ai_copilot.py'. Reloading...
+INFO:     Started server process [24100]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO:     Started server process [24896]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+D:\works\project\ezTest\TestTool\backend\app\repositories\user_repository.py:43: SAWarning: relationship 'User.ai_chat_sessions' will copy column users.id to column ai_chat_sessions.user_id, which conflicts with relationship(s): 'AiChatSession.user' (copies users.id to ai_chat_sessions.user_id). If this is not the intention, consider if these relationships should be linked with back_populates, or if viewonly=True should be applied to one or more if they are read-only. For the less common case that foreign key constraints are partially overlapping, the orm.foreign() annotation can be used to isolate the columns that should be written towards.   To silence this warning, add the parameter 'overlaps="user"' to the 'User.ai_chat_sessions' relationship. (Background on this warning at: https://sqlalche.me/e/20/qzyx) (This warning originated from the `configure_mappers()` process, which was invoked automatically in response to a user-initiated operation.)
+  return self._session.scalar(select(AccessToken).where(AccessToken.token_hash == token_hash))
+WARNING:  WatchFiles detected changes in 'tests\test_ai_chat_history_routes.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'backend\app\models\ai_chat_session.py', 'backend\app\services\ai_chat_history_service.py', 'backend\app\models\user.py'. Reloading...
+INFO:     Started server process [24652]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO:     Started server process [19324]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.

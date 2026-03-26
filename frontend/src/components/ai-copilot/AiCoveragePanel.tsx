@@ -1,4 +1,4 @@
-import { Button, Space, Tag, Typography } from 'antd';
+import { Button, Divider, Space, Tag, Typography } from 'antd';
 
 import type { AiCopilotPreview, AiCoverageResult } from '../../api/types';
 import { AiCapabilityActionCard } from './AiCapabilityActionCard';
@@ -13,6 +13,8 @@ type Props = {
   onScan: () => void;
   onOpenHistory?: () => void;
   onUseSuggestedPoints?: () => void;
+  useSuggestedPointsLabel?: string;
+  useSuggestedPointsLoading?: boolean;
 };
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -60,6 +62,41 @@ function statusLabel(value: string | undefined): string {
   return STATUS_LABELS[value] ?? value;
 }
 
+function SectionHeader({
+  title,
+  count,
+  description,
+  tone,
+}: {
+  title: string;
+  count: number;
+  description: string;
+  tone: 'orange' | 'blue';
+}) {
+  return (
+    <Space direction="vertical" size={4} style={{ width: '100%' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Space wrap size={8}>
+          <Typography.Title level={5} style={{ margin: 0 }}>
+            {title}
+          </Typography.Title>
+          <Tag color={tone}>{count} 条</Tag>
+        </Space>
+        <Typography.Text type="secondary">本区独立分页</Typography.Text>
+      </div>
+      <Typography.Text type="secondary">{description}</Typography.Text>
+    </Space>
+  );
+}
+
 export function AiCoveragePanel({
   title = 'AI 覆盖率扫描',
   targetLabel,
@@ -69,6 +106,8 @@ export function AiCoveragePanel({
   onScan,
   onOpenHistory,
   onUseSuggestedPoints,
+  useSuggestedPointsLabel = '带入测试点提示',
+  useSuggestedPointsLoading = false,
 }: Props) {
   const result = preview?.result ?? null;
 
@@ -83,8 +122,13 @@ export function AiCoveragePanel({
             </Button>
           ) : null}
           {onUseSuggestedPoints ? (
-            <Button size="small" onClick={onUseSuggestedPoints} disabled={!result?.suggested_points.length}>
-              带入测试点提示
+            <Button
+              size="small"
+              onClick={onUseSuggestedPoints}
+              loading={useSuggestedPointsLoading}
+              disabled={!result?.suggested_points.length}
+            >
+              {useSuggestedPointsLabel}
             </Button>
           ) : null}
           <Button type="primary" size="small" loading={loading} onClick={onScan}>
@@ -95,10 +139,10 @@ export function AiCoveragePanel({
       error={error}
       warnings={preview?.warnings ?? []}
       hasContent={Boolean(result)}
-      empty={<Typography.Text type="secondary">选择项目或套件后扫描，这里会显示覆盖率缺口和建议测试点。</Typography.Text>}
+      empty={<Typography.Text type="secondary">选择项目或套件后扫描，这里会显示覆盖率缺口和补测建议。</Typography.Text>}
     >
       {result ? (
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Space wrap>
             <Tag color="processing">{targetLabel}</Tag>
             <Tag color={result.coverage_score >= 80 ? 'green' : result.coverage_score >= 60 ? 'gold' : 'red'}>
@@ -108,31 +152,51 @@ export function AiCoveragePanel({
             <Tag color="blue">建议点 {result.suggested_points.length}</Tag>
             <Tag>{statusLabel(preview?.status)}</Tag>
           </Space>
-          <AiSuggestionPanel
-            items={result.missing_dimensions.map((dimension, index) => ({
-              key: `${dimension.endpoint}-${dimension.dimension}-${index}`,
-              title: `${dimension.endpoint} · ${coverageLabel(dimension.dimension)}`,
-              tags: <Tag color="orange">缺口</Tag>,
-              content: <Typography.Text>{dimension.reason}</Typography.Text>,
-            }))}
-            emptyText="当前 target 没有检测到覆盖率缺口。"
-          />
-          <AiSuggestionPanel
-            items={result.suggested_points.map((point, index) => ({
-              key: `${point.title}-${index}`,
-              title: point.title,
-              tags: (
-                <Space wrap size={4}>
-                  <Tag color="blue">{coverageLabel(point.category)}</Tag>
-                  <Tag color={point.priority === 'high' ? 'red' : point.priority === 'medium' ? 'gold' : 'default'}>
-                    {priorityLabel(point.priority)}
-                  </Tag>
-                </Space>
-              ),
-              content: <Typography.Text>{point.reason}</Typography.Text>,
-            }))}
-            emptyText="当前没有额外的建议测试点。"
-          />
+
+          <Space direction="vertical" size={10} style={{ width: '100%' }}>
+            <SectionHeader
+              title="覆盖缺口"
+              count={result.missing_dimensions.length}
+              tone="orange"
+              description="这一段只展示还没被现有用例和断言覆盖到的维度，分页只作用于缺口列表本身。"
+            />
+            <AiSuggestionPanel
+              items={result.missing_dimensions.map((dimension, index) => ({
+                key: `${dimension.endpoint}-${dimension.dimension}-${index}`,
+                title: `${dimension.endpoint} · ${coverageLabel(dimension.dimension)}`,
+                tags: <Tag color="orange">缺口</Tag>,
+                content: <Typography.Text>{dimension.reason}</Typography.Text>,
+              }))}
+              emptyText="当前 target 没有检测到覆盖缺口。"
+            />
+          </Space>
+
+          <Divider style={{ margin: 0 }} />
+
+          <Space direction="vertical" size={10} style={{ width: '100%' }}>
+            <SectionHeader
+              title="补测建议"
+              count={result.suggested_points.length}
+              tone="blue"
+              description="这一段是 AI 基于缺口整理出的补测建议，和上面的缺口列表是两组独立数据，各自单独分页。"
+            />
+            <AiSuggestionPanel
+              items={result.suggested_points.map((point, index) => ({
+                key: `${point.title}-${index}`,
+                title: point.title,
+                tags: (
+                  <Space wrap size={4}>
+                    <Tag color="blue">{coverageLabel(point.category)}</Tag>
+                    <Tag color={point.priority === 'high' ? 'red' : point.priority === 'medium' ? 'gold' : 'default'}>
+                      {priorityLabel(point.priority)}
+                    </Tag>
+                  </Space>
+                ),
+                content: <Typography.Text>{point.reason}</Typography.Text>,
+              }))}
+              emptyText="当前没有额外的补测建议。"
+            />
+          </Space>
         </Space>
       ) : null}
     </AiCapabilityActionCard>

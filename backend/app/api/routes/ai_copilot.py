@@ -15,6 +15,8 @@ from backend.app.schemas.ai_copilot import (
     AiArtifactCapability,
     AiArtifactHistoryListRead,
     AiArtifactLineageRead,
+    AiChatSessionListRead,
+    AiChatSessionRead,
     AiArtifactTargetType,
     AiAssertionApplyRequest,
     AiAssertionPreviewRequest,
@@ -36,6 +38,7 @@ from backend.app.services.ai_copilot_service import AiCopilotService
 from backend.app.services.ai_assertion_service import AiAssertionService
 from backend.app.services.ai_artifact_lineage_service import AiArtifactLineageService
 from backend.app.services.ai_chat_context_service import AiChatContextService
+from backend.app.services.ai_chat_history_service import AiChatHistoryService
 from backend.app.services.ai_chat_service import AiChatService
 from backend.app.services.ai_coverage_service import AiCoverageService
 from backend.app.services.ai_diagnosis_service import AiDiagnosisService
@@ -63,12 +66,15 @@ def _trace_details(result: AiCopilotPreviewResponse) -> dict[str, object]:
 @router.post("/chat/stream")
 def stream_chat(
     payload: AiChatStreamRequest,
-    _: User = Depends(require_roles(UserRole.admin, UserRole.tester, UserRole.developer)),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.tester, UserRole.developer)),
     session: Session = Depends(session_scope),
 ) -> StreamingResponse:
     stream = AiChatService(
         context_service=AiChatContextService(session),
+        history_service=AiChatHistoryService(session),
     ).stream_reply(
+        user_id=current_user.id,
+        session_id=payload.session_id,
         chat_mode=payload.chat_mode,
         project_id=payload.project_id,
         page_path=payload.page_path,
@@ -84,6 +90,90 @@ def stream_chat(
             "X-Accel-Buffering": "no",
         },
     )
+
+def _build_chat_session_summary(chat_session) -> dict[str, object]:
+    return {
+        "session_id": chat_session.id,
+        "title": chat_session.title,
+        "chat_mode": chat_session.chat_mode,
+        "project_id": chat_session.project_id,
+        "project_name": chat_session.project.name if chat_session.project is not None else None,
+        "latest_message_preview": chat_session.latest_message_preview,
+        "message_count": chat_session.message_count,
+        "updated_at": chat_session.updated_at.isoformat(),
+    }
+
+
+def _build_chat_session_detail(chat_session) -> AiChatSessionRead:
+    return AiChatSessionRead.model_validate(
+        {
+            **_build_chat_session_summary(chat_session),
+            "page_path": chat_session.page_path,
+            "page_title": chat_session.page_title,
+            "messages": [
+                {
+                    "message_id": message.id,
+                    "role": message.role,
+                    "content": message.content,
+                    "created_at": message.created_at.isoformat(),
+                }
+                for message in sorted(chat_session.messages, key=lambda current: (current.order_index, current.id))
+            ],
+        }
+    )
+
+
+@router.get("/chat/sessions", response_model=ApiResponse[AiChatSessionListRead])
+def list_chat_sessions(
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.tester, UserRole.developer)),
+    session: Session = Depends(session_scope),
+) -> ApiResponse[AiChatSessionListRead]:
+    sessions = AiChatHistoryService(session).list_sessions_for_user(current_user.id)
+    return ApiResponse.ok(
+        data=AiChatSessionListRead(
+            items=[
+                _build_chat_session_summary(chat_session)
+                for chat_session in sessions
+            ]
+        ),
+        message="AI chat sessions loaded.",
+    )
+
+
+@router.get("/chat/sessions/{session_id}", response_model=ApiResponse[AiChatSessionRead])
+def get_chat_session(
+    session_id: int,
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.tester, UserRole.developer)),
+    session: Session = Depends(session_scope),
+) -> ApiResponse[AiChatSessionRead]:
+    chat_session = AiChatHistoryService(session).get_session_for_user(session_id, current_user.id)
+    return ApiResponse.ok(data=_build_chat_session_detail(chat_session), message="AI chat session loaded.")
+
+
+@router.delete("/chat/sessions/{session_id}", response_model=ApiResponse[None])
+def delete_chat_session(
+    session_id: int,
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.tester, UserRole.developer)),
+    session: Session = Depends(session_scope),
+) -> ApiResponse[None]:
+    history_service = AiChatHistoryService(session)
+    chat_session = history_service.get_session_for_user(session_id, current_user.id)
+    AuditLogService(session).record(
+        actor=current_user,
+        action="ai_chat.delete",
+        resource_type="ai_chat_session",
+        resource_id=chat_session.id,
+        summary=f"Deleted AI chat session #{chat_session.id}",
+        details={
+            "session_id": chat_session.id,
+            "chat_mode": chat_session.chat_mode,
+            "project_id": chat_session.project_id,
+            "message_count": chat_session.message_count,
+            "title": chat_session.title,
+        },
+    )
+    history_service.delete_session_for_user(session_id, current_user.id)
+    return ApiResponse.ok(message="AI chat session deleted.")
 
 
 @router.get("/artifacts/{artifact_id}/lineage", response_model=ApiResponse[AiArtifactLineageRead])
@@ -254,6 +344,7 @@ def preview_test_points(
             "enable_llm": True,
             "markdown_text": payload.markdown_text,
             "prompt_hints": payload.prompt_hints,
+            "coverage_missing_dimensions": [item.model_dump() for item in payload.coverage_missing_dimensions],
         },
     )
     AuditLogService(session).record(

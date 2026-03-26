@@ -393,3 +393,33 @@ export type AiReportSummaryResult = {
   }>;
   recommended_actions: string[];
 };
+
+export type AiChatMode = 'project' | 'free';
+
+export type AiChatHistoryMessage = {
+  message_id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+};
+
+export type AiChatSessionSummary = {
+  session_id: number;
+  title: string;
+  chat_mode: AiChatMode;
+  project_id: number | null;
+  project_name: string | null;
+  latest_message_preview: string;
+  message_count: number;
+  updated_at: string;
+};
+
+export type AiChatSessionList = {
+  items: AiChatSessionSummary[];
+};
+
+export type AiChatSession = AiChatSessionSummary & {
+  page_path: string;
+  page_title: string;
+  messages: AiChatHistoryMessage[];
+};
