@@ -108,7 +108,18 @@ def _mock_coverage_llm(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _mock_test_point_llm(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _analyze(self, *, runtime, input_snapshot, baseline_points, markdown_text, prompt_hints, has_rule_baseline):
+    def _analyze(
+        self,
+        *,
+        runtime,
+        input_snapshot,
+        baseline_points,
+        markdown_text,
+        prompt_hints,
+        has_rule_baseline,
+        required_pairs=None,
+        enforce_required_pairs=False,
+    ):
         self.last_call_trace = {
             "call_mode": "llm",
             "provider": {

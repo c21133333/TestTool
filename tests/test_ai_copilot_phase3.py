@@ -152,7 +152,18 @@ class _FakeTestPointLlmService:
     def resolve_runtime(self):
         return object()
 
-    def analyze_points(self, *, runtime, input_snapshot, baseline_points, markdown_text, prompt_hints, has_rule_baseline):
+    def analyze_points(
+        self,
+        *,
+        runtime,
+        input_snapshot,
+        baseline_points,
+        markdown_text,
+        prompt_hints,
+        has_rule_baseline,
+        required_pairs=None,
+        enforce_required_pairs=False,
+    ):
         if not has_rule_baseline:
             return (
                 [
@@ -161,7 +172,7 @@ class _FakeTestPointLlmService:
                         "title": "POST /orders happy_path",
                         "category": "happy_path",
                         "risk_level": "high",
-                        "reason": "Low-confidence draft point inferred from the provided design context.",
+                        "reason": "low-confidence draft point inferred from the provided design context.",
                         "covered_by_existing_cases": False,
                         "suggested_case_count": 1,
                         "confidence": 0.71,
