@@ -1,6 +1,7 @@
 import { App, Input, Modal, Segmented, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 
+import { createClientId } from '../../utils/id';
 import { AssertionEditor, type AssertionEditorRow } from '../editors/AssertionEditor';
 import { KeyValueEditor, type KeyValueEditorRow } from '../editors/KeyValueEditor';
 
@@ -52,7 +53,7 @@ function headersToRows(value: unknown): KeyValueEditorRow[] {
     return [];
   }
   return Object.entries(value).map(([field, item]) => ({
-    key: crypto.randomUUID(),
+    key: createClientId('json-header'),
     field,
     value: stringifyValue(item),
   }));
@@ -76,7 +77,7 @@ function assertionsToRows(value: unknown): AssertionEditorRow[] {
   return value
     .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
     .map((item) => ({
-      key: crypto.randomUUID(),
+      key: createClientId('json-assertion'),
       type: String(item.type ?? 'status_code'),
       operator: String(item.operator ?? '=='),
       path: String(item.path ?? ''),

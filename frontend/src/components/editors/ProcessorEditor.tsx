@@ -1,5 +1,7 @@
 import { Button, Card, Input, Select, Space, Switch, Typography } from 'antd';
 
+import { createClientId } from '../../utils/id';
+
 export type ProcessorEditorRow = {
   key: string;
   type: string;
@@ -35,7 +37,7 @@ export function ProcessorEditor({ title, rows, onChange, disabled = false }: Pro
     onChange([
       ...rows,
       {
-        key: crypto.randomUUID(),
+        key: createClientId('processor'),
         type: 'set_variable',
         enabled: true,
         configText: '{}',

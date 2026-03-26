@@ -17,6 +17,7 @@ import type {
   Suite,
 } from '../../api/types';
 import { formatDateTime } from '../../utils/display';
+import { createClientId } from '../../utils/id';
 import { AiArtifactHistoryDrawer } from '../ai-copilot/AiArtifactHistoryDrawer';
 import { AiCapabilityActionCard } from '../ai-copilot/AiCapabilityActionCard';
 import { AiCoveragePanel } from '../ai-copilot/AiCoveragePanel';
@@ -398,7 +399,7 @@ export function AiCaseGenerationPanel({
         ...current,
         {
           ...draft,
-          draft_id: crypto.randomUUID(),
+          draft_id: createClientId('draft'),
           selected: false,
           case: {
             ...draft.case,

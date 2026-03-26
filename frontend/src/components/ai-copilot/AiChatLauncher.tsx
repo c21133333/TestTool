@@ -28,6 +28,7 @@ import { useLocation } from 'react-router-dom';
 import { createApi } from '../../api/services';
 import type { AiChatSessionSummary, Project } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
+import { createClientId } from '../../utils/id';
 
 const PROJECT_STORAGE_KEY = 'eazytest-ai-chat-project-id';
 const CHAT_MODE_STORAGE_KEY = 'eazytest-ai-chat-mode';
@@ -55,9 +56,7 @@ type SseEvent = {
 };
 
 function createMessage(role: ChatMessage['role'], content: string): ChatMessage {
-  const randomId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const randomId = createClientId('chat-message');
   return { id: randomId, role, content };
 }
 

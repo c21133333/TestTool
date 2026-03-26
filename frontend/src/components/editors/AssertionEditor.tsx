@@ -1,5 +1,7 @@
 import { Button, Card, Input, Select, Space, Switch, Typography } from 'antd';
 
+import { createClientId } from '../../utils/id';
+
 export type AssertionEditorRow = {
   key: string;
   type: string;
@@ -45,7 +47,7 @@ export function AssertionEditor({ rows, onChange, disabled = false }: Props) {
     onChange([
       ...rows,
       {
-        key: crypto.randomUUID(),
+        key: createClientId('assertion'),
         type: 'status_code',
         operator: '==',
         path: '',

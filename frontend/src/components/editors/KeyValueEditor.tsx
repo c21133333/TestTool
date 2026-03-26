@@ -1,5 +1,7 @@
 import { Button, Input, Space, Typography } from 'antd';
 
+import { createClientId } from '../../utils/id';
+
 export type KeyValueEditorRow = {
   key: string;
   field: string;
@@ -31,7 +33,7 @@ export function KeyValueEditor({
     onChange([
       ...rows,
       {
-        key: crypto.randomUUID(),
+        key: createClientId('key-value'),
         field: '',
         value: '',
       },
