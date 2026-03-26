@@ -197,3 +197,92 @@ def test_ai_chat_history_delete_is_physical_and_audited(monkeypatch: pytest.Monk
         assert latest_log.resource_type == "ai_chat_session"
         assert latest_log.resource_id == str(session_id)
         assert latest_log.details_json["session_id"] == session_id
+
+
+def test_ai_chat_stream_retries_empty_model_response_until_content_arrives(monkeypatch: pytest.MonkeyPatch) -> None:
+    call_counter = {"stream": 0, "generate": 0}
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_provider_registry.AiProviderRegistry.resolve_runtime",
+        lambda self: object(),
+    )
+
+    def _stream_text(self, **kwargs):
+        call_counter["stream"] += 1
+        return iter([]), {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"stream-{call_counter['stream']}"}}
+
+    def _generate_text(self, **kwargs):
+        call_counter["generate"] += 1
+        if call_counter["generate"] < 4:
+            return "", {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"fallback-{call_counter['generate']}"}}
+        return "第 4 次重试拿到内容。", {
+            "call_mode": "llm",
+            "failure_category": "",
+            "trace_json": {"request_id": f"fallback-{call_counter['generate']}"},
+        }
+
+    monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.stream_text", _stream_text)
+    monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.generate_text", _generate_text)
+
+    client, factory = _build_api_client(monkeypatch)
+    token = _issue_token(factory, "retry-success")
+
+    with client.stream(
+        "POST",
+        "/api/v1/ai-copilot/chat/stream",
+        json={
+            "chat_mode": "free",
+            "page_path": "/workspace",
+            "page_title": "工作台",
+            "messages": [{"role": "user", "content": "测试重试成功"}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    ) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "第 4 次重试拿到内容。" in body
+    assert "当前模型未返回可显示内容。" not in body
+    assert call_counter["stream"] == 4
+    assert call_counter["generate"] == 4
+
+
+def test_ai_chat_stream_returns_fallback_after_three_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    call_counter = {"stream": 0, "generate": 0}
+
+    monkeypatch.setattr(
+        "backend.app.services.ai_provider_registry.AiProviderRegistry.resolve_runtime",
+        lambda self: object(),
+    )
+
+    def _stream_text(self, **kwargs):
+        call_counter["stream"] += 1
+        return iter([]), {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"stream-{call_counter['stream']}"}}
+
+    def _generate_text(self, **kwargs):
+        call_counter["generate"] += 1
+        return "", {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"fallback-{call_counter['generate']}"}}
+
+    monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.stream_text", _stream_text)
+    monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.generate_text", _generate_text)
+
+    client, factory = _build_api_client(monkeypatch)
+    token = _issue_token(factory, "retry-fallback")
+
+    with client.stream(
+        "POST",
+        "/api/v1/ai-copilot/chat/stream",
+        json={
+            "chat_mode": "free",
+            "page_path": "/workspace",
+            "page_title": "工作台",
+            "messages": [{"role": "user", "content": "测试重试兜底"}],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    ) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "当前模型未返回可显示内容。" in body
+    assert call_counter["stream"] == 4
+    assert call_counter["generate"] == 4

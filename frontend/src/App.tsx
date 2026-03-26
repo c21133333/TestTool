@@ -1,4 +1,4 @@
-import { App as AntdApp, ConfigProvider, Space, Spin, Typography, theme } from 'antd';
+import { App as AntdApp, ConfigProvider, Space, Spin, Typography, theme, type ThemeConfig } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -20,24 +20,62 @@ const WorkspacePage = lazy(async () => ({ default: (await import('./pages/Worksp
 
 dayjs.locale('zh-cn');
 
-const appTheme = {
+const appTheme: ThemeConfig = {
   algorithm: theme.defaultAlgorithm,
   token: {
-    colorPrimary: '#a14c2f',
-    colorInfo: '#315d7a',
-    colorSuccess: '#3f6a45',
-    colorWarning: '#b7791f',
-    colorError: '#b4473a',
-    colorBgBase: '#f3eadb',
-    colorBgLayout: '#efe4d0',
-    colorBgContainer: '#fffaf2',
-    colorTextBase: '#2f241c',
-    colorTextSecondary: '#766455',
-    colorBorder: '#d6c4ae',
-    colorSplit: '#e6d9c7',
-    borderRadius: 18,
+    colorPrimary: '#2f5f93',
+    colorInfo: '#4a8bd0',
+    colorSuccess: '#2f7a67',
+    colorWarning: '#c48833',
+    colorError: '#bf4d4d',
+    colorBgBase: '#edf2f8',
+    colorBgLayout: '#e7edf5',
+    colorBgContainer: '#f8fbff',
+    colorTextBase: '#172131',
+    colorTextSecondary: '#5d6b80',
+    colorBorder: '#d3dcea',
+    colorSplit: '#e0e7f0',
+    borderRadius: 16,
+    controlHeight: 40,
+    controlHeightSM: 32,
     fontFamily: '"IBM Plex Sans", "Segoe UI", sans-serif',
-    boxShadow: '0 18px 40px rgba(102, 74, 38, 0.08)',
+    boxShadow: '0 22px 48px rgba(24, 38, 58, 0.08)',
+  },
+  components: {
+    Layout: {
+      bodyBg: 'transparent',
+      headerBg: 'rgba(248, 251, 255, 0.82)',
+      siderBg: 'rgba(244, 248, 253, 0.9)',
+      triggerBg: 'transparent',
+    },
+    Button: {
+      borderRadius: 12,
+      primaryShadow: 'none',
+    },
+    Card: {
+      headerBg: 'transparent',
+    },
+    Input: {
+      activeBorderColor: '#2f5f93',
+      hoverBorderColor: '#4a8bd0',
+    },
+    Menu: {
+      itemBg: 'transparent',
+      itemColor: '#31445e',
+      itemHoverBg: 'rgba(47, 95, 147, 0.08)',
+      itemHoverColor: '#1e4167',
+      itemSelectedBg: 'rgba(47, 95, 147, 0.12)',
+      itemSelectedColor: '#1e4167',
+      itemBorderRadius: 14,
+      groupTitleColor: '#6c7a8f',
+    },
+    Tag: {
+      defaultBg: 'rgba(47, 95, 147, 0.08)',
+      defaultColor: '#2f5f93',
+    },
+    Table: {
+      headerBg: 'rgba(47, 95, 147, 0.06)',
+    },
   },
 };
 
@@ -46,7 +84,7 @@ function RouteLoadingScreen() {
     <div className="loading-screen">
       <Space direction="vertical" align="center" size="middle">
         <Spin size="large" />
-        <Typography.Text type="secondary">正在装载页面资源...</Typography.Text>
+        <Typography.Text type="secondary">正在加载指挥舱资源...</Typography.Text>
       </Space>
     </div>
   );

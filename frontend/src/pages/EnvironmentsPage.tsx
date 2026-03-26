@@ -6,6 +6,7 @@ import type { Environment, Project } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { canManageWorkspace } from '../auth/permissions';
 import { KeyValueEditor, type KeyValueEditorRow } from '../components/editors/KeyValueEditor';
+import { PageHero } from '../components/product/PageHero';
 
 function stringifyValue(value: unknown): string {
   if (typeof value === 'string') {
@@ -122,14 +123,67 @@ export function EnvironmentsPage() {
     await refresh();
   }
 
+  const projectCount = projects.length;
+  const headerCount = environments.reduce((total, item) => total + Object.keys(item.headers_json ?? {}).length, 0);
+  const variableCount = environments.reduce((total, item) => total + Object.keys(item.variables_json ?? {}).length, 0);
+
   return (
     <div className="page-stack">
-      <div className="page-hero">
-        <Typography.Title>环境管理</Typography.Title>
+      <PageHero
+        eyebrow="OPS / ENV CENTER"
+        title="环境配置"
+        description="集中管理项目级 Base URL、默认请求头和运行变量，为执行中心提供稳定的切换入口。"
+        tags={[
+          <span key="env-count" className="lab-chip">
+            {environments.length} 个环境
+          </span>,
+          <span key="project-count" className="lab-chip">
+            覆盖 {projectCount} 个项目
+          </span>,
+          <span key="mode" className="lab-chip">
+            {canEdit ? '可编辑' : '只读查看'}
+          </span>,
+        ]}
+        actions={
+          <Space wrap>
+            <Button onClick={() => void refresh()}>刷新</Button>
+            <Button type="primary" onClick={resetForm} disabled={!canEdit}>
+              新建环境
+            </Button>
+          </Space>
+        }
+      />
+
+      <div className="dashboard-kpi-grid">
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--primary" bordered={false}>
+          <span className="dashboard-kpi-card__code">ENV-01</span>
+          <Typography.Text className="workspace-summary-card__label">环境总数</Typography.Text>
+          <Typography.Title level={2}>{environments.length}</Typography.Title>
+          <Typography.Paragraph>已配置的执行环境数量</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--info" bordered={false}>
+          <span className="dashboard-kpi-card__code">PRJ-02</span>
+          <Typography.Text className="workspace-summary-card__label">项目覆盖</Typography.Text>
+          <Typography.Title level={2}>{projectCount}</Typography.Title>
+          <Typography.Paragraph>已接入环境配置的项目数</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--signal" bordered={false}>
+          <span className="dashboard-kpi-card__code">HDR-03</span>
+          <Typography.Text className="workspace-summary-card__label">默认请求头</Typography.Text>
+          <Typography.Title level={2}>{headerCount}</Typography.Title>
+          <Typography.Paragraph>已登记的请求头条目</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--success" bordered={false}>
+          <span className="dashboard-kpi-card__code">VAR-04</span>
+          <Typography.Text className="workspace-summary-card__label">运行变量</Typography.Text>
+          <Typography.Title level={2}>{variableCount}</Typography.Title>
+          <Typography.Paragraph>执行时可注入的变量数量</Typography.Paragraph>
+        </Card>
       </div>
+
       <Row gutter={[18, 18]}>
-        <Col span={9}>
-          <Card className="glass-card" title={editingEnvironmentId ? '编辑环境' : '新建环境'}>
+        <Col xs={24} xl={9}>
+          <Card className="glass-card workspace-section-card" title={editingEnvironmentId ? '编辑环境' : '新增环境'}>
             <Form form={form} layout="vertical" onFinish={(values) => void submit(values)} disabled={!canEdit}>
               <Form.Item name="project_id" label="所属项目" rules={[{ required: true, message: '请选择所属项目。' }]}>
                 <Select options={projects.map((project) => ({ value: project.id, label: project.name }))} />
@@ -137,13 +191,13 @@ export function EnvironmentsPage() {
               <Form.Item name="name" label="环境名称" rules={[{ required: true, message: '请输入环境名称。' }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="base_url" label="基础 URL">
+              <Form.Item name="base_url" label="Base URL">
                 <Input placeholder="https://api.example.com" />
               </Form.Item>
               <Form.Item name="description" label="说明">
                 <Input.TextArea rows={2} />
               </Form.Item>
-              <Form.Item label="请求头">
+              <Form.Item label="默认请求头">
                 <KeyValueEditor
                   rows={headerRows}
                   onChange={setHeaderRows}
@@ -153,7 +207,7 @@ export function EnvironmentsPage() {
                   valuePlaceholder="Bearer token"
                 />
               </Form.Item>
-              <Form.Item label="变量">
+              <Form.Item label="运行变量">
                 <KeyValueEditor
                   rows={variableRows}
                   onChange={setVariableRows}
@@ -165,25 +219,25 @@ export function EnvironmentsPage() {
               </Form.Item>
               <Space>
                 <Button type="primary" htmlType="submit" disabled={!canEdit}>
-                  {editingEnvironmentId ? '保存' : '创建'}
+                  {editingEnvironmentId ? '保存修改' : '创建环境'}
                 </Button>
                 <Button onClick={resetForm}>重置</Button>
               </Space>
             </Form>
           </Card>
         </Col>
-        <Col span={15}>
-          <Card className="glass-card" title="环境列表">
+        <Col xs={24} xl={15}>
+          <Card className="glass-card workspace-section-card" title="环境清单">
             <Table
               rowKey="id"
               pagination={{ pageSize: 10, showSizeChanger: false, hideOnSinglePage: true }}
               dataSource={environments}
               columns={[
-                { title: '名称', dataIndex: 'name' },
+                { title: '环境名称', dataIndex: 'name' },
                 { title: '项目 ID', dataIndex: 'project_id' },
-                { title: '基础 URL', dataIndex: 'base_url' },
-                { title: '请求头数', render: (_, row) => Object.keys(row.headers_json ?? {}).length },
-                { title: '变量数', render: (_, row) => Object.keys(row.variables_json ?? {}).length },
+                { title: 'Base URL', dataIndex: 'base_url' },
+                { title: '请求头', render: (_, row) => Object.keys(row.headers_json ?? {}).length },
+                { title: '变量', render: (_, row) => Object.keys(row.variables_json ?? {}).length },
                 {
                   title: '操作',
                   render: (_, row) => (
@@ -204,8 +258,22 @@ export function EnvironmentsPage() {
                       >
                         {canEdit ? '编辑' : '查看'}
                       </Button>
-                      <Popconfirm title="确认删除这个环境吗？" disabled={!canEdit} onConfirm={() => void api.deleteEnvironment(row.id).then(refresh)}>
-                        <Button size="small" danger disabled={!canEdit}>删除</Button>
+                      <Popconfirm
+                        title="确认删除该环境？"
+                        disabled={!canEdit}
+                        onConfirm={() =>
+                          void api.deleteEnvironment(row.id).then(() => {
+                            message.success('环境已删除。');
+                            if (editingEnvironmentId === row.id) {
+                              resetForm();
+                            }
+                            return refresh();
+                          })
+                        }
+                      >
+                        <Button size="small" danger disabled={!canEdit}>
+                          删除
+                        </Button>
                       </Popconfirm>
                     </Space>
                   ),

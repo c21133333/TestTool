@@ -171,6 +171,7 @@ export type LegacyImportPolicy = {
 };
 
 export type AiCaseDraftValidationStatus = 'valid' | 'warning' | 'invalid';
+export type AiCaseDraftExportView = 'human' | 'program' | 'both';
 
 export type AiCaseDraftPayload = {
   name: string;

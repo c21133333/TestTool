@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createApi } from '../api/services';
 import type { AuditLog } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
+import { PageHero } from '../components/product/PageHero';
 import { formatDateTime } from '../utils/display';
 
 type DateRangeValue = [Dayjs | null, Dayjs | null] | null;
@@ -72,17 +73,62 @@ export function AuditLogsPage() {
     setPage(1);
   }
 
+  const systemCount = logs.filter((item) => !item.actor_username).length;
+  const actorCount = logs.filter((item) => item.actor_username).length;
+
   return (
     <div className="page-stack">
-      <div className="page-hero">
-        <Typography.Title>审计日志</Typography.Title>
-      </div>
+      <PageHero
+        eyebrow="GOV / AUDIT"
+        title="审计日志"
+        description="查看关键操作、系统事件和资源级变更，保证整个平台的治理链路持续可追踪。"
+        tags={[
+          <span key="total" className="lab-chip">
+            {total} 条事件
+          </span>,
+          <span key="actors" className="lab-chip">
+            {actorCount} 条人工操作
+          </span>,
+          <span key="system" className="lab-chip">
+            {systemCount} 条系统事件
+          </span>,
+        ]}
+      />
+
       {error ? <Alert type="error" message={error} showIcon /> : null}
-      <Card className="glass-card">
+
+      <div className="dashboard-kpi-grid">
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--primary" bordered={false}>
+          <span className="dashboard-kpi-card__code">LOG-01</span>
+          <Typography.Text className="workspace-summary-card__label">当前页事件</Typography.Text>
+          <Typography.Title level={2}>{logs.length}</Typography.Title>
+          <Typography.Paragraph>本页已加载的审计事件数量</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--info" bordered={false}>
+          <span className="dashboard-kpi-card__code">TTL-02</span>
+          <Typography.Text className="workspace-summary-card__label">筛选结果</Typography.Text>
+          <Typography.Title level={2}>{total}</Typography.Title>
+          <Typography.Paragraph>符合当前筛选条件的总事件数</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--signal" bordered={false}>
+          <span className="dashboard-kpi-card__code">ACT-03</span>
+          <Typography.Text className="workspace-summary-card__label">人工操作</Typography.Text>
+          <Typography.Title level={2}>{actorCount}</Typography.Title>
+          <Typography.Paragraph>带操作账号的事件数量</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--success" bordered={false}>
+          <span className="dashboard-kpi-card__code">SYS-04</span>
+          <Typography.Text className="workspace-summary-card__label">系统事件</Typography.Text>
+          <Typography.Title level={2}>{systemCount}</Typography.Title>
+          <Typography.Paragraph>无人工账号参与的系统事件数量</Typography.Paragraph>
+        </Card>
+      </div>
+
+      <Card className="glass-card workspace-section-card">
         <Space wrap style={{ width: '100%', marginBottom: 16 }}>
           <Input
             allowClear
-            placeholder="搜索摘要、资源或操作人"
+            placeholder="搜索摘要、资源或动作"
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
             style={{ width: 280 }}
@@ -110,7 +156,7 @@ export function AuditLogsPage() {
           />
           <Input
             allowClear
-            placeholder="操作人用户名"
+            placeholder="按操作人用户名筛选"
             value={actorDraft}
             onChange={(event) => setActorDraft(event.target.value)}
             style={{ width: 220 }}
@@ -146,7 +192,7 @@ export function AuditLogsPage() {
             pageSize,
             total,
             showSizeChanger: false,
-            showTotal: (value) => `共 ${value} 条日志`,
+            showTotal: (value) => `共 ${value} 条事件`,
           }}
           onChange={(pagination) => {
             setPage(pagination.current ?? 1);
@@ -169,7 +215,7 @@ export function AuditLogsPage() {
             },
             {
               title: '角色',
-              width: 110,
+              width: 120,
               render: (_, row) => <Tag>{roleLabel(row.actor_role)}</Tag>,
             },
             { title: '动作', dataIndex: 'action', width: 170, render: (value) => <Tag color="processing">{value}</Tag> },
@@ -177,7 +223,7 @@ export function AuditLogsPage() {
             { title: '摘要', dataIndex: 'summary' },
           ]}
           expandable={{
-            expandedRowRender: (record) => <pre style={{ margin: 0 }}>{JSON.stringify(record.details_json, null, 2)}</pre>,
+            expandedRowRender: (record) => <pre className="code-block">{JSON.stringify(record.details_json, null, 2)}</pre>,
           }}
         />
       </Card>

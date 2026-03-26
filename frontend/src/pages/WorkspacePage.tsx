@@ -27,6 +27,7 @@ import { AiCaseGenerationPanel } from '../components/ai/AiCaseGenerationPanel';
 import { AssertionEditor, type AssertionEditorRow } from '../components/editors/AssertionEditor';
 import { KeyValueEditor, type KeyValueEditorRow } from '../components/editors/KeyValueEditor';
 import { ProcessorEditor, type ProcessorEditorRow } from '../components/editors/ProcessorEditor';
+import { PageHero } from '../components/product/PageHero';
 import { formatDateTime } from '../utils/display';
 
 const TABLE_PAGINATION = {
@@ -404,6 +405,7 @@ export function WorkspacePage() {
   const [caseKeyword, setCaseKeyword] = useState('');
   const [caseSuiteFilter, setCaseSuiteFilter] = useState<number | undefined>(undefined);
   const [caseMethodFilter, setCaseMethodFilter] = useState<string | undefined>(undefined);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('cases');
   const [isCaseEditorVisible, setIsCaseEditorVisible] = useState(false);
   const [headerRows, setHeaderRows] = useState<KeyValueEditorRow[]>([]);
   const [bodyMode, setBodyMode] = useState<'structured' | 'raw'>('structured');
@@ -545,6 +547,41 @@ export function WorkspacePage() {
   const appendPreviewAssertions = useMemo(() => mergeAssertionPayloads(savedAssertions, suggestedAssertions), [savedAssertions, suggestedAssertions]);
   const unsavedAssertionChanges =
     JSON.stringify(assertionRowsToPayload(assertionRows)) !== JSON.stringify(editingCase?.assertions_json ?? []);
+  const workspaceSummaryItems = [
+    {
+      code: 'P-01',
+      label: '项目',
+      value: projects.length,
+      detail: `当前筛选命中 ${filteredProjects.length} 个项目`,
+    },
+    {
+      code: 'S-02',
+      label: '套件',
+      value: suites.length,
+      detail: `当前视图展示 ${sortedFilteredSuites.length} 个套件`,
+    },
+    {
+      code: 'C-03',
+      label: '用例',
+      value: cases.length,
+      detail: `当前列表展示 ${filteredCases.length} 条用例`,
+    },
+    {
+      code: 'AI-04',
+      label: 'AI 就绪',
+      value: cases.filter((apiCase) => apiCase.assertions_json.length > 0).length,
+      detail: '已保存断言、可继续 AI 编排的用例',
+    },
+  ] as const;
+  const focusedProjectLabel =
+    editingProject?.name ??
+    (suiteProjectFilter !== undefined ? (projectNameById.get(suiteProjectFilter) ?? `项目 #${suiteProjectFilter}`) : '全部项目');
+  const focusedSuiteLabel =
+    editingSuite?.name ??
+    (caseSuiteFilter !== undefined ? (suiteNameById.get(caseSuiteFilter) ?? `套件 #${caseSuiteFilter}`) : '全部套件');
+  const workspaceFocusSummary = editingCase
+    ? `${focusedProjectLabel} / ${focusedSuiteLabel} / ${editingCase.name}`
+    : `${focusedProjectLabel} / ${focusedSuiteLabel}`;
 
   function syncEditingCaseMetadata(apiCase: ApiCase) {
     const metadataFields = splitMetadata(apiCase.metadata_json);
@@ -1220,17 +1257,375 @@ export function WorkspacePage() {
     }
   }
 
+  const caseEditorTitle = editingCaseId ? `编辑用例 · ${editingCase?.name ?? `用例 #${editingCaseId}`}` : '新增用例';
+  const caseEditorContextPath = editingCase
+    ? `${projectNameById.get(editingProject?.id ?? -1) ?? '未归属项目'} / ${suiteNameById.get(editingCase.suite_id) ?? `套件 #${editingCase.suite_id}`}`
+    : '新建后即可继续补断言、生成测试数据和 Mock。';
+  const caseEditorForm = (
+    <div className="workspace-case-modal__body">
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Typography.Text type="secondary">{caseEditorContextPath}</Typography.Text>
+        <Form form={caseForm} layout="vertical" onFinish={(values) => void submitCase(values)} disabled={!canEdit}>
+          <Form.Item name="suite_id" label="所属套件" rules={[{ required: true }]}>
+            <Select options={suites.map((suite) => ({ value: suite.id, label: suite.name }))} />
+          </Form.Item>
+          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Space.Compact block>
+            <Form.Item name="method" label="请求方法" initialValue="GET" style={{ width: 160 }}>
+              <Select options={['GET', 'POST', 'PUT', 'DELETE'].map((method) => ({ value: method, label: method }))} />
+            </Form.Item>
+            <Form.Item name="url" label="URL" rules={[{ required: true }]} style={{ flex: 1 }}>
+              <Input placeholder="/api/demo" />
+            </Form.Item>
+          </Space.Compact>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item label="请求头">
+            <KeyValueEditor
+              rows={headerRows}
+              onChange={setHeaderRows}
+              disabled={!canEdit}
+              addLabel="新增请求头"
+              keyPlaceholder="Content-Type"
+              valuePlaceholder="application/json"
+            />
+          </Form.Item>
+          <Form.Item label="请求体">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Segmented
+                value={bodyMode}
+                onChange={(value) => handleBodyModeChange(String(value))}
+                options={[
+                  { label: '结构化对象', value: 'structured' },
+                  { label: '原始 JSON', value: 'raw' },
+                ]}
+                disabled={!canEdit}
+              />
+              {bodyMode === 'structured' ? (
+                <KeyValueEditor
+                  rows={bodyRows}
+                  onChange={setBodyRows}
+                  disabled={!canEdit}
+                  addLabel="新增字段"
+                  keyPlaceholder="name"
+                  valuePlaceholder={'123、true 或 "text"'}
+                />
+              ) : (
+                <Form.Item name="body_json" noStyle>
+                  <Input.TextArea rows={6} spellCheck={false} />
+                </Form.Item>
+              )}
+              {bodyMode === 'structured' ? (
+                <Typography.Text type="secondary">值支持 number、boolean、array、object，按 JSON 字面量输入即可。</Typography.Text>
+              ) : null}
+            </Space>
+          </Form.Item>
+          <Form.Item label="断言">
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              {editingCaseId !== null ? (
+                <AiCapabilityActionCard
+                  title="AI 补断言"
+                  actions={
+                    <Space wrap>
+                      <Button loading={assertionLoading} onClick={() => void handlePreviewAssertions()} disabled={!canEdit}>
+                        AI 补断言
+                      </Button>
+                      <Button
+                        type="primary"
+                        loading={assertionApplyLoading}
+                        disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}
+                        onClick={() => void handleApplyAssertions(false)}
+                      >
+                        应用追加
+                      </Button>
+                      <Popconfirm
+                        title="覆盖后会用 AI 建议替换当前已保存断言，确认继续？"
+                        onConfirm={() => void handleApplyAssertions(true)}
+                        disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}
+                      >
+                        <Button danger loading={assertionApplyLoading} disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}>
+                          覆盖应用
+                        </Button>
+                      </Popconfirm>
+                    </Space>
+                  }
+                  error={assertionError}
+                  warnings={assertionPreview?.warnings ?? []}
+                  hasContent={Boolean(assertionPreview) || unsavedAssertionChanges}
+                  empty={<Typography.Text type="secondary">生成后会在这里展示建议列表、追加后结果和覆盖后的差异。</Typography.Text>}
+                >
+                  <>
+                    {unsavedAssertionChanges ? (
+                      <AlertBox
+                        type="warning"
+                        showIcon
+                        message="当前编辑器里有未保存断言改动。AI 应用会以服务端已保存断言为基线，并刷新当前断言编辑区。"
+                      />
+                    ) : null}
+                    {assertionPreview ? (
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        <Typography.Text>
+                          当前已保存断言 {savedAssertions.length} 条，追加后 {appendPreviewAssertions.length} 条，覆盖后 {suggestedAssertions.length} 条。
+                        </Typography.Text>
+                        <AiSuggestionPanel
+                          items={suggestedAssertions.map((item, index) => ({
+                            key: `suggestion-${index}-${item.type}-${item.path ?? item.header ?? 'value'}`,
+                            title: `${assertionTypeLabel(item.type)} ${item.path ?? item.header ?? ''}`.trim(),
+                            tags: <Typography.Text type="secondary">{`置信度 ${(item.confidence * 100).toFixed(0)}%`}</Typography.Text>,
+                            content: (
+                              <Space direction="vertical" style={{ width: '100%' }}>
+                                <Typography.Text>{`操作符：${assertionOperatorLabel(item.operator)}`}</Typography.Text>
+                                <Typography.Text>{`期望值：${stringifyValue(item.expected)}`}</Typography.Text>
+                                <Typography.Text type="secondary">{item.reason}</Typography.Text>
+                              </Space>
+                            ),
+                          }))}
+                          emptyText="当前没有可应用的新断言建议。"
+                        />
+                        {suggestedAssertions.length ? (
+                          <Card size="small" title="差异预览">
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              <Typography.Text>{`追加模式会保留当前 ${savedAssertions.length} 条断言，并新增 ${appendPreviewAssertions.length - savedAssertions.length} 条。`}</Typography.Text>
+                              <Typography.Text>{`覆盖模式会把断言集替换为 AI 建议的 ${suggestedAssertions.length} 条。`}</Typography.Text>
+                            </Space>
+                          </Card>
+                        ) : null}
+                      </Space>
+                    ) : null}
+                  </>
+                </AiCapabilityActionCard>
+              ) : (
+                <Typography.Text type="secondary">先保存用例，再生成 AI 补断言建议。</Typography.Text>
+              )}
+              <AssertionEditor rows={assertionRows} onChange={setAssertionRows} disabled={!canEdit} />
+            </Space>
+          </Form.Item>
+          <Form.Item label="AI 预执行准备">
+            {editingCaseId !== null ? (
+              <>
+                <AiPreparationAssetsPanel
+                  canEdit={canEdit}
+                  testDataPreview={testDataPreview}
+                  selectedVariantIds={testDataSelectedIds}
+                  testDataLoading={testDataLoading}
+                  testDataApplyLoading={testDataApplyLoading}
+                  testDataExportLoading={testDataExportLoading}
+                  testDataError={testDataError}
+                  testDataHistoryOpen={testDataHistoryOpen}
+                  testDataHistoryLoading={testDataHistoryLoading}
+                  testDataHistoryError={testDataHistoryError}
+                  testDataHistoryItems={testDataHistory}
+                  onPreviewTestData={() => void handlePreviewTestData()}
+                  onApplyTestDataAppend={() => void handleApplyTestData(false)}
+                  onApplyTestDataOverride={() => void handleApplyTestData(true)}
+                  onExportTestData={() => void handleExportTestData()}
+                  onSelectionChangeVariantIds={setTestDataSelectedIds}
+                  onOpenTestDataHistory={() => void handleOpenTestDataHistory()}
+                  onCloseTestDataHistory={() => setTestDataHistoryOpen(false)}
+                  onLoadTestDataHistory={applyTestDataHistoryItem}
+                  mockPreview={mockPreview}
+                  selectedTemplateIds={mockSelectedIds}
+                  mockLoading={mockLoading}
+                  mockApplyLoading={mockApplyLoading}
+                  mockExportLoading={mockExportLoading}
+                  mockError={mockError}
+                  mockHistoryOpen={mockHistoryOpen}
+                  mockHistoryLoading={mockHistoryLoading}
+                  mockHistoryError={mockHistoryError}
+                  mockHistoryItems={mockHistory}
+                  onPreviewMock={() => void handlePreviewMock()}
+                  onApplyMockAppend={() => void handleApplyMock(false)}
+                  onApplyMockOverride={() => void handleApplyMock(true)}
+                  onExportMock={() => void handleExportMock()}
+                  onSelectionChangeTemplateIds={setMockSelectedIds}
+                  onOpenMockHistory={() => void handleOpenMockHistory()}
+                  onCloseMockHistory={() => setMockHistoryOpen(false)}
+                  onLoadMockHistory={applyMockHistoryItem}
+                  onViewLineage={(item) => void handleViewLineage(item)}
+                />
+                <div style={{ marginTop: 12 }}>
+                  <AiExecutionPreparationPanel
+                    canEdit={canEdit}
+                    availableVariants={executionAvailableVariants}
+                    availableTemplates={executionAvailableTemplates}
+                    selectedVariantIds={executionPreparationVariantIds}
+                    selectedTemplateIds={executionPreparationTemplateIds}
+                    selectedEnvironmentId={executionPreparationEnvironmentId}
+                    environments={editingEnvironments as Environment[]}
+                    loading={executionPreparationLoading}
+                    error={executionPreparationError}
+                    lastExecution={executionPreparationResult}
+                    onChangeVariantIds={setExecutionPreparationVariantIds}
+                    onChangeTemplateIds={setExecutionPreparationTemplateIds}
+                    onChangeEnvironmentId={setExecutionPreparationEnvironmentId}
+                    onRun={() => void handleRunPreparedExecution()}
+                  />
+                </div>
+              </>
+            ) : (
+              <Typography.Text type="secondary">先保存用例，再生成 AI 测试数据和 AI Mock 模板。</Typography.Text>
+            )}
+          </Form.Item>
+          <Form.Item label="前置处理器">
+            <ProcessorEditor title="前置处理器" rows={preProcessorRows} onChange={setPreProcessorRows} disabled={!canEdit} />
+          </Form.Item>
+          <Form.Item label="后置处理器">
+            <ProcessorEditor title="后置处理器" rows={postProcessorRows} onChange={setPostProcessorRows} disabled={!canEdit} />
+          </Form.Item>
+          <Form.Item label="元数据">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Row gutter={12}>
+                <Col xs={24} xl={12}>
+                  <Form.Item name="category" label="分类">
+                    <Input placeholder="auth" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} xl={12}>
+                  <Form.Item name="priority" label="优先级">
+                    <Select allowClear options={[{ value: 'P0', label: 'P0' }, { value: 'P1', label: 'P1' }, { value: 'P2', label: 'P2' }, { value: 'P3', label: 'P3' }]} />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={12}>
+                <Col xs={24} xl={12}>
+                  <Form.Item name="owner" label="负责人">
+                    <Input placeholder="qa-owner" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} xl={12}>
+                  <Form.Item name="timeout_ms" label="超时 (ms)">
+                    <Input placeholder="5000" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item name="tags" label="标签">
+                <Input placeholder="smoke, login, regression" />
+              </Form.Item>
+              <Form.Item name="precondition" label="前置条件">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+              <Form.Item name="metadata_extra_json" label="扩展元数据 JSON">
+                <Input.TextArea rows={5} spellCheck={false} />
+              </Form.Item>
+              <Typography.Text type="secondary">
+                常用元数据已在上方建模；只有超出分类、优先级、负责人、标签、前置条件、超时范围的字段，才放到扩展 JSON。
+              </Typography.Text>
+            </Space>
+          </Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" disabled={!canEdit}>
+              {editingCaseId ? '保存' : '创建'}
+            </Button>
+            <Button onClick={() => resetCaseForm()}>重置</Button>
+            <Button onClick={() => resetCaseForm(true)}>取消</Button>
+          </Space>
+        </Form>
+      </Space>
+    </div>
+  );
+
   return (
     <div className="page-stack">
-      <div className="page-hero">
-        <Typography.Title>工作台</Typography.Title>
-      </div>
+      <PageHero
+        eyebrow="OPS / WORKSPACE"
+        title="工作台"
+        description="把项目、套件、API 用例、AI 准备和执行配置放进同一个操作面板，保持测试资产编排连续可控。"
+        tags={[
+          <span key="focus" className="lab-chip">
+            {workspaceFocusSummary}
+          </span>,
+          <span key="editor" className="lab-chip">
+            {isCaseEditorVisible ? '用例弹窗已打开' : '当前仅看列表'}
+          </span>,
+          <span key="permission" className="lab-chip">
+            {canEdit ? '可编辑' : '只读查看'}
+          </span>,
+        ]}
+        actions={
+          <Space wrap>
+            <Button onClick={() => void refresh()}>刷新资产</Button>
+            <Button
+              onClick={() => {
+                setActiveWorkspaceTab('suites');
+                openSuiteImportModal();
+              }}
+              disabled={!canEdit}
+            >
+              导入资产
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                setActiveWorkspaceTab('cases');
+                handleStartCreateCase();
+              }}
+              disabled={!canEdit}
+            >
+              新建用例
+            </Button>
+          </Space>
+        }
+      />
+
+      <section className="workspace-command-grid">
+        <Card className="glass-card workspace-command-card" bordered={false}>
+          <div className="workspace-command-card__eyebrow">控制面板</div>
+          <div className="workspace-command-card__headline">
+            <div>
+              <Typography.Title level={3}>接口资产工作面板</Typography.Title>
+              <Typography.Paragraph>
+                项目筛选、套件编排、用例编辑、AI 准备和执行入口在这里一次串起来，不需要在多个页面来回切换。
+              </Typography.Paragraph>
+            </div>
+            <div className="workspace-command-card__focus">
+              <span className="workspace-command-card__focus-label">当前焦点</span>
+              <strong>{workspaceFocusSummary}</strong>
+            </div>
+          </div>
+          <div className="workspace-command-card__signals">
+            <div className="workspace-command-card__signal">
+              <span className="workspace-command-card__signal-label">用例操作窗口</span>
+              <strong>{isCaseEditorVisible ? '已打开' : '已关闭'}</strong>
+            </div>
+            <div className="workspace-command-card__signal">
+              <span className="workspace-command-card__signal-label">当前标签</span>
+              <strong>{activeWorkspaceTab}</strong>
+            </div>
+            <div className="workspace-command-card__signal">
+              <span className="workspace-command-card__signal-label">操作权限</span>
+              <strong>{canEdit ? '可写' : '只读'}</strong>
+            </div>
+          </div>
+        </Card>
+
+        <div className="workspace-summary-grid">
+          {workspaceSummaryItems.map((item) => (
+            <Card key={item.code} className="metric-card workspace-summary-card workspace-summary-card--lab" bordered={false}>
+              <span className="dashboard-kpi-card__code">{item.code}</span>
+              <Typography.Text className="workspace-summary-card__label">{item.label}</Typography.Text>
+              <Typography.Title level={2}>{item.value}</Typography.Title>
+              <Typography.Paragraph>{item.detail}</Typography.Paragraph>
+            </Card>
+          ))}
+        </div>
+      </section>
 
       <Tabs
+        className="workspace-lab-tabs"
+        activeKey={activeWorkspaceTab}
+        onChange={setActiveWorkspaceTab}
         items={[
           {
             key: 'projects',
-            label: '项目',
+            label: (
+              <span className="workspace-tab-label">
+                <span className="workspace-tab-label__code">OPS-01</span>
+                <span>项目</span>
+              </span>
+            ),
             children: (
               <Row gutter={[18, 18]}>
                 <Col xs={24} xl={8}>
@@ -1308,7 +1703,12 @@ export function WorkspacePage() {
           },
           {
             key: 'suites',
-            label: '套件',
+            label: (
+              <span className="workspace-tab-label">
+                <span className="workspace-tab-label__code">OPS-02</span>
+                <span>套件</span>
+              </span>
+            ),
             children: (
               <Card
                 className="glass-card workspace-section-card"
@@ -1318,6 +1718,9 @@ export function WorkspacePage() {
                     <Typography.Text type="secondary">{`共 ${sortedFilteredSuites.length} / ${suites.length} 个套件`}</Typography.Text>
                     <Button onClick={openSuiteImportModal} disabled={!canEdit}>
                       导入
+                    </Button>
+                    <Button onClick={openCreateSuiteModal} disabled={!canEdit}>
+                      新增套件
                     </Button>
                     <AiCaseGenerationPanel
                       api={api}
@@ -1329,9 +1732,6 @@ export function WorkspacePage() {
                       triggerLabel="AI生成接口用例"
                       hideTriggerDescription
                     />
-                    <Button type="primary" onClick={openCreateSuiteModal} disabled={!canEdit}>
-                      新增套件
-                    </Button>
                   </Space>
                 }
               >
@@ -1432,289 +1832,15 @@ export function WorkspacePage() {
           },
           {
             key: 'cases',
-            label: '用例',
+            label: (
+              <span className="workspace-tab-label">
+                <span className="workspace-tab-label__code">OPS-03</span>
+                <span>用例</span>
+              </span>
+            ),
             children: (
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                {isCaseEditorVisible ? (
-                  <div>
-                    <Card
-                      className="glass-card workspace-section-card"
-                      title={editingCaseId ? `编辑区 · ${editingCase?.name ?? `用例 #${editingCaseId}`}` : '编辑区 · 新建用例'}
-                      extra={
-                        <Space>
-                          {editingCase ? (
-                            <Typography.Text type="secondary">
-                              {`${projectNameById.get(editingProject?.id ?? -1) ?? '未归属项目'} / ${suiteNameById.get(editingCase.suite_id) ?? `套件 #${editingCase.suite_id}`}`}
-                            </Typography.Text>
-                          ) : null}
-                          <Button onClick={() => resetCaseForm(true)}>收起编辑区</Button>
-                        </Space>
-                      }
-                    >
-                      <Form form={caseForm} layout="vertical" onFinish={(values) => void submitCase(values)} disabled={!canEdit}>
-                      <Form.Item name="suite_id" label="所属套件" rules={[{ required: true }]}>
-                        <Select options={suites.map((suite) => ({ value: suite.id, label: suite.name }))} />
-                      </Form.Item>
-                      <Form.Item name="name" label="名称" rules={[{ required: true }]}>
-                        <Input />
-                      </Form.Item>
-                      <Space.Compact block>
-                        <Form.Item name="method" label="请求方法" initialValue="GET" style={{ width: 160 }}>
-                          <Select options={['GET', 'POST', 'PUT', 'DELETE'].map((method) => ({ value: method, label: method }))} />
-                        </Form.Item>
-                        <Form.Item name="url" label="URL" rules={[{ required: true }]} style={{ flex: 1 }}>
-                          <Input placeholder="/api/demo" />
-                        </Form.Item>
-                      </Space.Compact>
-                      <Form.Item name="description" label="描述">
-                        <Input.TextArea rows={2} />
-                      </Form.Item>
-                      <Form.Item label="请求头">
-                        <KeyValueEditor
-                          rows={headerRows}
-                          onChange={setHeaderRows}
-                          disabled={!canEdit}
-                          addLabel="新增请求头"
-                          keyPlaceholder="Content-Type"
-                          valuePlaceholder="application/json"
-                        />
-                      </Form.Item>
-                      <Form.Item label="请求体">
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Segmented
-                            value={bodyMode}
-                            onChange={(value) => handleBodyModeChange(String(value))}
-                            options={[
-                              { label: '结构化对象', value: 'structured' },
-                              { label: '原始 JSON', value: 'raw' },
-                            ]}
-                            disabled={!canEdit}
-                          />
-                          {bodyMode === 'structured' ? (
-                            <KeyValueEditor
-                              rows={bodyRows}
-                              onChange={setBodyRows}
-                              disabled={!canEdit}
-                              addLabel="新增字段"
-                              keyPlaceholder="name"
-                              valuePlaceholder={'123、true 或 "text"'}
-                            />
-                          ) : (
-                            <Form.Item name="body_json" noStyle>
-                              <Input.TextArea rows={6} spellCheck={false} />
-                            </Form.Item>
-                          )}
-                          {bodyMode === 'structured' ? (
-                            <Typography.Text type="secondary">
-                              值支持 number、boolean、array、object，按 JSON 字面量输入即可。
-                            </Typography.Text>
-                          ) : null}
-                        </Space>
-                      </Form.Item>
-                      <Form.Item label="断言">
-                        <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                          {editingCaseId !== null ? (
-                            <AiCapabilityActionCard
-                              title="AI 补断言"
-                              actions={(
-                                <Space wrap>
-                                  <Button loading={assertionLoading} onClick={() => void handlePreviewAssertions()} disabled={!canEdit}>
-                                    AI 补断言
-                                  </Button>
-                                  <Button
-                                    type="primary"
-                                    loading={assertionApplyLoading}
-                                    disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}
-                                    onClick={() => void handleApplyAssertions(false)}
-                                  >
-                                    应用追加
-                                  </Button>
-                                  <Popconfirm
-                                    title="覆盖后会用 AI 建议替换当前已保存断言，确认继续？"
-                                    onConfirm={() => void handleApplyAssertions(true)}
-                                    disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}
-                                  >
-                                    <Button danger loading={assertionApplyLoading} disabled={!canEdit || !assertionPreview || !suggestedAssertions.length}>
-                                      覆盖应用
-                                    </Button>
-                                  </Popconfirm>
-                                </Space>
-                              )}
-                              error={assertionError}
-                              warnings={assertionPreview?.warnings ?? []}
-                              hasContent={Boolean(assertionPreview) || unsavedAssertionChanges}
-                              empty={<Typography.Text type="secondary">生成后会在这里展示建议列表、追加后结果和覆盖后的差异。</Typography.Text>}
-                            >
-                              <>
-                                {unsavedAssertionChanges ? (
-                                  <AlertBox
-                                    type="warning"
-                                    showIcon
-                                    message="当前编辑器里有未保存断言改动。AI 应用会以服务端已保存断言为基线，并刷新当前断言编辑区。"
-                                  />
-                                ) : null}
-                                {assertionPreview ? (
-                                  <Space direction="vertical" style={{ width: '100%' }}>
-                                    <Typography.Text>
-                                      当前已保存断言 {savedAssertions.length} 条，追加后 {appendPreviewAssertions.length} 条，覆盖后 {suggestedAssertions.length} 条。
-                                    </Typography.Text>
-                                      <AiSuggestionPanel
-                                        items={suggestedAssertions.map((item, index) => ({
-                                          key: `suggestion-${index}-${item.type}-${item.path ?? item.header ?? 'value'}`,
-                                          title: `${assertionTypeLabel(item.type)} ${item.path ?? item.header ?? ''}`.trim(),
-                                          tags: <Typography.Text type="secondary">{`置信度 ${(item.confidence * 100).toFixed(0)}%`}</Typography.Text>,
-                                          content: (
-                                            <Space direction="vertical" style={{ width: '100%' }}>
-                                              <Typography.Text>{`操作符：${assertionOperatorLabel(item.operator)}`}</Typography.Text>
-                                              <Typography.Text>{`期望值：${stringifyValue(item.expected)}`}</Typography.Text>
-                                              <Typography.Text type="secondary">{item.reason}</Typography.Text>
-                                            </Space>
-                                          ),
-                                        }))}
-                                      emptyText="当前没有可应用的新断言建议。"
-                                    />
-                                    {suggestedAssertions.length ? (
-                                      <Card size="small" title="差异预览">
-                                        <Space direction="vertical" style={{ width: '100%' }}>
-                                          <Typography.Text>{`追加模式会保留当前 ${savedAssertions.length} 条断言，并新增 ${appendPreviewAssertions.length - savedAssertions.length} 条。`}</Typography.Text>
-                                          <Typography.Text>{`覆盖模式会把断言集替换为 AI 建议的 ${suggestedAssertions.length} 条。`}</Typography.Text>
-                                        </Space>
-                                      </Card>
-                                    ) : null}
-                                  </Space>
-                                ) : null}
-                              </>
-                            </AiCapabilityActionCard>
-                          ) : (
-                            <Typography.Text type="secondary">先保存用例，再生成 AI 补断言建议。</Typography.Text>
-                          )}
-                          <AssertionEditor rows={assertionRows} onChange={setAssertionRows} disabled={!canEdit} />
-                        </Space>
-                      </Form.Item>
-                      <Form.Item label="AI 预执行准备">
-                        {editingCaseId !== null ? (
-                          <>
-                            <AiPreparationAssetsPanel
-                              canEdit={canEdit}
-                              testDataPreview={testDataPreview}
-                              selectedVariantIds={testDataSelectedIds}
-                              testDataLoading={testDataLoading}
-                              testDataApplyLoading={testDataApplyLoading}
-                              testDataExportLoading={testDataExportLoading}
-                              testDataError={testDataError}
-                              testDataHistoryOpen={testDataHistoryOpen}
-                              testDataHistoryLoading={testDataHistoryLoading}
-                              testDataHistoryError={testDataHistoryError}
-                              testDataHistoryItems={testDataHistory}
-                              onPreviewTestData={() => void handlePreviewTestData()}
-                              onApplyTestDataAppend={() => void handleApplyTestData(false)}
-                              onApplyTestDataOverride={() => void handleApplyTestData(true)}
-                              onExportTestData={() => void handleExportTestData()}
-                              onSelectionChangeVariantIds={setTestDataSelectedIds}
-                              onOpenTestDataHistory={() => void handleOpenTestDataHistory()}
-                              onCloseTestDataHistory={() => setTestDataHistoryOpen(false)}
-                              onLoadTestDataHistory={applyTestDataHistoryItem}
-                              mockPreview={mockPreview}
-                              selectedTemplateIds={mockSelectedIds}
-                              mockLoading={mockLoading}
-                              mockApplyLoading={mockApplyLoading}
-                              mockExportLoading={mockExportLoading}
-                              mockError={mockError}
-                              mockHistoryOpen={mockHistoryOpen}
-                              mockHistoryLoading={mockHistoryLoading}
-                              mockHistoryError={mockHistoryError}
-                              mockHistoryItems={mockHistory}
-                              onPreviewMock={() => void handlePreviewMock()}
-                              onApplyMockAppend={() => void handleApplyMock(false)}
-                              onApplyMockOverride={() => void handleApplyMock(true)}
-                              onExportMock={() => void handleExportMock()}
-                              onSelectionChangeTemplateIds={setMockSelectedIds}
-                              onOpenMockHistory={() => void handleOpenMockHistory()}
-                              onCloseMockHistory={() => setMockHistoryOpen(false)}
-                              onLoadMockHistory={applyMockHistoryItem}
-                              onViewLineage={(item) => void handleViewLineage(item)}
-                            />
-                            <div style={{ marginTop: 12 }}>
-                              <AiExecutionPreparationPanel
-                                canEdit={canEdit}
-                                availableVariants={executionAvailableVariants}
-                                availableTemplates={executionAvailableTemplates}
-                                selectedVariantIds={executionPreparationVariantIds}
-                                selectedTemplateIds={executionPreparationTemplateIds}
-                                selectedEnvironmentId={executionPreparationEnvironmentId}
-                                environments={editingEnvironments as Environment[]}
-                                loading={executionPreparationLoading}
-                                error={executionPreparationError}
-                                lastExecution={executionPreparationResult}
-                                onChangeVariantIds={setExecutionPreparationVariantIds}
-                                onChangeTemplateIds={setExecutionPreparationTemplateIds}
-                                onChangeEnvironmentId={setExecutionPreparationEnvironmentId}
-                                onRun={() => void handleRunPreparedExecution()}
-                              />
-                            </div>
-                          </>
-                        ) : (
-                          <Typography.Text type="secondary">先保存用例，再生成 AI 测试数据和 AI Mock 模板。</Typography.Text>
-                        )}
-                      </Form.Item>
-                      <Form.Item label="前置处理器">
-                        <ProcessorEditor title="前置处理器" rows={preProcessorRows} onChange={setPreProcessorRows} disabled={!canEdit} />
-                      </Form.Item>
-                      <Form.Item label="后置处理器">
-                        <ProcessorEditor title="后置处理器" rows={postProcessorRows} onChange={setPostProcessorRows} disabled={!canEdit} />
-                      </Form.Item>
-                      <Form.Item label="元数据">
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Row gutter={12}>
-                            <Col xs={24} xl={12}>
-                              <Form.Item name="category" label="分类">
-                                <Input placeholder="auth" />
-                              </Form.Item>
-                            </Col>
-                            <Col xs={24} xl={12}>
-                              <Form.Item name="priority" label="优先级">
-                                <Select allowClear options={[{ value: 'P0', label: 'P0' }, { value: 'P1', label: 'P1' }, { value: 'P2', label: 'P2' }, { value: 'P3', label: 'P3' }]} />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <Row gutter={12}>
-                            <Col xs={24} xl={12}>
-                              <Form.Item name="owner" label="负责人">
-                                <Input placeholder="qa-owner" />
-                              </Form.Item>
-                            </Col>
-                            <Col xs={24} xl={12}>
-                              <Form.Item name="timeout_ms" label="超时 (ms)">
-                                <Input placeholder="5000" />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                          <Form.Item name="tags" label="标签">
-                            <Input placeholder="smoke, login, regression" />
-                          </Form.Item>
-                          <Form.Item name="precondition" label="前置条件">
-                            <Input.TextArea rows={2} />
-                          </Form.Item>
-                          <Form.Item name="metadata_extra_json" label="扩展元数据 JSON">
-                            <Input.TextArea rows={5} spellCheck={false} />
-                          </Form.Item>
-                          <Typography.Text type="secondary">
-                            常用元数据已在上方建模；只有超出分类、优先级、负责人、标签、前置条件、超时范围的字段，才放到扩展 JSON。
-                          </Typography.Text>
-                        </Space>
-                      </Form.Item>
-                        <Space>
-                          <Button type="primary" htmlType="submit" disabled={!canEdit}>
-                            {editingCaseId ? '保存' : '创建'}
-                          </Button>
-                          <Button onClick={() => resetCaseForm()}>重置</Button>
-                        </Space>
-                      </Form>
-                    </Card>
-                  </div>
-                ) : null}
-
-                <div>
+              <div className="workspace-case-lab">
+                <div className="workspace-case-lab__list">
                   <Card
                     className="glass-card workspace-section-card"
                     title="清单区 · 用例列表"
@@ -1806,7 +1932,7 @@ export function WorkspacePage() {
                     />
                   </Card>
                 </div>
-              </Space>
+              </div>
             ),
           },
         ]}
@@ -1912,6 +2038,16 @@ export function WorkspacePage() {
           )}
         </Space>
       </Modal>
+      <Modal
+        title={caseEditorTitle}
+        open={isCaseEditorVisible}
+        onCancel={() => resetCaseForm(true)}
+        footer={null}
+        width={1120}
+        destroyOnHidden
+      >
+        {caseEditorForm}
+      </Modal>
       <AiArtifactHistoryDrawer
         title="AI Coverage 历史"
         open={coverageHistoryOpen}
@@ -1938,7 +2074,7 @@ export function WorkspacePage() {
             ),
           };
         })}
-        emptyText="当前 target 还没有 AI coverage 历史。"
+        emptyText="当前目标还没有 AI Coverage 历史。"
       />
       <AiArtifactHistoryDrawer
         title={lineageTitle}
@@ -1946,20 +2082,20 @@ export function WorkspacePage() {
         onClose={() => setLineageOpen(false)}
         loading={lineageLoading}
         error={lineageError}
-        headerContent={lineageData ? <Typography.Text type="secondary">root artifact: {lineageData.root_artifact_id}</Typography.Text> : null}
+        headerContent={lineageData ? <Typography.Text type="secondary">根产物：{lineageData.root_artifact_id}</Typography.Text> : null}
         items={(lineageData?.items ?? []).map((item, index) => ({
           key: `${item.resource_type}-${item.resource_key}-${index}`,
           label: `${item.resource_type} · ${item.link_type}`,
           content: (
             <Space direction="vertical" style={{ width: '100%' }}>
               <Typography.Text>{item.resource_key}</Typography.Text>
-              {item.capability ? <Typography.Text type="secondary">capability: {item.capability}</Typography.Text> : null}
-              {item.status ? <Typography.Text type="secondary">status: {item.status}</Typography.Text> : null}
+              {item.capability ? <Typography.Text type="secondary">能力：{item.capability}</Typography.Text> : null}
+              {item.status ? <Typography.Text type="secondary">状态：{item.status}</Typography.Text> : null}
               {item.created_at ? <Typography.Text type="secondary">{item.created_at}</Typography.Text> : null}
             </Space>
           ),
         }))}
-        emptyText="当前 artifact 还没有 lineage 记录。"
+        emptyText="当前产物还没有关联链路记录。"
       />
     </div>
   );

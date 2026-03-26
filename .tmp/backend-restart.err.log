@@ -5,3 +5,13 @@ INFO:     Started server process [15132]
 INFO:     Waiting for application startup.
 INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
 INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'tests\test_ai_copilot_phase3.py', 'tests\test_ai_copilot_web_routes.py'. Reloading...
+INFO:     Started server process [4888]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'tests\test_ai_copilot_phase3.py'. Reloading...
+INFO:     Started server process [2632]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.

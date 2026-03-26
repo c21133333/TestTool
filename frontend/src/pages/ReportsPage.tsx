@@ -1,4 +1,4 @@
-import { Alert, App, Button, Card, Col, Descriptions, Drawer, Empty, Row, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Drawer, Empty, Space, Table, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 
 import { createApi } from '../api/services';
@@ -9,6 +9,7 @@ import { AiSuggestionPanel } from '../components/ai-copilot/AiSuggestionPanel';
 import { PageHero } from '../components/product/PageHero';
 import { StatePanel } from '../components/product/StatePanel';
 import { formatDateTime } from '../utils/display';
+import { artifactStatusMeta } from '../utils/status';
 
 function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
@@ -45,7 +46,7 @@ export function ReportsPage() {
     try {
       setReports(await api.listReports());
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载报告失败。');
+      setError(err instanceof Error ? err.message : '加载报告归档失败。');
     } finally {
       setLoading(false);
     }
@@ -87,7 +88,7 @@ export function ReportsPage() {
         setPreviewContent(text);
       }
     } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : '加载报告预览失败。');
+      setPreviewError(err instanceof Error ? err.message : '打开报告预览失败。');
     } finally {
       setPreviewLoading(false);
     }
@@ -124,9 +125,9 @@ export function ReportsPage() {
     try {
       const result = await api.previewAiReportSummary({ report_id: previewReport.id });
       setSummaryPreview(result);
-      message.success('AI 总结已生成。');
+      message.success('已生成 AI 摘要。');
     } catch (err) {
-      const nextError = err instanceof Error ? err.message : '生成 AI 总结失败。';
+      const nextError = err instanceof Error ? err.message : '生成 AI 摘要失败。';
       setSummaryError(nextError);
       message.error(nextError);
     } finally {
@@ -167,9 +168,9 @@ export function ReportsPage() {
             }
           : current,
       );
-      message.success('AI 总结已应用到报告元数据。');
+      message.success('已将 AI 摘要写入报告元数据。');
     } catch (err) {
-      const nextError = err instanceof Error ? err.message : '应用 AI 总结失败。';
+      const nextError = err instanceof Error ? err.message : '应用 AI 摘要失败。';
       setSummaryError(nextError);
       message.error(nextError);
     } finally {
@@ -184,43 +185,55 @@ export function ReportsPage() {
       return;
     }
     const content = [
-      summary.executive_summary,
-      summary.risk_summary,
+      `概览：${summary.executive_summary}`,
+      `风险：${summary.risk_summary}`,
       ...summary.recommended_actions.map((item) => `- ${item}`),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(content);
-      message.success('业务摘要已复制。');
+      message.success('已复制 AI 摘要。');
     } catch {
-      message.error('复制业务摘要失败。');
+      message.error('复制 AI 摘要失败。');
     }
   }
 
   const filteredReports = reports.filter((report) => filterType === 'all' || report.report_type === filterType);
   const htmlCount = reports.filter((report) => report.report_type === 'html').length;
   const jsonCount = reports.filter((report) => report.report_type === 'json').length;
+  const summarizedCount = reports.filter((report) => Boolean(report.metadata_json.ai_summary)).length;
   const filterLabel = filterType === 'all' ? '全部' : filterType.toUpperCase();
 
   return (
     <div className="page-stack">
       <PageHero
-        title="执行报告"
+        eyebrow="OBS / REPORT ARCHIVE"
+        title="报告归档"
+        description="集中查看 HTML 与 JSON 报告产物，支持预览、下载，并用 AI 摘要补充管理视角。"
         tags={[
-          <Tag key="total" color="processing">{`${reports.length} 份报告`}</Tag>,
-          <Tag key="filter" color="default">{`当前筛选：${filterLabel}`}</Tag>,
+          <span key="total" className="lab-chip">
+            {reports.length} 份报告
+          </span>,
+          <span key="filter" className="lab-chip">
+            当前筛选：{filterLabel}
+          </span>,
+          <span key="ai" className="lab-chip">
+            {summarizedCount} 份 AI 摘要
+          </span>,
         ]}
         actions={
           <Space wrap>
-            <Segmented
-              value={filterType}
-              onChange={(value) => setFilterType(value as 'all' | 'html' | 'json')}
-              options={[
-                { label: '全部', value: 'all' },
-                { label: 'HTML', value: 'html' },
-                { label: 'JSON', value: 'json' },
-              ]}
-            />
-            <Button onClick={() => void refresh()}>刷新</Button>
+            <Button.Group>
+              <Button type={filterType === 'all' ? 'primary' : 'default'} onClick={() => setFilterType('all')}>
+                全部
+              </Button>
+              <Button type={filterType === 'html' ? 'primary' : 'default'} onClick={() => setFilterType('html')}>
+                HTML
+              </Button>
+              <Button type={filterType === 'json' ? 'primary' : 'default'} onClick={() => setFilterType('json')}>
+                JSON
+              </Button>
+            </Button.Group>
+            <Button onClick={() => void refresh()}>刷新归档</Button>
           </Space>
         }
       />
@@ -229,7 +242,7 @@ export function ReportsPage() {
         <Alert
           type="error"
           showIcon
-          message="报告列表加载失败"
+          message="报告归档加载失败"
           description={error}
           action={
             <Button size="small" onClick={() => void refresh()}>
@@ -240,28 +253,37 @@ export function ReportsPage() {
       ) : null}
 
       {loading ? (
-        <StatePanel title="正在加载报告" description="正在拉取报告清单和元数据。" variant="loading" />
+        <StatePanel title="正在加载归档" description="正在拉取报告产物和相关元数据。" variant="loading" />
       ) : (
         <>
-          <Row gutter={[18, 18]}>
-            <Col xs={24} md={8}>
-              <Card className="metric-card">
-                <Statistic title="报告总数" value={reports.length} />
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card className="metric-card">
-                <Statistic title="HTML 报告" value={htmlCount} />
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card className="metric-card">
-                <Statistic title="JSON 报告" value={jsonCount} />
-              </Card>
-            </Col>
-          </Row>
+          <div className="dashboard-kpi-grid">
+            <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--primary" bordered={false}>
+              <span className="dashboard-kpi-card__code">ARC-01</span>
+              <Typography.Text className="workspace-summary-card__label">报告总数</Typography.Text>
+              <Typography.Title level={2}>{reports.length}</Typography.Title>
+              <Typography.Paragraph>当前已归档的报告数量</Typography.Paragraph>
+            </Card>
+            <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--info" bordered={false}>
+              <span className="dashboard-kpi-card__code">HTM-02</span>
+              <Typography.Text className="workspace-summary-card__label">HTML 报告</Typography.Text>
+              <Typography.Title level={2}>{htmlCount}</Typography.Title>
+              <Typography.Paragraph>可直接预览的交互式报告</Typography.Paragraph>
+            </Card>
+            <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--signal" bordered={false}>
+              <span className="dashboard-kpi-card__code">JSN-03</span>
+              <Typography.Text className="workspace-summary-card__label">JSON 报告</Typography.Text>
+              <Typography.Title level={2}>{jsonCount}</Typography.Title>
+              <Typography.Paragraph>可供系统消费的结构化报告</Typography.Paragraph>
+            </Card>
+            <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--success" bordered={false}>
+              <span className="dashboard-kpi-card__code">AI-04</span>
+              <Typography.Text className="workspace-summary-card__label">AI 摘要</Typography.Text>
+              <Typography.Title level={2}>{summarizedCount}</Typography.Title>
+              <Typography.Paragraph>已补充 AI 摘要的报告数量</Typography.Paragraph>
+            </Card>
+          </div>
 
-          <Card className="glass-card" title="报告列表">
+          <Card className="glass-card workspace-section-card" title="归档清单">
             <Table<Report>
               rowKey="id"
               dataSource={filteredReports}
@@ -279,7 +301,7 @@ export function ReportsPage() {
                   render: (value: string) => <Tag color={value === 'html' ? 'processing' : 'default'}>{value.toUpperCase()}</Tag>,
                 },
                 { title: '创建时间', dataIndex: 'created_at', width: 170, render: (value: string) => formatDateTime(value) },
-                { title: '路径', dataIndex: 'file_path' },
+                { title: '文件路径', dataIndex: 'file_path' },
                 {
                   title: '操作',
                   render: (_, report) => (
@@ -288,7 +310,7 @@ export function ReportsPage() {
                         预览
                       </Button>
                       <Button size="small" onClick={() => void openInNewTab(report)}>
-                        新标签打开
+                        新标签页
                       </Button>
                       <Button size="small" onClick={() => void downloadReport(report)}>
                         下载
@@ -312,19 +334,19 @@ export function ReportsPage() {
           previewReport ? (
             <Space>
               <Button loading={summaryLoading} onClick={() => void handlePreviewSummary()}>
-                AI 总结
+                AI 摘要
               </Button>
               <Button
                 loading={summaryApplyLoading}
                 disabled={!summaryPreview || summaryPreview.status === 'applied'}
                 onClick={() => void handleApplySummary()}
               >
-                应用总结
+                应用摘要
               </Button>
               <Button disabled={!summaryPreview && !previewReport.metadata_json.ai_summary} onClick={() => void handleCopySummary()}>
-                复制业务摘要
+                复制摘要
               </Button>
-              <Button onClick={() => void openInNewTab(previewReport)}>新标签打开</Button>
+              <Button onClick={() => void openInNewTab(previewReport)}>新标签页</Button>
               <Button type="primary" onClick={() => void downloadReport(previewReport)}>
                 下载
               </Button>
@@ -333,11 +355,11 @@ export function ReportsPage() {
         }
       >
         {!previewReport ? (
-          <StatePanel title="尚未选择报告" description="请从表格里选择一份报告，在这里查看预览。" />
+          <StatePanel title="未选择报告" description="从归档清单中选择一份报告后，即可在这里查看内容。" />
         ) : previewLoading ? (
           <StatePanel title="正在加载预览" description="正在获取报告内容。" variant="loading" />
         ) : previewError ? (
-          <StatePanel title="报告预览失败" description={previewError} variant="error" />
+          <StatePanel title="预览加载失败" description={previewError} variant="error" />
         ) : (
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Descriptions bordered column={1} size="small">
@@ -345,14 +367,14 @@ export function ReportsPage() {
               <Descriptions.Item label="执行 ID">{previewReport.execution_id}</Descriptions.Item>
               <Descriptions.Item label="类型">{previewReport.report_type.toUpperCase()}</Descriptions.Item>
               <Descriptions.Item label="创建时间">{formatDateTime(previewReport.created_at)}</Descriptions.Item>
-              <Descriptions.Item label="路径">{previewReport.file_path}</Descriptions.Item>
+              <Descriptions.Item label="文件路径">{previewReport.file_path}</Descriptions.Item>
             </Descriptions>
 
             <AiCapabilityActionCard
-              title="AI 总结"
+              title="AI 摘要"
               error={summaryError}
               hasContent={Boolean(summaryPreview?.result ?? (previewReport.metadata_json.ai_summary as AiReportSummaryResult | undefined))}
-              empty={<Typography.Text type="secondary">生成后会在这里展示 AI 总结，并可应用到报告元数据。</Typography.Text>}
+              empty={<Typography.Text type="secondary">生成 AI 摘要后，可以给这份报告补充管理视角和风险总结。</Typography.Text>}
             >
               {(() => {
                 const reportSummary = previewReport.metadata_json.ai_summary as AiReportSummaryResult | undefined;
@@ -368,8 +390,10 @@ export function ReportsPage() {
                         title: '执行摘要',
                         tags: (
                           <Space wrap>
-                            <Tag color="processing">{summaryPreview ? summaryPreview.status : 'applied'}</Tag>
-                            <Tag>{`top failures: ${summary.top_failures.length}`}</Tag>
+                            <Tag color="processing">
+                              {artifactStatusMeta(summaryPreview ? summaryPreview.status : 'applied').label}
+                            </Tag>
+                            <Tag>{`重点失败项：${summary.top_failures.length}`}</Tag>
                           </Space>
                         ),
                         content: (
@@ -383,7 +407,7 @@ export function ReportsPage() {
                       ...(summary.top_failures.length
                         ? [{
                             key: 'top-failures',
-                            title: 'Top Failures',
+                            title: '重点失败项',
                             content: (
                               <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 20 }}>
                                 {summary.top_failures.map((item) => (
@@ -398,7 +422,7 @@ export function ReportsPage() {
                       ...(summary.recommended_actions.length
                         ? [{
                             key: 'recommended-actions',
-                            title: 'Recommended Actions',
+                            title: '建议动作',
                             content: (
                               <ul style={{ marginTop: 0, marginBottom: 0, paddingLeft: 20 }}>
                                 {summary.recommended_actions.map((item) => (
@@ -411,7 +435,7 @@ export function ReportsPage() {
                           }]
                         : []),
                     ]}
-                    emptyText="当前没有 AI 总结结果"
+                    emptyText="当前还没有 AI 摘要。"
                   />
                 );
               })()}

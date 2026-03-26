@@ -1,4 +1,5 @@
-import { App, Button, Input, Modal, Select, Space, Table, Tag, Typography, Upload } from 'antd';
+import { DownOutlined } from '@ant-design/icons';
+import { App, Button, Dropdown, Input, Modal, Select, Space, Table, Tag, Typography, Upload } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useEffect, useMemo, useState } from 'react';
@@ -7,6 +8,7 @@ import { createApi } from '../../api/services';
 import type {
   AiArtifactHistoryItem,
   AiCaseDraft,
+  AiCaseDraftExportView,
   AiCaseDraftHistorySummary,
   AiCopilotPreview,
   AiCoverageResult,
@@ -47,6 +49,8 @@ type Props = {
   defaultSuiteId?: number | null;
   seedPromptHints?: string;
   triggerLabel?: string;
+  triggerButtonType?: 'default' | 'primary';
+  triggerClassName?: string;
   hideTriggerDescription?: boolean;
 };
 
@@ -647,13 +651,26 @@ export function AiCaseGenerationPanel({
     }
   }
 
-  async function handleExportHistory(targetHistoryId: string) {
+  async function handleExportHistory(targetHistoryId: string, view: AiCaseDraftExportView = 'both') {
     try {
-      const blob = await api.fetchAiCaseDraftHistoryExcel(targetHistoryId);
-      downloadBlob(blob, `ai-case-drafts-${targetHistoryId}.xlsx`);
+      const blob = await api.fetchAiCaseDraftHistoryExcel(targetHistoryId, view);
+      downloadBlob(blob, `ai-case-drafts-${targetHistoryId}-${view}.xlsx`);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '导出 Excel 失败。');
     }
+  }
+
+  function buildExportMenu(targetHistoryId: string) {
+    return {
+      items: [
+        { key: 'both', label: '导出完整包（阅读版 + 机器版）' },
+        { key: 'human', label: '导出阅读版' },
+        { key: 'program', label: '导出机器版' },
+      ],
+      onClick: ({ key }: { key: string }) => {
+        void handleExportHistory(targetHistoryId, key as AiCaseDraftExportView);
+      },
+    };
   }
 
   const historyColumns: ColumnsType<AiCaseDraftHistorySummary> = [
@@ -674,9 +691,10 @@ export function AiCaseGenerationPanel({
           <Button size="small" loading={rerunLoadingId === item.history_id} onClick={() => void handleRerunHistory(item.history_id)}>
             重跑
           </Button>
-          <Button size="small" onClick={() => void handleExportHistory(item.history_id)}>
+          <Dropdown menu={buildExportMenu(item.history_id)} trigger={['click']}><Button size="small">
             导出 Excel
-          </Button>
+            <DownOutlined />
+          </Button></Dropdown>
         </Space>
       ),
     },
@@ -685,7 +703,7 @@ export function AiCaseGenerationPanel({
   return (
     <>
       {hideTriggerDescription ? (
-        <Button onClick={() => setOpen(true)} disabled={!canEdit}>
+        <Button type="primary" className="ai-case-generation-panel__trigger" onClick={() => setOpen(true)} disabled={!canEdit}>
           {triggerLabel}
         </Button>
       ) : (

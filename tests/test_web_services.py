@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 
 from fastapi import HTTPException
+from openpyxl import load_workbook
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -988,6 +989,130 @@ def test_ai_case_history_service_persists_and_exports(tmp_path):
     export_path = history_service.build_excel_export(batch.history_id)
     assert export_path.exists()
     assert export_path.suffix == ".xlsx"
+    workbook = load_workbook(export_path)
+    assert workbook.sheetnames == ["阅读版", "Program"]
+    assert workbook["阅读版"]["A2"].value == batch.drafts[0].draft_id
+    assert workbook["Program"]["A2"].value == batch.drafts[0].draft_id
+
+
+def test_ai_case_history_excel_export_serializes_complex_assertion_values(tmp_path):
+    session = _make_session()
+    project = WorkspaceService(session).create_project(ProjectCreate(name="Complex Export", description=""))
+    session.commit()
+
+    class ComplexAssertionLlmService:
+        def generate_drafts(self, *, section_title, section_content, runtime, prompt_hints=""):
+            return (
+                [
+                    {
+                        "name": "复杂断言导出",
+                        "method": "GET",
+                        "url": "/api/complex",
+                        "description": "验证复杂 expected 导出",
+                        "headers_json": {},
+                        "body_json": None,
+                        "assertions_json": [
+                            {"type": "status_code", "operator": "in", "expected": [200, 301, 302, 405], "enabled": True},
+                            {"type": "json_path", "path": "$.code", "operator": "in", "expected": {"allow": [0, 200]}, "enabled": True},
+                        ],
+                        "metadata_json": {"category": "export"},
+                    }
+                ],
+                [],
+            )
+
+    history_service = AiCaseHistoryService(session)
+    history_service._export_dir = tmp_path
+    draft_service = AiCaseDraftService(
+        session,
+        parser=MarkdownEndpointParser(),
+        llm_service=ComplexAssertionLlmService(),
+        history_service=history_service,
+    )
+
+    batch = draft_service.preview_drafts(
+        AiCaseDraftPreviewRequest(
+            project_id=project.id,
+            suite_name="复杂导出 Suite",
+            markdown_text="# 接口\n\nGET /api/complex",
+            provider="openai_compatible",
+            model="gpt-5.4",
+            base_url="https://ai.example.com",
+            api_key="test-key",
+        )
+    )
+    session.commit()
+
+    export_path = history_service.build_excel_export(batch.history_id, view="program")
+    workbook = load_workbook(export_path)
+    sheet = workbook.active
+
+    assert workbook.sheetnames == ["Program"]
+    assertions_payload = json.loads(str(sheet["L2"].value))
+    metadata_payload = json.loads(str(sheet["M2"].value))
+    assert assertions_payload[0]["expected"] == [200, 301, 302, 405]
+    assert assertions_payload[1]["expected"] == {"allow": [0, 200]}
+    assert metadata_payload["category"] == "export"
+    assert metadata_payload["ai_generated"] is True
+
+
+def test_ai_case_history_excel_export_human_view_uses_chinese_columns(tmp_path):
+    session = _make_session()
+    project = WorkspaceService(session).create_project(ProjectCreate(name="Human Export", description=""))
+    session.commit()
+
+    class HumanAssertionLlmService:
+        def generate_drafts(self, *, section_title, section_content, runtime, prompt_hints=""):
+            return (
+                [
+                    {
+                        "name": "创建用户成功",
+                        "method": "POST",
+                        "url": "/api/users",
+                        "description": "创建用户主链路",
+                        "headers_json": {"Content-Type": "application/json"},
+                        "body_json": {"name": "demo"},
+                        "assertions_json": [
+                            {"type": "status_code", "operator": "==", "expected": 200, "enabled": True},
+                            {"type": "json_path", "path": "$.code", "operator": "in", "expected": [0, 200], "enabled": True},
+                        ],
+                        "metadata_json": {"category": "user", "priority": "P1", "precondition": "用户已登录"},
+                    }
+                ],
+                [],
+            )
+
+    history_service = AiCaseHistoryService(session)
+    history_service._export_dir = tmp_path
+    draft_service = AiCaseDraftService(
+        session,
+        parser=MarkdownEndpointParser(),
+        llm_service=HumanAssertionLlmService(),
+        history_service=history_service,
+    )
+
+    batch = draft_service.preview_drafts(
+        AiCaseDraftPreviewRequest(
+            project_id=project.id,
+            suite_name="阅读版 Suite",
+            markdown_text="# 接口\n\nPOST /api/users",
+            provider="openai_compatible",
+            model="gpt-5.4",
+            base_url="https://ai.example.com",
+            api_key="test-key",
+        )
+    )
+    session.commit()
+
+    export_path = history_service.build_excel_export(batch.history_id, view="human")
+    workbook = load_workbook(export_path)
+    sheet = workbook.active
+
+    assert workbook.sheetnames == ["阅读版"]
+    assert sheet["B1"].value == "用例名称"
+    assert sheet["D2"].value == "用户已登录"
+    assert "HTTP 状态码应满足 等于 200" in str(sheet["I2"].value)
+    assert "业务码应满足 属于 [0, 200]" in str(sheet["J2"].value)
 
 
 def test_ai_case_draft_service_can_rerun_from_history(tmp_path):

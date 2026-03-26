@@ -239,8 +239,8 @@ export function createApi(token: string | null) {
         timeout_seconds?: number;
       },
     ) => client.request<AiCaseDraftBatch>(`/ai-case-drafts/history/${historyId}/rerun`, { method: 'POST', body: JSON.stringify(payload) }),
-    fetchAiCaseDraftHistoryExcel: async (historyId: string) => {
-      const response = await fetch(`/api/v1/ai-case-drafts/history/${historyId}/export.xlsx`, { headers: authHeaders });
+    fetchAiCaseDraftHistoryExcel: async (historyId: string, view: 'human' | 'program' | 'both' = 'both') => {
+      const response = await fetch(`/api/v1/ai-case-drafts/history/${historyId}/export.xlsx?view=${view}`, { headers: authHeaders });
       if (!response.ok) {
         throw new Error(await client.readErrorMessage(response, '下载 AI Excel 失败。'));
       }

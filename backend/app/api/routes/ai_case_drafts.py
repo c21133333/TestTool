@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from fastapi import Query
 from fastapi.responses import FileResponse
@@ -99,10 +101,11 @@ def rerun_ai_case_draft_history(
 @router.get("/history/{history_id}/export.xlsx", include_in_schema=False)
 def export_ai_case_draft_history_excel(
     history_id: str,
+    view: Literal["human", "program", "both"] = Query(default="both"),
     _: User = Depends(require_roles(UserRole.admin, UserRole.tester)),
     session: Session = Depends(session_scope),
 ) -> FileResponse:
-    export_path = AiCaseHistoryService(session).build_excel_export(history_id)
+    export_path = AiCaseHistoryService(session).build_excel_export(history_id, view=view)
     return FileResponse(
         export_path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

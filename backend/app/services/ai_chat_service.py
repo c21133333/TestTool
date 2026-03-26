@@ -10,10 +10,75 @@ from backend.app.schemas.ai_copilot import AiChatMessage
 from backend.app.services.ai_chat_context_service import AiChatContextService
 from backend.app.services.ai_chat_history_service import AiChatHistoryService
 from backend.app.services.ai_client_service import AiClientService
-from backend.app.services.ai_provider_registry import AiProviderRegistry
+from backend.app.services.ai_provider_registry import AiGenerationRuntimeConfig, AiProviderRegistry
 
 
 class AiChatService:
+    _EMPTY_RESPONSE_FALLBACK = "当前模型未返回可显示内容。"
+    _EMPTY_RESPONSE_MAX_RETRIES = 3
+    _PAGE_FOCUS_RULES: tuple[dict[str, object], ...] = (
+        {
+            "prefix": "/workspace",
+            "focus": "workspace",
+            "title": "Workspace",
+            "instructions": (
+                "Prioritize project structure analysis: project scope, suite layout, case coverage, "
+                "missing test assets, and next actions for authoring or maintenance."
+            ),
+            "relevant_sections": ("project", "suites", "cases", "environments"),
+        },
+        {
+            "prefix": "/environments",
+            "focus": "environments",
+            "title": "Environments",
+            "instructions": (
+                "Prioritize environment readiness: base URLs, environment drift, missing variables, "
+                "masked secrets, and configuration risks that may block execution."
+            ),
+            "relevant_sections": ("environments",),
+        },
+        {
+            "prefix": "/executions",
+            "focus": "executions",
+            "title": "Executions",
+            "instructions": (
+                "Prioritize execution diagnosis: latest statuses, failures, retries, stale-running risk, "
+                "failed items, and the shortest path to confirm root cause."
+            ),
+            "relevant_sections": ("recent_executions", "recent_reports", "cases"),
+        },
+        {
+            "prefix": "/reports",
+            "focus": "reports",
+            "title": "Reports",
+            "instructions": (
+                "Prioritize result interpretation: report summaries, execution outcomes, failure patterns, "
+                "coverage gaps, and concise recommendations for follow-up."
+            ),
+            "relevant_sections": ("recent_reports", "recent_executions", "cases"),
+        },
+        {
+            "prefix": "/audit-logs",
+            "focus": "audit_logs",
+            "title": "Audit Logs",
+            "instructions": (
+                "Explain governance and traceability from the visible page context only. "
+                "Do not imply access to hidden audit entries, security tables, or user activity beyond the snapshot."
+            ),
+            "relevant_sections": (),
+        },
+        {
+            "prefix": "/users",
+            "focus": "users",
+            "title": "Users",
+            "instructions": (
+                "Focus on permission model and operational guidance. "
+                "Do not invent user records, account states, or admin-only data."
+            ),
+            "relevant_sections": (),
+        },
+    )
+
     def __init__(
         self,
         *,
@@ -41,7 +106,10 @@ class AiChatService:
         if not messages:
             raise HTTPException(status_code=400, detail="At least one chat message is required.")
 
-        latest_user_message = next((item.content.strip() for item in reversed(messages) if item.role == "user" and item.content.strip()), "")
+        latest_user_message = next(
+            (item.content.strip() for item in reversed(messages) if item.role == "user" and item.content.strip()),
+            "",
+        )
         if not latest_user_message:
             raise HTTPException(status_code=400, detail="The latest user question is required.")
 
@@ -80,39 +148,17 @@ class AiChatService:
         try:
             runtime = self._provider_registry.resolve_runtime()
             request_messages = [*history_messages, {"role": "user", "content": user_prompt}]
-            assistant_chunks: list[str] = []
-            stream, call_trace = self._client_service.stream_text(
+            assistant_message, call_trace = self._generate_assistant_reply(
                 runtime=runtime,
                 system_prompt=system_prompt,
-                messages=request_messages,
+                request_messages=request_messages,
             )
-            streamed_chunk_count = 0
-            for chunk in stream:
-                if not chunk:
-                    continue
-                streamed_chunk_count += 1
-                assistant_chunks.append(chunk)
+            for chunk in self._chunk_text(assistant_message):
                 yield self._event("delta", {"content": chunk})
-            if streamed_chunk_count == 0:
-                fallback_text, fallback_trace = self._client_service.generate_text(
-                    runtime=runtime,
-                    system_prompt=system_prompt,
-                    messages=request_messages,
-                )
-                assistant_chunks = [fallback_text or "当前模型未返回可显示内容。"]
-                for chunk in self._chunk_text(fallback_text or "当前模型未返回可显示内容。"):
-                    yield self._event("delta", {"content": chunk})
-                call_trace = {
-                    **fallback_trace,
-                    "trace_json": {
-                        **(fallback_trace.get("trace_json") or {}),
-                        "stream_fallback": "non_stream_chunked",
-                    },
-                }
             self._history_service.append_turn(
                 session=chat_session,
                 user_message=latest_user_message,
-                assistant_message="".join(assistant_chunks),
+                assistant_message=assistant_message,
             )
             yield self._event("done", {"call_trace": call_trace})
         except HTTPException as exc:
@@ -165,17 +211,190 @@ class AiChatService:
         latest_user_message: str,
         snapshot: dict[str, Any],
     ) -> str:
+        page_strategy = self._resolve_page_strategy(page_path=page_path, page_title=page_title)
         return (
             f"Chat mode: {chat_mode}\n"
             f"Page title: {page_title or 'Unknown page'}\n"
             f"Page path: {page_path or '/'}\n"
+            f"Page focus: {page_strategy['title']}\n"
+            "Page-aware answer policy:\n"
+            f"{self._build_page_focus_policy(page_strategy=page_strategy, chat_mode=chat_mode)}\n"
+            "Page-relevant evidence:\n"
+            f"{self._build_page_relevant_outline(snapshot=snapshot, page_strategy=page_strategy, chat_mode=chat_mode)}\n"
             f"User question: {latest_user_message}\n"
             f"{self._context_heading(chat_mode)}\n"
             f"{self._build_context_outline(snapshot, chat_mode=chat_mode)}"
         )
 
+    def _resolve_page_strategy(self, *, page_path: str, page_title: str) -> dict[str, object]:
+        normalized_path = (page_path or "/").strip().lower()
+        for rule in self._PAGE_FOCUS_RULES:
+            if normalized_path.startswith(str(rule["prefix"])):
+                return rule
+        return {
+            "prefix": normalized_path or "/",
+            "focus": "general",
+            "title": page_title or "General",
+            "instructions": (
+                "Use the current page only as a weak hint. "
+                "Answer the user directly and ground claims in the available snapshot."
+            ),
+            "relevant_sections": (),
+        }
+
+    def _build_page_focus_policy(self, *, page_strategy: dict[str, object], chat_mode: str) -> str:
+        policy_lines = [
+            f"- primary_focus: {page_strategy['focus']}",
+            f"- instructions: {page_strategy['instructions']}",
+        ]
+        if chat_mode == "free":
+            policy_lines.append(
+                "- data_boundary: free chat mode still applies. Use page semantics to shape the answer, but do not claim project, case, execution, or report facts."
+            )
+        else:
+            policy_lines.append(
+                "- data_boundary: project snapshot is available. Prioritize evidence that matches the current page before broadening to the rest of the project."
+            )
+        policy_lines.append(
+            "- fallback_rule: if the page-relevant evidence is insufficient, say so explicitly and then provide the next best reasoning or suggested checks."
+        )
+        return "\n".join(policy_lines)
+
+    def _build_page_relevant_outline(
+        self,
+        *,
+        snapshot: dict[str, Any],
+        page_strategy: dict[str, object],
+        chat_mode: str,
+    ) -> str:
+        if chat_mode == "free":
+            return "- none: free chat mode has no bound project snapshot for the current page."
+
+        section_names = page_strategy.get("relevant_sections", ())
+        if not isinstance(section_names, tuple) or not section_names:
+            return "- none: no page-specific business snapshot is available for this page."
+
+        lines: list[str] = []
+        summary = snapshot.get("summary")
+        if summary:
+            lines.append(f"- summary: {summary}")
+
+        for section_name in section_names:
+            lines.extend(self._format_relevant_section(snapshot=snapshot, section_name=str(section_name)))
+
+        return "\n".join(lines) if lines else "- none: the current snapshot has no matching page-specific evidence."
+
+    def _format_relevant_section(self, *, snapshot: dict[str, Any], section_name: str) -> list[str]:
+        section = snapshot.get(section_name)
+        if section_name == "project" and isinstance(section, dict) and section:
+            return [
+                f"- project: #{section.get('id', '')} {section.get('name', '')} | description={section.get('description', '')}"
+            ]
+        if section_name == "suites" and isinstance(section, list) and section:
+            lines = ["- suites:"]
+            for suite in section[:6]:
+                if not isinstance(suite, dict):
+                    continue
+                lines.append(
+                    f"  - #{suite.get('id', '')} {suite.get('name', '')} | case_count={suite.get('case_count', 0)}"
+                )
+            return lines
+        if section_name == "cases" and isinstance(section, list) and section:
+            lines = ["- cases:"]
+            for api_case in section[:6]:
+                if not isinstance(api_case, dict):
+                    continue
+                lines.append(
+                    f"  - case #{api_case.get('id', '')} [{api_case.get('suite_name', '')}] {api_case.get('method', '')} {api_case.get('url', '')} | name={api_case.get('name', '')}"
+                )
+            return lines
+        if section_name == "environments" and isinstance(section, list) and section:
+            lines = ["- environments:"]
+            for environment in section[:6]:
+                if not isinstance(environment, dict):
+                    continue
+                lines.append(
+                    f"  - env #{environment.get('id', '')} {environment.get('name', '')} | base_url={environment.get('base_url', '')}"
+                )
+            return lines
+        if section_name == "recent_executions" and isinstance(section, list) and section:
+            lines = ["- recent_executions:"]
+            for execution in section[:4]:
+                if not isinstance(execution, dict):
+                    continue
+                lines.append(
+                    f"  - execution #{execution.get('id', '')} status={execution.get('status', '')} scope={execution.get('scope', '')} target={execution.get('target_name', '')} error={execution.get('error_message', '')}"
+                )
+            return lines
+        if section_name == "recent_reports" and isinstance(section, list) and section:
+            lines = ["- recent_reports:"]
+            for report in section[:4]:
+                if not isinstance(report, dict):
+                    continue
+                lines.append(
+                    f"  - report #{report.get('id', '')} type={report.get('report_type', '')} execution=#{report.get('execution_id', '')} target={report.get('execution_target', '')}"
+                )
+            return lines
+        return []
+
     def _event(self, event: str, payload: dict[str, Any]) -> str:
         return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+    def _generate_assistant_reply(
+        self,
+        *,
+        runtime: AiGenerationRuntimeConfig,
+        system_prompt: str,
+        request_messages: list[dict[str, str]],
+    ) -> tuple[str, dict[str, Any]]:
+        last_trace: dict[str, Any] = {
+            "call_mode": "llm",
+            "failure_category": "",
+            "trace_json": {},
+        }
+        total_attempts = self._EMPTY_RESPONSE_MAX_RETRIES + 1
+
+        for attempt_index in range(total_attempts):
+            stream, stream_trace = self._client_service.stream_text(
+                runtime=runtime,
+                system_prompt=system_prompt,
+                messages=request_messages,
+            )
+            streamed_chunks = [chunk for chunk in stream if chunk]
+            if streamed_chunks:
+                return "".join(streamed_chunks), {
+                    **stream_trace,
+                    "trace_json": {
+                        **(stream_trace.get("trace_json") or {}),
+                        "attempt_count": attempt_index + 1,
+                    },
+                }
+
+            fallback_text, fallback_trace = self._client_service.generate_text(
+                runtime=runtime,
+                system_prompt=system_prompt,
+                messages=request_messages,
+            )
+            normalized_text = fallback_text.strip()
+            last_trace = {
+                **fallback_trace,
+                "trace_json": {
+                    **(fallback_trace.get("trace_json") or {}),
+                    "stream_fallback": "non_stream_chunked",
+                    "attempt_count": attempt_index + 1,
+                },
+            }
+            if normalized_text:
+                return normalized_text, last_trace
+
+        return self._EMPTY_RESPONSE_FALLBACK, {
+            **last_trace,
+            "trace_json": {
+                **(last_trace.get("trace_json") or {}),
+                "empty_response_fallback": True,
+                "retry_count": self._EMPTY_RESPONSE_MAX_RETRIES,
+            },
+        }
 
     def _chunk_text(self, content: str) -> list[str]:
         text = content.strip()
@@ -197,6 +416,10 @@ class AiChatService:
         warnings = snapshot.get("warnings")
         if isinstance(warnings, list) and warnings:
             lines.append(f"- warnings: {' | '.join(str(item) for item in warnings[:4])}")
+
+        if chat_mode == "free":
+            lines.append("- project_data_bound: false")
+            return "\n".join(lines)
 
         suites = snapshot.get("suites")
         if isinstance(suites, list) and suites:
@@ -247,9 +470,6 @@ class AiChatService:
                 lines.append(
                     f"  - report #{report.get('id', '')} type={report.get('report_type', '')} execution=#{report.get('execution_id', '')} target={report.get('execution_target', '')}"
                 )
-
-        if chat_mode == "free":
-            lines.append("- project_data_bound: false")
 
         return "\n".join(lines)
 

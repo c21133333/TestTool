@@ -1,5 +1,4 @@
 import {
-  CommentOutlined,
   DeleteOutlined,
   InfoCircleOutlined,
   LoadingOutlined,
@@ -11,7 +10,6 @@ import {
   Button,
   Drawer,
   Empty,
-  FloatButton,
   Input,
   Popconfirm,
   Popover,
@@ -22,7 +20,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { createApi } from '../../api/services';
@@ -32,6 +30,10 @@ import { createClientId } from '../../utils/id';
 
 const PROJECT_STORAGE_KEY = 'eazytest-ai-chat-project-id';
 const CHAT_MODE_STORAGE_KEY = 'eazytest-ai-chat-mode';
+const FLOAT_POSITION_STORAGE_KEY = 'eazytest-ai-chat-float-position';
+const FLOAT_BUTTON_SIZE = 64;
+const FLOAT_BUTTON_MARGIN = 16;
+const FLOAT_BUTTON_DEFAULT_INSET = 24;
 
 type ChatMode = 'project' | 'free';
 
@@ -48,6 +50,19 @@ type ChatMeta = {
   project_name?: string | null;
   warnings?: string[];
   redaction_applied?: boolean;
+};
+
+type FloatPosition = {
+  left: number;
+  top: number;
+};
+
+type FloatDragState = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  origin: FloatPosition;
+  moved: boolean;
 };
 
 type SseEvent = {
@@ -116,6 +131,65 @@ function uniqueLines(lines: string[]) {
   return Array.from(new Set(lines.map((item) => item.trim()).filter(Boolean)));
 }
 
+function clampFloatPosition(position: FloatPosition): FloatPosition {
+  if (typeof window === 'undefined') {
+    return position;
+  }
+  const maxLeft = Math.max(FLOAT_BUTTON_MARGIN, window.innerWidth - FLOAT_BUTTON_SIZE - FLOAT_BUTTON_MARGIN);
+  const maxTop = Math.max(FLOAT_BUTTON_MARGIN, window.innerHeight - FLOAT_BUTTON_SIZE - FLOAT_BUTTON_MARGIN);
+  return {
+    left: Math.min(Math.max(position.left, FLOAT_BUTTON_MARGIN), maxLeft),
+    top: Math.min(Math.max(position.top, FLOAT_BUTTON_MARGIN), maxTop),
+  };
+}
+
+function defaultFloatPosition(): FloatPosition {
+  if (typeof window === 'undefined') {
+    return { left: FLOAT_BUTTON_DEFAULT_INSET, top: FLOAT_BUTTON_DEFAULT_INSET };
+  }
+  return clampFloatPosition({
+    left: window.innerWidth - FLOAT_BUTTON_SIZE - FLOAT_BUTTON_DEFAULT_INSET,
+    top: window.innerHeight - FLOAT_BUTTON_SIZE - FLOAT_BUTTON_DEFAULT_INSET,
+  });
+}
+
+function readStoredFloatPosition(): FloatPosition | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const rawValue = window.localStorage.getItem(FLOAT_POSITION_STORAGE_KEY);
+    if (!rawValue) {
+      return null;
+    }
+    const parsed = JSON.parse(rawValue) as Partial<FloatPosition>;
+    if (typeof parsed.left !== 'number' || typeof parsed.top !== 'number') {
+      return null;
+    }
+    return clampFloatPosition({ left: parsed.left, top: parsed.top });
+  } catch {
+    return null;
+  }
+}
+
+function AiLauncherGlyph({ streaming }: { streaming: boolean }) {
+  return (
+    <span className={`ai-chat-launcher__glyph${streaming ? ' ai-chat-launcher__glyph--streaming' : ''}`} aria-hidden="true">
+      <span className="ai-chat-launcher__sheen" />
+      <span className="ai-chat-launcher__bubble">
+        <span className="ai-chat-launcher__bubble-tail" />
+        <span className="ai-chat-launcher__wordmark">
+          <span className="ai-chat-launcher__wordmark-main">AI</span>
+          <span className="ai-chat-launcher__wordmark-sub">CHAT</span>
+        </span>
+      </span>
+      <span className="ai-chat-launcher__status">
+        {streaming ? <LoadingOutlined /> : <span className="ai-chat-launcher__status-dot" />}
+      </span>
+    </span>
+  );
+}
+
 export function AiChatLauncher() {
   const { token } = useAuth();
   const { message } = App.useApp();
@@ -125,7 +199,11 @@ export function AiChatLauncher() {
   const abortRef = useRef<AbortController | null>(null);
   const projectsRequestRef = useRef<Promise<void> | null>(null);
   const sessionsRequestRef = useRef<Promise<void> | null>(null);
+  const floatDragRef = useRef<FloatDragState | null>(null);
+  const suppressFloatClickRef = useRef(false);
   const [open, setOpen] = useState(false);
+  const [floatPosition, setFloatPosition] = useState<FloatPosition>(() => readStoredFloatPosition() ?? defaultFloatPosition());
+  const [floatDragging, setFloatDragging] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>(() => {
     const saved = window.localStorage.getItem(CHAT_MODE_STORAGE_KEY);
     return saved === 'free' ? 'free' : 'project';
@@ -286,6 +364,10 @@ export function AiChatLauncher() {
   }, [chatMode]);
 
   useEffect(() => {
+    window.localStorage.setItem(FLOAT_POSITION_STORAGE_KEY, JSON.stringify(floatPosition));
+  }, [floatPosition]);
+
+  useEffect(() => {
     if (selectedProjectId === null) {
       window.localStorage.removeItem(PROJECT_STORAGE_KEY);
       return;
@@ -296,6 +378,15 @@ export function AiChatLauncher() {
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, streaming, chatMeta]);
+
+  useEffect(() => {
+    function handleWindowResize() {
+      setFloatPosition((current) => clampFloatPosition(current));
+    }
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, []);
 
   useEffect(() => () => {
     abortRef.current?.abort();
@@ -450,14 +541,91 @@ export function AiChatLauncher() {
     startNewConversation();
   }
 
+  function handleFloatPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+    floatDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: floatPosition,
+      moved: false,
+    };
+    setFloatDragging(false);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleFloatPointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
+    const dragState = floatDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.startX;
+    const deltaY = event.clientY - dragState.startY;
+    if (!dragState.moved && Math.hypot(deltaX, deltaY) < 6) {
+      return;
+    }
+
+    dragState.moved = true;
+    setFloatDragging(true);
+    setFloatPosition(
+      clampFloatPosition({
+        left: dragState.origin.left + deltaX,
+        top: dragState.origin.top + deltaY,
+      }),
+    );
+  }
+
+  function releaseFloatPointer(event: ReactPointerEvent<HTMLButtonElement>, suppressClick: boolean) {
+    if (floatDragRef.current?.pointerId !== event.pointerId) {
+      return;
+    }
+    floatDragRef.current = null;
+    setFloatDragging(false);
+    suppressFloatClickRef.current = suppressClick;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (suppressClick) {
+      window.setTimeout(() => {
+        suppressFloatClickRef.current = false;
+      }, 120);
+    }
+  }
+
+  function handleFloatPointerUp(event: ReactPointerEvent<HTMLButtonElement>) {
+    releaseFloatPointer(event, Boolean(floatDragRef.current?.moved));
+  }
+
+  function handleFloatPointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
+    releaseFloatPointer(event, false);
+  }
+
+  function handleFloatClick() {
+    if (suppressFloatClickRef.current) {
+      return;
+    }
+    setOpen(true);
+  }
+
   return (
     <>
-      <FloatButton
-        className="ai-chat-float"
-        icon={streaming ? <LoadingOutlined /> : <CommentOutlined />}
-        tooltip={<span>AI 对话</span>}
-        onClick={() => setOpen(true)}
-      />
+      <button
+        type="button"
+        className={`ai-chat-launcher${floatDragging ? ' ai-chat-launcher--dragging' : ''}`}
+        style={{ left: floatPosition.left, top: floatPosition.top }}
+        title="拖动或点击打开 AI 对话"
+        aria-label="打开 AI 对话"
+        onPointerDown={handleFloatPointerDown}
+        onPointerMove={handleFloatPointerMove}
+        onPointerUp={handleFloatPointerUp}
+        onPointerCancel={handleFloatPointerCancel}
+        onClick={handleFloatClick}
+      >
+        <AiLauncherGlyph streaming={streaming} />
+      </button>
       <Drawer
         title={(
           <div className="ai-chat-drawer__title">
@@ -468,14 +636,14 @@ export function AiChatLauncher() {
           </div>
         )}
         placement="right"
-        width={520}
+        width="min(560px, calc(100vw - 16px))"
         open={open}
         onClose={() => setOpen(false)}
         className="ai-chat-drawer"
         extra={(
-          <Space>
+          <Space size={8} className="ai-chat-drawer__actions">
             {streaming ? (
-              <Button icon={<StopOutlined />} onClick={stopStreaming}>
+              <Button size="small" icon={<StopOutlined />} onClick={stopStreaming}>
                 停止
               </Button>
             ) : null}
@@ -538,8 +706,8 @@ export function AiChatLauncher() {
         </div>
         <div className="ai-chat-drawer__toolbar">
           {chatMode === 'project' ? (
-            <div className="ai-chat-drawer__project">
-              <Typography.Text strong>当前项目</Typography.Text>
+            <div className="ai-chat-drawer__project-picker">
+              <Typography.Text strong className="ai-chat-drawer__context-label">当前项目</Typography.Text>
               <Select
                 value={selectedProjectId ?? undefined}
                 placeholder={projectsLoading ? '加载项目中...' : '选择项目上下文'}
@@ -555,14 +723,16 @@ export function AiChatLauncher() {
               />
             </div>
           ) : (
-            <div className="ai-chat-drawer__project ai-chat-drawer__project--free">
-              <Typography.Text strong>当前模式</Typography.Text>
+            <div className="ai-chat-drawer__project-picker ai-chat-drawer__project-picker--free">
+              <Typography.Text strong className="ai-chat-drawer__context-label">当前模式</Typography.Text>
               <Typography.Text type="secondary">自由对话不读取项目、套件、用例、执行或报告快照。</Typography.Text>
             </div>
           )}
-          <div className="ai-chat-drawer__page">
-            <Tag color="blue">{currentPageTitle}</Tag>
-            <Typography.Text type="secondary">{location.pathname}</Typography.Text>
+          <div className="ai-chat-drawer__context-rail">
+            <Tag bordered={false} className="ai-chat-drawer__context-chip">{currentPageTitle}</Tag>
+            <Typography.Text className="ai-chat-drawer__context-path" title={location.pathname}>
+              {location.pathname}
+            </Typography.Text>
             <Popover
               placement="bottomRight"
               trigger="click"

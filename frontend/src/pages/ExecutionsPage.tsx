@@ -23,7 +23,16 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { createApi } from '../api/services';
-import type { AiArtifactHistoryItem, AiCopilotPreview, AiDiagnosisResult, ApiCase, Environment, Execution, ExecutionItem, Suite } from '../api/types';
+import type {
+  AiArtifactHistoryItem,
+  AiCopilotPreview,
+  AiDiagnosisResult,
+  ApiCase,
+  Environment,
+  Execution,
+  ExecutionItem,
+  Suite,
+} from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { AiArtifactHistoryDrawer } from '../components/ai-copilot/AiArtifactHistoryDrawer';
 import { AiCapabilityActionCard } from '../components/ai-copilot/AiCapabilityActionCard';
@@ -31,35 +40,12 @@ import { AiSuggestionPanel } from '../components/ai-copilot/AiSuggestionPanel';
 import { canManageExecutions } from '../auth/permissions';
 import { PageHero } from '../components/product/PageHero';
 import { StatePanel } from '../components/product/StatePanel';
+import { StatusBadge } from '../components/product/StatusBadge';
 import { formatDateTime, formatDurationMs, formatPercent } from '../utils/display';
-
-function statusColor(status: Execution['status']) {
-  if (status === 'success') return 'green';
-  if (status === 'failed') return 'red';
-  return 'processing';
-}
-
-function statusLabel(status: Execution['status']) {
-  if (status === 'pending') return '排队中';
-  if (status === 'running') return '执行中';
-  if (status === 'success') return '成功';
-  return '失败';
-}
+import { artifactStatusMeta, executionItemStatusMeta, executionStatusMeta } from '../utils/status';
 
 function scopeLabel(scope: Execution['scope']) {
   return scope === 'suite' ? '套件' : '用例';
-}
-
-function itemStatusColor(status: string) {
-  if (status === 'PASS') return 'green';
-  if (status === 'SKIP') return 'gold';
-  return 'red';
-}
-
-function itemStatusLabel(status: string) {
-  if (status === 'PASS') return '通过';
-  if (status === 'SKIP') return '跳过';
-  return '失败';
 }
 
 function summaryNumber(summary: Record<string, unknown>, key: string): number | null {
@@ -188,7 +174,7 @@ export function ExecutionsPage() {
       setDiagnosisPreview(preview);
       const history = await api.listAiDiagnosisHistory(selectedExecution.id);
       setDiagnosisHistory(history.items);
-      message.success('AI 诊断已生成。');
+      message.success('已生成 AI 诊断。');
     } catch (err) {
       const nextError = err instanceof Error ? err.message : '生成 AI 诊断失败。';
       setDiagnosisError(nextError);
@@ -223,14 +209,14 @@ export function ExecutionsPage() {
     }
     const payload = diagnosisPreview.result;
     const content = [
-      `Category: ${payload.diagnosis_category}`,
-      `Confidence: ${payload.confidence}`,
-      `Hypothesis: ${payload.root_cause_hypothesis}`,
-      `Next Actions: ${payload.next_actions.join(' | ')}`,
+      `分类：${payload.diagnosis_category}`,
+      `置信度：${payload.confidence}`,
+      `根因假设：${payload.root_cause_hypothesis}`,
+      `下一步动作：${payload.next_actions.join(' | ')}`,
     ].join('\n');
     try {
       await navigator.clipboard.writeText(content);
-      message.success('AI 诊断已复制。');
+      message.success('已复制 AI 诊断。');
     } catch {
       message.error('复制 AI 诊断失败。');
     }
@@ -296,7 +282,7 @@ export function ExecutionsPage() {
   async function handleRunExecution(values: { scope: 'case' | 'suite'; target_id: number; environment_id?: number }) {
     try {
       const created = await api.runExecution(values);
-      message.success(`执行 #${created.id} 已创建。`);
+      message.success(`已创建执行 #${created.id}。`);
       setPage(1);
       await refreshExecutions();
       await openExecution(created.id);
@@ -353,14 +339,19 @@ export function ExecutionsPage() {
   return (
     <div className="page-stack">
       <PageHero
-        title="执行控制台"
+        eyebrow="OPS / EXECUTION CENTER"
+        title="执行中心"
+        description="发起执行、观察活跃任务、分析失败项，并结合 AI 诊断快速定位问题。"
         tags={[
-          <Tag key="refresh" color={activeExecutionCount > 0 ? 'warning' : 'success'}>
-            {activeExecutionCount > 0 ? '自动刷新已开启' : '当前没有进行中的执行'}
-          </Tag>,
-          <Tag key="access" color={canOperate ? 'processing' : 'default'}>
-            {canOperate ? '当前角色可执行操作' : '当前角色为只读访问'}
-          </Tag>,
+          <span key="refresh" className="lab-chip">
+            {activeExecutionCount > 0 ? '自动刷新中' : '当前无活跃执行'}
+          </span>,
+          <span key="access" className="lab-chip">
+            {canOperate ? '可发起执行' : '仅可查看'}
+          </span>,
+          <span key="failed" className="lab-chip">
+            {failedExecutionCount} 条失败执行
+          </span>,
         ]}
         actions={
           <Space wrap>
@@ -371,11 +362,7 @@ export function ExecutionsPage() {
       />
 
       {!canOperate ? (
-        <Alert
-          type="info"
-          showIcon
-          message="当前角色可以查看执行，但不能发起、取消或重试执行。"
-        />
+        <Alert type="info" showIcon message="当前角色可以查看执行结果，但不能发起、取消或重试执行。" />
       ) : null}
 
       {staticError ? (
@@ -398,37 +385,46 @@ export function ExecutionsPage() {
         />
       ) : null}
 
-      <Row gutter={[18, 18]}>
-        <Col xs={24} md={8}>
-          <Card className="metric-card">
-            <Statistic title="可见执行数" value={executions.length} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card className="metric-card">
-            <Statistic title="进行中执行" value={activeExecutionCount} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card className="metric-card">
-            <Statistic title="失败执行" value={failedExecutionCount} />
-          </Card>
-        </Col>
-      </Row>
+      <div className="dashboard-kpi-grid">
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--primary" bordered={false}>
+          <span className="dashboard-kpi-card__code">RUN-01</span>
+          <Typography.Text className="workspace-summary-card__label">可见执行</Typography.Text>
+          <Typography.Title level={2}>{executions.length}</Typography.Title>
+          <Typography.Paragraph>当前页已加载的执行记录</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--info" bordered={false}>
+          <span className="dashboard-kpi-card__code">ACT-02</span>
+          <Typography.Text className="workspace-summary-card__label">活跃执行</Typography.Text>
+          <Typography.Title level={2}>{activeExecutionCount}</Typography.Title>
+          <Typography.Paragraph>排队中与执行中的任务总量</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--danger" bordered={false}>
+          <span className="dashboard-kpi-card__code">ERR-03</span>
+          <Typography.Text className="workspace-summary-card__label">失败告警</Typography.Text>
+          <Typography.Title level={2}>{failedExecutionCount}</Typography.Title>
+          <Typography.Paragraph>当前需要跟进处理的失败执行</Typography.Paragraph>
+        </Card>
+        <Card className="metric-card dashboard-kpi-card dashboard-kpi-card--signal" bordered={false}>
+          <span className="dashboard-kpi-card__code">TGT-04</span>
+          <Typography.Text className="workspace-summary-card__label">可执行目标</Typography.Text>
+          <Typography.Title level={2}>{cases.length + suites.length}</Typography.Title>
+          <Typography.Paragraph>当前可发起执行的用例与套件数量</Typography.Paragraph>
+        </Card>
+      </div>
 
       <Row gutter={[18, 18]}>
         <Col xs={24} xl={9}>
           <Space direction="vertical" style={{ width: '100%' }} size="large">
-            <Card className="glass-card" title="发起执行">
+            <Card className="glass-card workspace-section-card" title="发起执行">
               <Form layout="vertical" onFinish={(values) => void handleRunExecution(values)} initialValues={{ scope: 'suite' }} disabled={!canOperate || loadingStatic}>
-                <Form.Item name="scope" label="范围" rules={[{ required: true, message: '请选择执行范围。' }]}>
+                <Form.Item name="scope" label="执行范围" rules={[{ required: true, message: '请选择执行范围。' }]}>
                   <Select options={[{ value: 'suite', label: '套件' }, { value: 'case', label: '用例' }]} />
                 </Form.Item>
                 <Form.Item shouldUpdate noStyle>
                   {({ getFieldValue }) => {
                     const scope = getFieldValue('scope');
                     return (
-                      <Form.Item name="target_id" label="目标" rules={[{ required: true, message: '请选择执行目标。' }]}>
+                      <Form.Item name="target_id" label="执行目标" rules={[{ required: true, message: '请选择执行目标。' }]}>
                         <Select
                           options={
                             scope === 'case'
@@ -440,21 +436,21 @@ export function ExecutionsPage() {
                     );
                   }}
                 </Form.Item>
-                <Form.Item name="environment_id" label="环境">
+                <Form.Item name="environment_id" label="执行环境">
                   <Select allowClear options={environments.map((env) => ({ value: env.id, label: env.name }))} />
                 </Form.Item>
                 <Button type="primary" htmlType="submit" disabled={!canOperate || loadingStatic}>
-                  开始执行
+                  立即执行
                 </Button>
               </Form>
             </Card>
 
-            <Card className="glass-card" title="筛选">
+            <Card className="glass-card workspace-section-card" title="筛选条件">
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Input allowClear placeholder="按目标名称搜索" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} />
                 <Select
                   allowClear
-                  placeholder="状态"
+                  placeholder="按状态筛选"
                   value={statusFilter}
                   onChange={(value) => {
                     setPage(1);
@@ -469,7 +465,7 @@ export function ExecutionsPage() {
                 />
                 <Select
                   allowClear
-                  placeholder="范围"
+                  placeholder="按范围筛选"
                   value={scopeFilter}
                   onChange={(value) => {
                     setPage(1);
@@ -482,7 +478,7 @@ export function ExecutionsPage() {
                 />
                 <Space>
                   <Switch checked={failedOnly} onChange={(checked) => { setPage(1); setFailedOnly(checked); }} />
-                  <Typography.Text>只看存在失败项的执行</Typography.Text>
+                  <Typography.Text>仅查看包含失败项的执行</Typography.Text>
                 </Space>
                 <Space>
                   <Button type="primary" onClick={() => { setPage(1); setSearchText(searchDraft.trim()); }}>
@@ -496,18 +492,18 @@ export function ExecutionsPage() {
         </Col>
 
         <Col xs={24} xl={15}>
-          <Card className="glass-card" title="执行列表" extra={<Button onClick={() => void refreshExecutions()}>刷新</Button>}>
+          <Card className="glass-card workspace-section-card" title="执行列表" extra={<Button onClick={() => void refreshExecutions()}>刷新</Button>}>
             <Table<Execution>
               rowKey="id"
               loading={loadingList}
               dataSource={executions}
-              locale={{ emptyText: <Empty description="暂无执行记录" /> }}
+              locale={{ emptyText: <Empty description="当前没有执行记录" /> }}
               pagination={{
                 current: page,
                 pageSize,
                 total,
                 showSizeChanger: false,
-                showTotal: (value) => `共 ${value} 条`,
+                showTotal: (value) => `共 ${value} 条执行`,
               }}
               onChange={(pagination) => {
                 setPage(pagination.current ?? 1);
@@ -522,7 +518,7 @@ export function ExecutionsPage() {
                 { title: 'ID', dataIndex: 'id', width: 80 },
                 { title: '范围', dataIndex: 'scope', width: 90, render: (value: Execution['scope']) => scopeLabel(value) },
                 { title: '目标', dataIndex: 'target_name' },
-                { title: '状态', width: 120, render: (_, row) => <Tag color={statusColor(row.status)}>{statusLabel(row.status)}</Tag> },
+                { title: '状态', width: 120, render: (_, row) => <StatusBadge {...executionStatusMeta(row.status)} /> },
                 { title: '通过率', width: 120, render: (_, row) => formatPercent(executionPassRate(row)) },
                 { title: '失败数', width: 100, render: (_, row) => executionFailureCount(row) },
                 {
@@ -557,20 +553,20 @@ export function ExecutionsPage() {
         onClose={() => setDrawerOpen(false)}
       >
         {loadingDetail ? (
-          <StatePanel title="正在加载执行详情" description="正在拉取执行项和摘要数据。" variant="loading" />
+          <StatePanel title="正在加载执行详情" description="正在获取执行项和摘要数据。" variant="loading" />
         ) : detailError ? (
           <StatePanel title="执行详情加载失败" description={detailError} variant="error" />
         ) : !selectedExecution ? (
-          <StatePanel title="尚未选择执行" description="请从列表中选择一条执行，在这里查看详情。" />
+          <StatePanel title="未选择执行" description="从执行列表中选择一条记录后，即可在这里查看详情。" />
         ) : (
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Descriptions bordered column={2} size="small">
-              <Descriptions.Item label="目标">{selectedExecution.target_name}</Descriptions.Item>
+              <Descriptions.Item label="执行目标">{selectedExecution.target_name}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusColor(selectedExecution.status)}>{statusLabel(selectedExecution.status)}</Tag>
+                <StatusBadge {...executionStatusMeta(selectedExecution.status)} />
               </Descriptions.Item>
-              <Descriptions.Item label="范围">{scopeLabel(selectedExecution.scope)}</Descriptions.Item>
-              <Descriptions.Item label="环境">{selectedExecution.environment_id ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="执行范围">{scopeLabel(selectedExecution.scope)}</Descriptions.Item>
+              <Descriptions.Item label="环境 ID">{selectedExecution.environment_id ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="开始时间">{formatDateTime(selectedExecution.started_at)}</Descriptions.Item>
               <Descriptions.Item label="结束时间">{formatDateTime(selectedExecution.finished_at)}</Descriptions.Item>
               <Descriptions.Item label="错误信息" span={2}>{selectedExecution.error_message || '-'}</Descriptions.Item>
@@ -612,20 +608,20 @@ export function ExecutionsPage() {
               actions={(
                 <Space>
                   <Button size="small" loading={diagnosisHistoryLoading} onClick={() => void handleLoadDiagnosisHistory()}>
-                    查看诊断历史
+                    历史
                   </Button>
                   <Button size="small" disabled={!diagnosisPreview} onClick={() => void handleCopyDiagnosis()}>
-                    复制建议
+                    复制
                   </Button>
                   <Button type="primary" size="small" loading={diagnosisLoading} onClick={() => void handlePreviewDiagnosis()}>
-                    AI 诊断
+                    生成诊断
                   </Button>
                 </Space>
               )}
               error={diagnosisError}
               warnings={diagnosisPreview?.warnings ?? []}
               hasContent={Boolean(diagnosisPreview)}
-              empty={<Typography.Text type="secondary">生成后会在这里展示 AI 诊断结论。</Typography.Text>}
+              empty={<Typography.Text type="secondary">生成诊断后，这里会展示根因假设与下一步处理建议。</Typography.Text>}
             >
               {diagnosisPreview ? (
                 <AiSuggestionPanel
@@ -635,15 +631,15 @@ export function ExecutionsPage() {
                       title: diagnosisPreview.result.diagnosis_category,
                       tags: (
                         <Space wrap>
-                          <Tag color="processing">{diagnosisPreview.status}</Tag>
-                          <Tag>{`confidence: ${diagnosisPreview.result.confidence}`}</Tag>
+                          <StatusBadge {...artifactStatusMeta(diagnosisPreview.status)} />
+                          <Tag>{`置信度：${diagnosisPreview.result.confidence}`}</Tag>
                         </Space>
                       ),
                       content: (
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <Typography.Text>{diagnosisPreview.result.root_cause_hypothesis}</Typography.Text>
                           <div>
-                            <Typography.Text strong>建议动作</Typography.Text>
+                            <Typography.Text strong>下一步动作</Typography.Text>
                             <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
                               {diagnosisPreview.result.next_actions.map((action) => (
                                 <li key={action}>
@@ -656,21 +652,21 @@ export function ExecutionsPage() {
                       ),
                     },
                   ]}
-                  emptyText="当前没有 AI 诊断结果"
+                  emptyText="当前还没有 AI 诊断结果。"
                 />
               ) : null}
             </AiCapabilityActionCard>
 
             <Card
               size="small"
-              title="执行项"
+              title="执行项详情"
               extra={
                 <Segmented
                   value={detailView}
                   onChange={(value) => setDetailView(value as 'all' | 'failed')}
                   options={[
                     { label: '全部', value: 'all' },
-                    { label: `仅失败项（${failedItemCount}）`, value: 'failed' },
+                    { label: `仅失败项 (${failedItemCount})`, value: 'failed' },
                   ]}
                 />
               }
@@ -684,7 +680,7 @@ export function ExecutionsPage() {
                       key={item.id}
                       size="small"
                       title={item.case_name}
-                      extra={<Tag color={itemStatusColor(item.status)}>{itemStatusLabel(item.status)}</Tag>}
+                      extra={<StatusBadge {...executionItemStatusMeta(item.status)} />}
                     >
                       <Space direction="vertical" style={{ width: '100%' }}>
                         <Space wrap>
@@ -708,6 +704,7 @@ export function ExecutionsPage() {
           </Space>
         )}
       </Drawer>
+
       <AiArtifactHistoryDrawer
         title={selectedExecution ? `AI 诊断历史 #${selectedExecution.id}` : 'AI 诊断历史'}
         open={diagnosisHistoryOpen}
@@ -719,13 +716,13 @@ export function ExecutionsPage() {
           const outputActions = Array.isArray(output.next_actions) ? output.next_actions.map((action) => String(action)) : [];
           return {
             key: item.artifact_id,
-            label: `${item.artifact_id.slice(0, 8)} · ${String(output.diagnosis_category ?? 'unknown')} · ${item.status}`,
+            label: `${item.artifact_id.slice(0, 8)} / ${String(output.diagnosis_category ?? '未分类')} / ${artifactStatusMeta(item.status).label}`,
             content: (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Typography.Text>{String(output.root_cause_hypothesis ?? '')}</Typography.Text>
                 {outputActions.length ? (
                   <div>
-                    <Typography.Text strong>建议动作</Typography.Text>
+                    <Typography.Text strong>下一步动作</Typography.Text>
                     <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
                       {outputActions.map((action) => (
                         <li key={action}>
@@ -739,7 +736,7 @@ export function ExecutionsPage() {
             ),
           };
         })}
-        emptyText="当前执行还没有 AI 诊断历史"
+        emptyText="当前执行还没有 AI 诊断历史。"
       />
     </div>
   );
