@@ -12,6 +12,9 @@ from backend.app.models.project import Project
 
 
 class AiChatHistoryService:
+    _DEFAULT_TITLE = "新对话"
+    _TITLE_MAX_LENGTH = 24
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
@@ -62,7 +65,7 @@ class AiChatHistoryService:
             chat_mode=chat_mode,
             page_path=page_path,
             page_title=page_title,
-            title=self._build_title(seed_title),
+            title=self._default_title(seed_title),
         )
         self._session.add(session)
         self._session.flush()
@@ -74,6 +77,7 @@ class AiChatHistoryService:
         session: AiChatSession,
         user_message: str,
         assistant_message: str,
+        title_override: str | None = None,
     ) -> AiChatSession:
         next_order_index = self._next_order_index(session.id)
         payloads = [
@@ -83,8 +87,12 @@ class AiChatHistoryService:
         self._session.add_all(payloads)
         session.message_count += len(payloads)
         session.latest_message_preview = self._build_preview(assistant_message or user_message)
-        if not session.title:
+
+        if title_override:
+            session.title = self._build_title(title_override)
+        elif not session.title or session.title == self._DEFAULT_TITLE:
             session.title = self._build_title(user_message)
+
         session.updated_at = datetime.now(UTC)
         self._session.add(session)
         self._session.flush()
@@ -101,11 +109,14 @@ class AiChatHistoryService:
         current = self._session.scalar(stmt)
         return int(current or 0) + 1
 
+    def _default_title(self, source: str) -> str:
+        return self._build_title(source) if not source.strip() else self._DEFAULT_TITLE
+
     def _build_title(self, source: str) -> str:
-        normalized = " ".join(source.split()).strip()
+        normalized = " ".join(source.split()).strip().strip("\"'`[](){}<>")
         if not normalized:
-            return "新对话"
-        return normalized[:48]
+            return self._DEFAULT_TITLE
+        return normalized[: self._TITLE_MAX_LENGTH]
 
     def _build_preview(self, source: str) -> str:
         normalized = " ".join(source.split()).strip()

@@ -25,6 +25,8 @@ scheduled_job_run_status_enum = sa.Enum("triggered", "skipped", "failed", name="
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
+    if bind.dialect.name != "sqlite":
+        execution_trigger_source_enum.create(bind, checkfirst=True)
 
     if not inspector.has_table("scheduled_jobs"):
         op.create_table(

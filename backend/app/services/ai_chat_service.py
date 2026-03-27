@@ -14,8 +14,10 @@ from backend.app.services.ai_provider_registry import AiGenerationRuntimeConfig,
 
 
 class AiChatService:
-    _EMPTY_RESPONSE_FALLBACK = "当前模型未返回可显示内容。"
+    _EMPTY_RESPONSE_FALLBACK = "当前模型未返回可展示内容。"
     _EMPTY_RESPONSE_MAX_RETRIES = 3
+    _TITLE_SUMMARY_FALLBACK = "新对话"
+    _TITLE_SUMMARY_MAX_LENGTH = 24
     _PAGE_FOCUS_RULES: tuple[dict[str, object], ...] = (
         {
             "prefix": "/workspace",
@@ -122,6 +124,8 @@ class AiChatService:
             page_title=page_title,
             seed_title=latest_user_message,
         )
+        should_generate_title = chat_session.message_count == 0
+
         snapshot = self._build_snapshot(chat_mode=chat_mode, project_id=project_id)
         history_messages = self._build_history_messages(messages)
         system_prompt = self._build_system_prompt(chat_mode=chat_mode)
@@ -153,12 +157,14 @@ class AiChatService:
                 system_prompt=system_prompt,
                 request_messages=request_messages,
             )
+            title_override = self._generate_session_title(runtime=runtime, first_user_message=latest_user_message) if should_generate_title else None
             for chunk in self._chunk_text(assistant_message):
                 yield self._event("delta", {"content": chunk})
             self._history_service.append_turn(
                 session=chat_session,
                 user_message=latest_user_message,
                 assistant_message=assistant_message,
+                title_override=title_override,
             )
             yield self._event("done", {"call_trace": call_trace})
         except HTTPException as exc:
@@ -185,9 +191,41 @@ class AiChatService:
             normalized.append({"role": message.role, "content": content[:4000]})
         return normalized[:-1] if normalized and normalized[-1]["role"] == "user" else normalized
 
+    def _generate_session_title(
+        self,
+        *,
+        runtime: AiGenerationRuntimeConfig,
+        first_user_message: str,
+    ) -> str | None:
+        try:
+            title_text, _ = self._client_service.generate_text(
+                runtime=runtime,
+                system_prompt=(
+                    "You generate concise chat session titles.\n"
+                    "Summarize the user's first message as one short title.\n"
+                    "Reply in Simplified Chinese unless the source is clearly another language.\n"
+                    "Return title text only, with no quotes, markdown, numbering, or explanation.\n"
+                    "Keep the title short enough for a narrow UI control."
+                ),
+                messages=[{"role": "user", "content": f"用户首句：{first_user_message}"}],
+            )
+        except HTTPException:
+            return None
+
+        normalized = self._normalize_session_title(title_text)
+        return normalized or None
+
+    def _normalize_session_title(self, raw_title: str) -> str:
+        normalized = " ".join((raw_title or "").split()).strip()
+        if not normalized:
+            return ""
+        first_line = normalized.splitlines()[0].strip().strip("\"'`[](){}<>")
+        compact = first_line.removeprefix("标题：").removeprefix("Title:").strip()
+        return compact[: self._TITLE_SUMMARY_MAX_LENGTH] or self._TITLE_SUMMARY_FALLBACK
+
     def _build_system_prompt(self, *, chat_mode: str) -> str:
         mode_guidance = (
-            "Use the provided project business snapshot when answering."
+            "Use the provided product knowledge and project business snapshot when answering."
             if chat_mode == "project"
             else "This is free chat mode. Do not depend on project data unless the user later switches mode."
         )
@@ -219,12 +257,95 @@ class AiChatService:
             f"Page focus: {page_strategy['title']}\n"
             "Page-aware answer policy:\n"
             f"{self._build_page_focus_policy(page_strategy=page_strategy, chat_mode=chat_mode)}\n"
+            f"{self._build_product_knowledge_section(snapshot=snapshot, page_strategy=page_strategy, chat_mode=chat_mode)}"
             "Page-relevant evidence:\n"
             f"{self._build_page_relevant_outline(snapshot=snapshot, page_strategy=page_strategy, chat_mode=chat_mode)}\n"
             f"User question: {latest_user_message}\n"
             f"{self._context_heading(chat_mode)}\n"
             f"{self._build_context_outline(snapshot, chat_mode=chat_mode)}"
         )
+
+    def _build_product_knowledge_section(
+        self,
+        *,
+        snapshot: dict[str, Any],
+        page_strategy: dict[str, object],
+        chat_mode: str,
+    ) -> str:
+        if chat_mode != "project":
+            return ""
+        return (
+            "Product knowledge relevant to current page:\n"
+            f"{self._build_product_knowledge_outline(snapshot=snapshot, page_strategy=page_strategy)}\n"
+        )
+
+    def _build_product_knowledge_outline(
+        self,
+        *,
+        snapshot: dict[str, Any],
+        page_strategy: dict[str, object],
+    ) -> str:
+        knowledge = snapshot.get("product_knowledge")
+        if not isinstance(knowledge, dict) or not knowledge:
+            return "- none: no product knowledge snapshot is available."
+
+        lines: list[str] = []
+        summary = knowledge.get("summary")
+        if summary:
+            lines.append(f"- product_summary: {summary}")
+
+        workflow = knowledge.get("workflow")
+        if isinstance(workflow, list) and workflow:
+            lines.append(f"- workflow: {workflow[0]}")
+
+        page_guides = knowledge.get("page_guides")
+        focus_key = str(page_strategy.get("focus") or "general")
+        page_guide = page_guides.get(focus_key) if isinstance(page_guides, dict) else None
+        if not isinstance(page_guide, dict):
+            page_guide = page_guides.get("general") if isinstance(page_guides, dict) else None
+
+        if isinstance(page_guide, dict):
+            purpose = page_guide.get("purpose")
+            if purpose:
+                lines.append(f"- page_purpose: {purpose}")
+
+            capabilities = page_guide.get("capabilities")
+            if isinstance(capabilities, list) and capabilities:
+                lines.append("- page_capabilities:")
+                for capability in capabilities[:4]:
+                    lines.append(f"  - {capability}")
+
+            ai_capabilities = page_guide.get("ai_capabilities")
+            if isinstance(ai_capabilities, list) and ai_capabilities:
+                lines.append("- page_ai_capabilities:")
+                for capability in ai_capabilities[:4]:
+                    lines.append(f"  - {capability}")
+
+        ai_operating_model = knowledge.get("ai_operating_model")
+        if isinstance(ai_operating_model, dict):
+            model_summary = ai_operating_model.get("summary")
+            if model_summary:
+                lines.append(f"- ai_operating_model: {model_summary}")
+
+            rules = ai_operating_model.get("rules")
+            if isinstance(rules, list) and rules:
+                lines.append("- ai_rules:")
+                for rule in rules[:4]:
+                    lines.append(f"  - {rule}")
+
+        known_limits = knowledge.get("known_limits")
+        if isinstance(known_limits, list) and known_limits:
+            lines.append("- known_limits:")
+            for item in known_limits[:3]:
+                lines.append(f"  - {item}")
+
+        role_boundaries = knowledge.get("role_boundaries")
+        if isinstance(role_boundaries, list) and role_boundaries:
+            lines.append("- role_boundaries:")
+            for item in role_boundaries[:3]:
+                lines.append(f"  - {item}")
+
+        return "\n".join(lines) if lines else "- none: no relevant product knowledge is available."
 
     def _resolve_page_strategy(self, *, page_path: str, page_title: str) -> dict[str, object]:
         normalized_path = (page_path or "/").strip().lower()
@@ -477,7 +598,7 @@ class AiChatService:
         if chat_mode == "free":
             return {
                 "scope": "free",
-                "summary": "当前为自由对话模式，不绑定任何项目业务资产。",
+                "summary": "当前是自由对话模式，不绑定任何项目业务资产。",
                 "project": None,
                 "warnings": ["自由对话不会引用项目、套件、用例、执行或报告快照。"],
                 "redaction_applied": True,

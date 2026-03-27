@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Generator
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -21,7 +20,12 @@ from backend.app.models.user import UserRole
 from backend.app.services.auth_service import AuthService
 
 
-def _mock_chat_stream(monkeypatch: pytest.MonkeyPatch, *, reply_text: str = "这是 AI 回复。") -> None:
+def _mock_chat_stream(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    reply_text: str = "这是 AI 回复。",
+    session_title: str = "自由问答说明",
+) -> None:
     monkeypatch.setattr(
         "backend.app.services.ai_provider_registry.AiProviderRegistry.resolve_runtime",
         lambda self: object(),
@@ -30,13 +34,22 @@ def _mock_chat_stream(monkeypatch: pytest.MonkeyPatch, *, reply_text: str = "这
         "backend.app.services.ai_client_service.AiClientService.stream_text",
         lambda self, **kwargs: (iter([]), {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": "chat-history-trace"}}),
     )
-    monkeypatch.setattr(
-        "backend.app.services.ai_client_service.AiClientService.generate_text",
-        lambda self, **kwargs: (
-            reply_text,
-            {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": "chat-history-fallback"}},
-        ),
-    )
+
+    def _generate_text(self, **kwargs):
+        system_prompt = kwargs.get("system_prompt", "")
+        if "You generate concise chat session titles." in system_prompt:
+            return session_title, {
+                "call_mode": "llm",
+                "failure_category": "",
+                "trace_json": {"request_id": "chat-title-trace"},
+            }
+        return reply_text, {
+            "call_mode": "llm",
+            "failure_category": "",
+            "trace_json": {"request_id": "chat-history-fallback"},
+        }
+
+    monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.generate_text", _generate_text)
 
 
 def _build_api_client(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, sessionmaker]:
@@ -88,7 +101,7 @@ def _extract_session_id(body: str) -> int:
 
 
 def test_ai_chat_history_persists_and_is_user_scoped(monkeypatch: pytest.MonkeyPatch) -> None:
-    _mock_chat_stream(monkeypatch)
+    _mock_chat_stream(monkeypatch, session_title="自由模式能力边界")
     client, factory = _build_api_client(monkeypatch)
     token_alice = _issue_token(factory, "alice")
     token_bob = _issue_token(factory, "bob")
@@ -100,7 +113,7 @@ def test_ai_chat_history_persists_and_is_user_scoped(monkeypatch: pytest.MonkeyP
             "chat_mode": "free",
             "page_path": "/workspace",
             "page_title": "工作台",
-            "messages": [{"role": "user", "content": "第一轮问题"}],
+            "messages": [{"role": "user", "content": "你是谁，可以帮我做什么，我可以问除了测试之外的工作吗"}],
         },
         headers={"Authorization": f"Bearer {token_alice}"},
     ) as response:
@@ -118,9 +131,9 @@ def test_ai_chat_history_persists_and_is_user_scoped(monkeypatch: pytest.MonkeyP
             "page_path": "/workspace",
             "page_title": "工作台",
             "messages": [
-                {"role": "user", "content": "第一轮问题"},
+                {"role": "user", "content": "你是谁，可以帮我做什么，我可以问除了测试之外的工作吗"},
                 {"role": "assistant", "content": "这是 AI 回复。"},
-                {"role": "user", "content": "第二轮问题"},
+                {"role": "user", "content": "那你帮我列个会议纪要模板"},
             ],
         },
         headers={"Authorization": f"Bearer {token_alice}"},
@@ -143,10 +156,12 @@ def test_ai_chat_history_persists_and_is_user_scoped(monkeypatch: pytest.MonkeyP
     list_payload = list_response.json()["data"]["items"]
     assert len(list_payload) == 1
     assert list_payload[0]["session_id"] == session_id
+    assert list_payload[0]["title"] == "自由模式能力边界"
     assert list_payload[0]["message_count"] == 4
 
     assert detail_response.status_code == 200
     detail_payload = detail_response.json()["data"]
+    assert detail_payload["title"] == "自由模式能力边界"
     assert [item["role"] for item in detail_payload["messages"]] == ["user", "assistant", "user", "assistant"]
     assert detail_payload["messages"][-1]["content"] == "这是 AI 回复。"
 
@@ -157,6 +172,7 @@ def test_ai_chat_history_persists_and_is_user_scoped(monkeypatch: pytest.MonkeyP
     with factory() as session:
         stored_session = session.query(AiChatSession).filter(AiChatSession.id == session_id).one()
         stored_messages = session.query(AiChatMessage).filter(AiChatMessage.session_id == session_id).order_by(AiChatMessage.order_index.asc()).all()
+        assert stored_session.title == "自由模式能力边界"
         assert stored_session.message_count == 4
         assert [item.role for item in stored_messages] == ["user", "assistant", "user", "assistant"]
 
@@ -200,7 +216,7 @@ def test_ai_chat_history_delete_is_physical_and_audited(monkeypatch: pytest.Monk
 
 
 def test_ai_chat_stream_retries_empty_model_response_until_content_arrives(monkeypatch: pytest.MonkeyPatch) -> None:
-    call_counter = {"stream": 0, "generate": 0}
+    call_counter = {"stream": 0, "reply_generate": 0, "title_generate": 0}
 
     monkeypatch.setattr(
         "backend.app.services.ai_provider_registry.AiProviderRegistry.resolve_runtime",
@@ -212,13 +228,22 @@ def test_ai_chat_stream_retries_empty_model_response_until_content_arrives(monke
         return iter([]), {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"stream-{call_counter['stream']}"}}
 
     def _generate_text(self, **kwargs):
-        call_counter["generate"] += 1
-        if call_counter["generate"] < 4:
-            return "", {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"fallback-{call_counter['generate']}"}}
+        system_prompt = kwargs.get("system_prompt", "")
+        if "You generate concise chat session titles." in system_prompt:
+            call_counter["title_generate"] += 1
+            return "重试成功摘要", {
+                "call_mode": "llm",
+                "failure_category": "",
+                "trace_json": {"request_id": "title-success"},
+            }
+
+        call_counter["reply_generate"] += 1
+        if call_counter["reply_generate"] < 4:
+            return "", {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"fallback-{call_counter['reply_generate']}"}}
         return "第 4 次重试拿到内容。", {
             "call_mode": "llm",
             "failure_category": "",
-            "trace_json": {"request_id": f"fallback-{call_counter['generate']}"},
+            "trace_json": {"request_id": f"fallback-{call_counter['reply_generate']}"},
         }
 
     monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.stream_text", _stream_text)
@@ -242,13 +267,14 @@ def test_ai_chat_stream_retries_empty_model_response_until_content_arrives(monke
 
     assert response.status_code == 200
     assert "第 4 次重试拿到内容。" in body
-    assert "当前模型未返回可显示内容。" not in body
+    assert "当前模型未返回可展示内容。" not in body
     assert call_counter["stream"] == 4
-    assert call_counter["generate"] == 4
+    assert call_counter["reply_generate"] == 4
+    assert call_counter["title_generate"] == 1
 
 
 def test_ai_chat_stream_returns_fallback_after_three_retries(monkeypatch: pytest.MonkeyPatch) -> None:
-    call_counter = {"stream": 0, "generate": 0}
+    call_counter = {"stream": 0, "reply_generate": 0, "title_generate": 0}
 
     monkeypatch.setattr(
         "backend.app.services.ai_provider_registry.AiProviderRegistry.resolve_runtime",
@@ -260,8 +286,17 @@ def test_ai_chat_stream_returns_fallback_after_three_retries(monkeypatch: pytest
         return iter([]), {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"stream-{call_counter['stream']}"}}
 
     def _generate_text(self, **kwargs):
-        call_counter["generate"] += 1
-        return "", {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"fallback-{call_counter['generate']}"}}
+        system_prompt = kwargs.get("system_prompt", "")
+        if "You generate concise chat session titles." in system_prompt:
+            call_counter["title_generate"] += 1
+            return "重试兜底摘要", {
+                "call_mode": "llm",
+                "failure_category": "",
+                "trace_json": {"request_id": "title-fallback"},
+            }
+
+        call_counter["reply_generate"] += 1
+        return "", {"call_mode": "llm", "failure_category": "", "trace_json": {"request_id": f"fallback-{call_counter['reply_generate']}"}}
 
     monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.stream_text", _stream_text)
     monkeypatch.setattr("backend.app.services.ai_client_service.AiClientService.generate_text", _generate_text)
@@ -283,6 +318,7 @@ def test_ai_chat_stream_returns_fallback_after_three_retries(monkeypatch: pytest
         body = "".join(response.iter_text())
 
     assert response.status_code == 200
-    assert "当前模型未返回可显示内容。" in body
+    assert "当前模型未返回可展示内容。" in body
     assert call_counter["stream"] == 4
-    assert call_counter["generate"] == 4
+    assert call_counter["reply_generate"] == 4
+    assert call_counter["title_generate"] == 1

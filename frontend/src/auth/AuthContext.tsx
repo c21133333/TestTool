@@ -7,7 +7,13 @@ type AuthState = {
   token: string | null;
   user: User | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (
+    username: string,
+    password: string,
+    options?: {
+      beforeCommit?: () => Promise<void> | void;
+    },
+  ) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -37,8 +43,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  async function login(username: string, password: string) {
+  async function login(
+    username: string,
+    password: string,
+    options?: {
+      beforeCommit?: () => Promise<void> | void;
+    },
+  ) {
     const session = await createApi(null).login(username, password);
+    await options?.beforeCommit?.();
     setToken(session.access_token);
     setUser(session.user);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: session.access_token, user: session.user }));

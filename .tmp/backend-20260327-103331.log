@@ -1,0 +1,5 @@
+INFO:     Started server process [5188]
+INFO:     Waiting for application startup.
+{"timestamp": "2026-03-27T10:33:33.167492+08:00", "level": "INFO", "logger": "eazytest.api", "message": "api.startup.begin", "component": "api", "request_id": null, "event": "api.startup.begin", "deployment_env": "development", "api_prefix": "/api/v1", "version": "0.1.0"}
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.

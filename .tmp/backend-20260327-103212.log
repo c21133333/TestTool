@@ -1,0 +1,16 @@
+INFO:     Will watch for changes in these directories: ['D:\\works\\project\\ezTest\\TestTool']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [11520] using WatchFiles
+INFO:     Started server process [12700]
+INFO:     Waiting for application startup.
+{"timestamp": "2026-03-27T10:32:14.546132+08:00", "level": "INFO", "logger": "eazytest.api", "message": "api.startup.begin", "component": "api", "request_id": null, "event": "api.startup.begin", "deployment_env": "development", "api_prefix": "/api/v1", "version": "0.1.0"}
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'alembic\versions\20260327_000007_scheduled_jobs.py'. Reloading...
+ INFO:     Started server process [8824]
+INFO:     Waiting for application startup.
+{"timestamp": "2026-03-27T10:33:14.079785+08:00", "level": "INFO", "logger": "eazytest.api", "message": "api.startup.begin", "component": "api", "request_id": null, "event": "api.startup.begin", "deployment_env": "development", "api_prefix": "/api/v1", "version": "0.1.0"}
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.

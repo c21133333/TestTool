@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Eazy Test Web">
+  <rect width="64" height="64" rx="16" fill="#163d73" />
+  <path d="M23 12h18v6l-4 7v8.5l10.5 15.8A6 6 0 0 1 42.5 58h-21a6 6 0 0 1-5-8.7L27 33.5V25l-4-7z" fill="#f8fbff"/>
+  <path d="M24.5 41h15l5.2 7.8a2 2 0 0 1-1.7 3.2H21a2 2 0 0 1-1.7-3.2z" fill="#67d7f7"/>
+  <path d="M22 18h20" stroke="#163d73" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M25 44.5l4.5 4.5 9.5-9.5" fill="none" stroke="#163d73" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

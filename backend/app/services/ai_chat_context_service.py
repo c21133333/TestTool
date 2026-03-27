@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 from backend.app.models.api_case import ApiCase
 from backend.app.models.environment import Environment
 from backend.app.models.execution import Execution
-from backend.app.models.project import Project
 from backend.app.models.report import Report
 from backend.app.models.suite import Suite
+from backend.app.services.ai_product_knowledge_service import AiProductKnowledgeService
 from backend.app.services.workspace_service import WorkspaceService
 
 
@@ -39,14 +39,18 @@ class AiChatContextService:
     def __init__(self, session: Session) -> None:
         self._session = session
         self._workspace = WorkspaceService(session)
+        self._product_knowledge = AiProductKnowledgeService()
 
     def build_project_snapshot(self, project_id: int | None) -> dict[str, Any]:
         if project_id is None:
             return {
                 "scope": "global",
-                "summary": "当前未绑定项目上下文，仅能回答通用产品与流程问题。",
+                "summary": "No project is currently selected. The assistant can still explain product capabilities and workflow, but cannot cite project-specific assets.",
                 "project": None,
-                "warnings": ["当前未选择项目，回答将无法引用具体项目资产。"],
+                "product_knowledge": self._product_knowledge.build_snapshot(),
+                "warnings": [
+                    "No project is selected, so project-specific facts are unavailable.",
+                ],
                 "redaction_applied": True,
             }
 
@@ -84,12 +88,16 @@ class AiChatContextService:
 
         return {
             "scope": "project",
-            "summary": f"当前项目 `{project.name}` 共包含 {len(suites)} 个套件、{total_case_count} 个用例、{len(environments)} 个环境。",
+            "summary": (
+                f"Project `{project.name}` currently contains {len(suites)} suites, "
+                f"{total_case_count} cases, and {len(environments)} environments."
+            ),
             "project": {
                 "id": project.id,
                 "name": project.name,
                 "description": project.description,
             },
+            "product_knowledge": self._product_knowledge.build_snapshot(),
             "suites": [
                 {
                     "id": suite.id,
@@ -160,9 +168,9 @@ class AiChatContextService:
                 for report in reports
             ],
             "warnings": [
-                "聊天上下文仅包含当前项目的业务快照。",
-                "用例明细为抽样快照，数量统计以套件 case_count 为准。",
-                "敏感字段已脱敏，系统表与认证数据不会提供给模型。",
+                "Chat context contains a read-only business snapshot for the current project.",
+                "Case details are sampled for context; suite case_count is the source of truth for totals.",
+                "Sensitive fields are redacted before any AI-visible context is built.",
             ],
             "redaction_applied": True,
         }

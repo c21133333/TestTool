@@ -28,7 +28,7 @@ def _seed_project_with_37_cases(session: Session) -> tuple[int, int]:
     workspace = WorkspaceService(session)
     project = workspace.create_project(ProjectCreate(name="Chat Snapshot", description=""))
     suite_a = workspace.create_suite(SuiteCreate(project_id=project.id, name="Suite A", description=""))
-    target_suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="ai生产case", description=""))
+    target_suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="AI Suite", description=""))
 
     for index in range(24):
         workspace.create_case(
@@ -63,7 +63,8 @@ def test_build_project_snapshot_uses_full_suite_case_counts() -> None:
 
         suite_summary = next(item for item in snapshot["suites"] if item["id"] == target_suite_id)
         assert suite_summary["case_count"] == 13
-        assert "37 个用例" in snapshot["summary"]
+        assert snapshot["product_knowledge"]["ai_operating_model"]["summary"] == "AI is copilot, not autopilot."
+        assert "37 cases" in snapshot["summary"]
     finally:
         session.close()
 
@@ -78,5 +79,17 @@ def test_build_project_snapshot_samples_cases_from_later_suite() -> None:
         target_suite_cases = [item for item in snapshot["cases"] if item["suite_id"] == target_suite_id]
         assert target_suite_cases
         assert {item["name"] for item in target_suite_cases} >= {"AI Case 1", "AI Case 2", "AI Case 3"}
+    finally:
+        session.close()
+
+
+def test_build_project_snapshot_without_selected_project_still_includes_product_knowledge() -> None:
+    session = _build_session()
+    try:
+        snapshot = AiChatContextService(session).build_project_snapshot(None)
+
+        assert snapshot["scope"] == "global"
+        assert snapshot["project"] is None
+        assert snapshot["product_knowledge"]["page_guides"]["workspace"]["purpose"] == "Author and maintain projects, suites, and cases."
     finally:
         session.close()
