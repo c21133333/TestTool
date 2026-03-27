@@ -152,4 +152,4 @@ EAZYTEST_BOOTSTRAP_ADMIN_ENABLED=false
 - `docs/security/permissions-matrix.md`
 - `docs/manuals/execution-reliability.md`
 - `docs/manuals/observability.md`
-- `docs/plans/2026-03-23-v1-roadmap.md`
+- `docs/archive/plans/2026-03-23-v1-roadmap.md`

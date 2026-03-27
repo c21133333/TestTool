@@ -188,8 +188,8 @@ TestTool/
 ├─ src/requesttool/          # 共享执行内核与 CLI
 ├─ alembic/                  # 数据库迁移
 ├─ tests/                    # pytest 测试
-├─ docs/plans/               # 设计与路线图
-├─ docs/manuals/             # 使用和介绍手册
+├─ docs/archive/             # 设计与路线图归档
+├─ docs/manuals/             # 使用手册
 ├─ web_runs/                 # 报告输出目录
 └─ web_eazytest.db           # 默认 SQLite 数据库
 ```
@@ -366,5 +366,5 @@ python -m requesttool serve
 ## 12. 延伸阅读
 
 - 功能使用手册：`docs/manuals/user-guide.md`
-- Web 迁移设计：`docs/plans/2026-03-23-web-migration-design.md`
-- V1 路线图：`docs/plans/2026-03-23-v1-roadmap.md`
+- Web 迁移设计：`docs/archive/plans/2026-03-23-web-migration-design.md`
+- V1 路线图：`docs/archive/plans/2026-03-23-v1-roadmap.md`

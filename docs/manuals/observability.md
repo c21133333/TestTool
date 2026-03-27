@@ -127,4 +127,4 @@ API 请求都会返回 `X-Request-ID`。排查时优先拿这个值过滤日志�
 - `README.md`
 - `docs/manuals/environment-governance.md`
 - `docs/manuals/execution-reliability.md`
-- `docs/plans/2026-03-23-v1-roadmap.md`
+- `docs/archive/plans/2026-03-23-v1-roadmap.md`
