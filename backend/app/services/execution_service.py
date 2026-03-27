@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.app.core.observability import get_logger, log_event
 from backend.app.core.timezone import to_beijing_isoformat
-from backend.app.models.execution import Execution, ExecutionItem, ExecutionScope, ExecutionStatus
+from backend.app.models.execution import Execution, ExecutionItem, ExecutionScope, ExecutionStatus, ExecutionTriggerSource
 from backend.app.models.user import User
+from backend.app.models.scheduled_job import ScheduledJob, ScheduledJobRun
 from backend.app.repositories.execution_repository import ExecutionRepository
 from backend.app.schemas.execution import AiExecutionPreparationSelection
 from backend.app.services.ai_execution_preparation_service import AiExecutionPreparationService
@@ -159,6 +160,41 @@ class ExecutionService:
             triggered_by_user_id=actor.id if actor is not None else None,
         )
         return self.get_execution(execution.id)
+
+    def queue_suite_execution_from_schedule(
+        self,
+        job: ScheduledJob,
+        scheduled_run: ScheduledJobRun | None,
+    ) -> Execution:
+        suite = self._workspace.get_suite(job.suite_id)
+        environment = self._workspace.get_environment(job.environment_id) if job.environment_id is not None else None
+        execution = Execution(
+            project_id=suite.project_id,
+            suite_id=suite.id,
+            environment_id=environment.id if environment is not None else None,
+            triggered_by_user_id=None,
+            trigger_source=ExecutionTriggerSource.schedule,
+            scheduled_job_id=job.id,
+            scheduled_run_id=scheduled_run.id if scheduled_run is not None else None,
+            scope=ExecutionScope.suite,
+            status=ExecutionStatus.pending,
+            target_name=suite.name,
+            summary_json={},
+        )
+        self._executions.create_execution(execution)
+        if scheduled_run is not None:
+            scheduled_run.execution_id = execution.id
+        log_event(
+            logger,
+            "execution.suite.queued_from_schedule",
+            execution_id=execution.id,
+            scheduled_job_id=job.id,
+            scheduled_run_id=scheduled_run.id if scheduled_run is not None else None,
+            suite_id=suite.id,
+            suite_name=suite.name,
+            environment_id=environment.id if environment is not None else None,
+        )
+        return execution
 
     def cancel_execution(self, execution_id: int) -> Execution:
         execution = self.get_execution(execution_id)

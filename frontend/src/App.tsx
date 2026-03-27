@@ -15,6 +15,7 @@ const EnvironmentsPage = lazy(async () => ({ default: (await import('./pages/Env
 const ExecutionsPage = lazy(async () => ({ default: (await import('./pages/ExecutionsPage')).ExecutionsPage }));
 const LoginPage = lazy(async () => ({ default: (await import('./pages/LoginPage')).LoginPage }));
 const ReportsPage = lazy(async () => ({ default: (await import('./pages/ReportsPage')).ReportsPage }));
+const ScheduledJobsPage = lazy(async () => ({ default: (await import('./pages/ScheduledJobsPage')).ScheduledJobsPage }));
 const UsersPage = lazy(async () => ({ default: (await import('./pages/UsersPage')).UsersPage }));
 const WorkspacePage = lazy(async () => ({ default: (await import('./pages/WorkspacePage')).WorkspacePage }));
 
@@ -119,6 +120,7 @@ function AuthenticatedApp() {
               <Route path="workspace" element={<WorkspacePage />} />
               <Route path="environments" element={<EnvironmentsPage />} />
               <Route path="executions" element={<ExecutionsPage />} />
+              <Route path="scheduled-jobs" element={<ScheduledJobsPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route
                 path="audit-logs"

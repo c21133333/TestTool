@@ -1,0 +1,133 @@
+INFO:     Will watch for changes in these directories: ['D:\\works\\project\\ezTest\\TestTool']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [12916] using WatchFiles
+INFO:     Started server process [17568]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\services\ai_chat_service.py'. Reloading...
+INFO:     Started server process [20516]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\services\ai_chat_service.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'tests\test_ai_chat_service.py'. Reloading...
+INFO:     Started server process [21452]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO:     Started server process [22412]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\services\ai_chat_service.py'. Reloading...
+INFO:     Started server process [10312]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\services\ai_case_history_service.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'tests\test_web_services.py'. Reloading...
+INFO:     Started server process [7084]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO:     Started server process [21664]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'tests\test_web_services.py'. Reloading...
+INFO:     Started server process [17336]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'backend\app\services\ai_case_history_service.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'backend\app\api\routes\ai_case_drafts.py'. Reloading...
+INFO:     Started server process [22820]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO:     Started server process [8916]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'tests\test_web_services.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'tests\test_web_services.py', 'backend\app\services\ai_case_history_service.py'. Reloading...
+INFO:     Started server process [2252]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO:     Started server process [23212]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'tests\test_web_services.py'. Reloading...
+INFO:     Started server process [23916]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+WARNING:  WatchFiles detected changes in 'alembic\versions\20260327_000007_scheduled_jobs.py', 'backend\app\models\scheduled_job.py', 'backend\app\models\__init__.py', 'backend\app\models\execution.py', 'backend\app\models\registry.py'. Reloading...
+INFO:     Started server process [20052]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'tests\test_scheduled_jobs.py'. Reloading...
+INFO:     Started server process [19996]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'backend\app\services\__init__.py', 'backend\app\schemas\scheduled_job.py', 'backend\app\core\config.py', 'backend\app\repositories\__init__.py', 'backend\app\schemas\__init__.py', 'backend\app\repositories\scheduled_job_repository.py', 'backend\app\services\scheduled_job_service.py'. Reloading...
+INFO:     Started server process [11444]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'backend\app\api\routes\scheduled_jobs.py', 'tests\test_scheduled_jobs.py', 'backend\app\api\router.py', 'backend\app\api\routes\__init__.py', 'backend\app\services\scheduled_job_service.py'. Reloading...
+INFO:     Started server process [4756]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'backend\app\scheduler.py', 'backend\app\services\execution_service.py', 'tests\test_scheduled_jobs.py', 'backend\app\core\config.py', 'backend\scheduler.py', 'backend\app\services\schedule_dispatch_service.py', 'backend\app\repositories\scheduled_job_repository.py', 'backend\app\repositories\execution_repository.py', 'backend\app\services\scheduled_job_service.py'. Reloading...
+INFO:     Started server process [27788]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'tests\test_scheduled_jobs.py'. Reloading...
+INFO:     Started server process [28584]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'backend\app\services\__init__.py'. Reloading...
+INFO:     Started server process [28252]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'tests\test_scheduled_jobs.py'. Reloading...
+INFO:     Started server process [22612]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'tests\test_scheduled_jobs.py'. Reloading...
+INFO:     Started server process [27600]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'tests\test_scheduled_jobs.py'. Reloading...
+INFO:     Started server process [27892]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.
+WARNING:  WatchFiles detected changes in 'backend\app\schemas\execution.py'. Reloading...
+INFO:     Started server process [20624]
+INFO:     Waiting for application startup.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 20260326_000006 -> 20260327_000007, Add scheduled jobs and execution trigger source.

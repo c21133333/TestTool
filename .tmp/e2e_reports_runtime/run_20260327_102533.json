@@ -1,0 +1,67 @@
+{
+  "suite_name": "Runtime Suite",
+  "base_url": "http://127.0.0.1:18081",
+  "execute_time": "2026-03-27T10:25:33.183415+08:00",
+  "summary": {
+    "total": 1,
+    "ok": 1,
+    "ng": 0,
+    "pass_rate": 100.0,
+    "duration_ms": 21,
+    "failure_breakdown": {},
+    "retry_stats": {
+      "total_retries": 0,
+      "retry_limit": 1
+    }
+  },
+  "items": [
+    {
+      "case_id": 1,
+      "name": "health check case",
+      "request": {
+        "method": "GET",
+        "url": "/health",
+        "headers": {},
+        "body": null,
+        "timeout": 20,
+        "base_url": "http://127.0.0.1:18081"
+      },
+      "response": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Content-Length": "15",
+          "Connection": "keep-alive",
+          "Content-Type": "application/json",
+          "Date": "Fri, 27 Mar 2026 02:25:33 GMT",
+          "Keep-Alive": "timeout=60",
+          "Proxy-Connection": "keep-alive",
+          "Server": "BaseHTTP/0.6 Python/3.12.10"
+        },
+        "response_text": "{\"status\":\"ok\"}",
+        "response_json": {
+          "status": "ok"
+        },
+        "elapsed_ms": 21,
+        "request_headers": {},
+        "request_body": null,
+        "request_url": "http://127.0.0.1:18081/health",
+        "runtime_variables": {},
+        "processor_results": [],
+        "execution_meta": {
+          "failure_category": "success",
+          "failure_message": "",
+          "attempt": 1,
+          "attempts": 1,
+          "retries": 0,
+          "retried": false,
+          "retry_history": []
+        }
+      },
+      "assertions": [],
+      "elapsed_ms": 21,
+      "result": "OK",
+      "failure_reason": ""
+    }
+  ]
+}

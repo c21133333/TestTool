@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eazy Test Report</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+        margin: 0;
+        padding: 24px;
+      }
+      header {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+      }
+      header h1 {
+        margin: 0 0 6px 0;
+        font-size: 22px;
+      }
+      header .meta {
+        color: #64748b;
+        font-size: 14px;
+      }
+      .summary-card {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .summary-card div {
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+      }
+      .summary-chart {
+        margin-top: 14px;
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .summary-chart .chart-title {
+        font-size: 13px;
+        color: #475569;
+        margin-bottom: 8px;
+      }
+      .summary-chart .chart-bar {
+        height: 12px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+        display: flex;
+      }
+      .summary-chart .chart-seg {
+        height: 100%;
+      }
+      .summary-chart .chart-seg.ok {
+        background: #22c55e;
+      }
+      .summary-chart .chart-seg.ng {
+        background: #ef4444;
+      }
+      .summary-chart .chart-stats {
+        margin-top: 8px;
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+        color: #475569;
+      }
+      .summary-chart .legend.ok {
+        color: #166534;
+      }
+      .summary-chart .legend.ng {
+        color: #991b1b;
+      }
+      .summary-chart .chart-empty {
+        color: #94a3b8;
+        font-size: 12px;
+      }
+      section {
+        margin-top: 20px;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+      }
+      section h2 {
+        margin: 0 0 12px 0;
+        font-size: 18px;
+      }
+      .failure-item {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 10px 0;
+      }
+      .failure-item:last-child {
+        border-bottom: none;
+      }
+      .failure-item .count {
+        background: #fee2e2;
+        color: #991b1b;
+        border-radius: 999px;
+        padding: 2px 8px;
+        margin-left: 6px;
+        font-size: 12px;
+      }
+      .failure-item .message {
+        color: #475569;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .failure-item .cases {
+        color: #0f172a;
+        font-size: 12px;
+        margin-top: 4px;
+        line-height: 1.5;
+      }
+      .case-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: #f8fafc;
+      }
+      .case-item summary {
+        cursor: pointer;
+        font-weight: 600;
+        list-style: none;
+      }
+      .case-item summary::-webkit-details-marker {
+        display: none;
+      }
+      .badge {
+        padding: 2px 8px;
+        border-radius: 999px;
+        margin-left: 8px;
+        font-size: 12px;
+      }
+      .badge.ok {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge.ng {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 10px;
+        border-radius: 8px;
+        max-height: 280px;
+        overflow: auto;
+        font-size: 12px;
+      }
+      .empty {
+        color: #94a3b8;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Eazy Test Report</h1>
+      <div class="meta">Suite: Runtime Suite</div>
+      <div class="meta">Base URL: http://127.0.0.1:18081</div>
+      <div class="meta">Generated: 2026-03-27T10:25:33.183415+08:00</div>
+      <div class='summary-card'><div><strong>Total</strong><span>1</span></div><div><strong>OK</strong><span>1</span></div><div><strong>NG</strong><span>0</span></div><div><strong>Pass Rate</strong><span>100.0%</span></div><div><strong>Duration</strong><span>21 ms</span></div></div>
+      <div class='summary-chart'><div class='chart-title'>Results</div><div class='chart-bar'><div class='chart-seg ok' style='width: 100.0%;'></div><div class='chart-seg ng' style='width: 0.0%;'></div></div><div class='chart-stats'><span class='legend ok'>OK 1 (100.0%)</span><span class='legend ng'>NG 0 (0.0%)</span></div></div>
+    </header>
+
+    <section>
+      <h2>Failures</h2>
+      <p class='empty'>No failures.</p>
+    </section>
+
+    <section>
+      <h2>Case Details</h2>
+      <details class='case-item'><summary>health check case <span class='badge ok'>OK</span></summary><div class='detail-grid'><div><h4>Request</h4><pre>{
+  "method": "GET",
+  "url": "/health",
+  "headers": {},
+  "body": null,
+  "timeout": 20,
+  "base_url": "http://127.0.0.1:18081"
+}</pre></div><div><h4>Response</h4><pre>{
+  "success": true,
+  "status_code": 200,
+  "headers": {
+    "Content-Length": "15",
+    "Connection": "keep-alive",
+    "Content-Type": "application/json",
+    "Date": "Fri, 27 Mar 2026 02:25:33 GMT",
+    "Keep-Alive": "timeout=60",
+    "Proxy-Connection": "keep-alive",
+    "Server": "BaseHTTP/0.6 Python/3.12.10"
+  },
+  "response_text": "{\"status\":\"ok\"}",
+  "response_json": {
+    "status": "ok"
+  },
+  "elapsed_ms": 21,
+  "request_headers": {},
+  "request_body": null,
+  "request_url": "http://127.0.0.1:18081/health",
+  "runtime_variables": {},
+  "processor_results": [],
+  "execution_meta": {
+    "failure_category": "success",
+    "failure_message": "",
+    "attempt": 1,
+    "attempts": 1,
+    "retries": 0,
+    "retried": false,
+    "retry_history": []
+  }
+}</pre></div><div><h4>Assertions</h4><pre>[]</pre></div></div></details>
+    </section>
+  </body>
+</html>

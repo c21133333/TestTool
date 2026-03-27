@@ -102,3 +102,16 @@ class ExecutionRepository:
                 }
             )
         return rows
+
+    def get_latest_active_scheduled_execution(self, *, scheduled_job_id: int) -> Execution | None:
+        stmt = (
+            select(Execution)
+            .where(
+                Execution.scheduled_job_id == scheduled_job_id,
+                Execution.scope == ExecutionScope.suite,
+                Execution.status.in_([ExecutionStatus.pending, ExecutionStatus.running]),
+            )
+            .options(selectinload(Execution.items), selectinload(Execution.reports))
+            .order_by(Execution.created_at.desc(), Execution.id.desc())
+        )
+        return self._session.scalar(stmt)

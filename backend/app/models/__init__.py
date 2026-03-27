@@ -10,6 +10,7 @@ from backend.app.models.environment import Environment
 from backend.app.models.execution import Execution, ExecutionItem
 from backend.app.models.project import Project
 from backend.app.models.report import Report
+from backend.app.models.scheduled_job import ScheduledJob, ScheduledJobRun
 from backend.app.models.suite import Suite
 from backend.app.models.user import User, UserRole
 
@@ -27,6 +28,8 @@ __all__ = [
     "ExecutionItem",
     "Project",
     "Report",
+    "ScheduledJob",
+    "ScheduledJobRun",
     "Suite",
     "User",
     "UserRole",

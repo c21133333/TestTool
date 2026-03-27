@@ -220,7 +220,7 @@ python -m pytest
 
 当前仓库测试状态：
 
-- `27 passed`
+- `33 passed`
 
 ## 配置项
 
@@ -244,6 +244,8 @@ python -m pytest
 - `EAZYTEST_REPORT_DIR`
 - `EAZYTEST_REPORT_TEMPLATE_PATH`
 - `EAZYTEST_WORKER_POLL_INTERVAL_SECONDS`
+- `EAZYTEST_SCHEDULER_POLL_INTERVAL_SECONDS`
+- `EAZYTEST_SCHEDULER_BATCH_SIZE`
 
 脚本型 Processor 依赖 Node.js：
 
@@ -337,7 +339,7 @@ python -m pytest
 
 ## Deployment Topology
 
-- The standard topology is `nginx + api + worker + postgresql`.
+- The standard topology is `nginx + api + worker + scheduler + postgresql`.
 - The backend image builds `frontend/dist` and serves it directly, so the minimal production deployment does not need a separate frontend runtime.
 - Use [deployment-topology.md](D:/works/project/ezTest/TestTool/docs/manuals/deployment-topology.md) together with `deploy/docker-compose.single-host.yml` for the single-host baseline.
 
@@ -385,3 +387,41 @@ python -m pytest
 2. 安全与默认配置收口
 3. 迁移期兼容代码的清退策略
 4. 文档、观测性和发布流程补全
+## Scheduled Suite Dispatch
+
+- Scheduled jobs bind to `suite + environment` and only create `pending suite execution` records.
+- The runtime topology is now `api + worker + scheduler`.
+- `api` handles CRUD, auth, and manual trigger endpoints.
+- `scheduler` scans due jobs and enqueues executions.
+- `worker` consumes queued suite executions and generates reports.
+
+### Start scheduler locally
+
+```powershell
+python -m backend.scheduler
+```
+
+### Production notes
+
+- Production should run `api`, `worker`, and `scheduler` as independent long-lived processes.
+- Keep `EAZYTEST_DATABASE_AUTO_MIGRATE=false` in production and apply migrations before rollout.
+- Tune dispatch with `EAZYTEST_SCHEDULER_POLL_INTERVAL_SECONDS` and `EAZYTEST_SCHEDULER_BATCH_SIZE`.
+- Schedule-created executions are traceable in the execution center through `trigger_source=schedule`.
+
+### Final validation checklist
+
+```powershell
+pytest tests/test_scheduled_jobs.py -v
+pytest tests/test_web_services.py -v
+Set-Location frontend
+npm run build
+Set-Location ..
+```
+
+### Manual smoke
+
+- Confirm the left navigation shows the standalone `SCHEDULE` group.
+- Create a scheduled job and verify `next_run_at` is computed.
+- Trigger the job once and confirm a new execution is created.
+- Open the execution detail page and confirm it shows the schedule source and link.
+- Disable the job and confirm it no longer dispatches automatically.

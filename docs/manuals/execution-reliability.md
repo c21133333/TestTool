@@ -103,3 +103,33 @@ EAZYTEST_EXECUTION_STALE_TIMEOUT_SECONDS=900
 - 当前仍是单 worker 优先模型，不做分布式调度保证
 - 当前超时主要收口在请求执行层，不强制杀死已发出的阻塞线程
 - 更强的可观测性、任务指标和报警，放在后续“可观测性补全”阶段处理
+## 9. Scheduled dispatch reliability
+
+### Component roles
+
+- `scheduler` only scans due jobs and creates `pending suite execution`.
+- `worker` remains the only component that executes suite cases.
+- `api` can create, enable, disable, and trigger scheduled jobs, but it does not replace the scheduler loop.
+
+### Dispatch guarantees
+
+- A scheduled run writes a dedicated `scheduled_job_run` record before or while creating the linked execution.
+- `execution.trigger_source=schedule` is the source-of-truth marker for schedule-created executions.
+- `execution.scheduled_job_id` and `execution.scheduled_run_id` are used for reverse tracing from execution back to schedule.
+
+### Concurrency policy
+
+- `forbid`: if the same scheduled job still has an active `pending/running` execution, the new run is recorded as `skipped`.
+- `allow`: the scheduler may enqueue another execution for the same job.
+- `replace`: reserved for future implementation and should not be relied on operationally.
+
+### Misfire policy
+
+- `skip`: if the due window is missed, the scheduler advances `next_run_at` and does not backfill immediately.
+- `fire_once`: reserved as a schema-level option; rollout should treat it as opt-in and verify behavior before production use.
+
+### Operational checks
+
+- If scheduled jobs stop dispatching, verify the `scheduler` process is running before checking `worker`.
+- If executions exist but never start, inspect the `worker` process and `pending` queue depth.
+- If an execution looks unexpected, open the execution detail page and verify `trigger_source`, `scheduled_job_id`, and `scheduled_run_id`.

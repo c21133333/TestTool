@@ -13,6 +13,7 @@ from backend.app.models import environment  # noqa: F401
 from backend.app.models import execution  # noqa: F401
 from backend.app.models import project  # noqa: F401
 from backend.app.models import report  # noqa: F401
+from backend.app.models import scheduled_job  # noqa: F401
 from backend.app.models import suite  # noqa: F401
 from backend.app.models import user  # noqa: F401
 

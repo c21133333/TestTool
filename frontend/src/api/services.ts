@@ -28,6 +28,11 @@ import type {
   PaginatedResult,
   Project,
   Report,
+  ScheduledJob,
+  ScheduledJobConcurrencyPolicy,
+  ScheduledJobListResult,
+  ScheduledJobMisfirePolicy,
+  ScheduledJobRun,
   Suite,
   User,
 } from './types';
@@ -168,6 +173,68 @@ export function createApi(token: string | null) {
       client.request<Execution>(`/executions/${executionId}/cancel`, { method: 'POST' }),
     retryExecution: (executionId: number) =>
       client.request<Execution>(`/executions/${executionId}/retry`, { method: 'POST' }),
+    listScheduledJobs: (params?: {
+      page?: number;
+      page_size?: number;
+      project_id?: number;
+      suite_id?: number;
+      enabled?: boolean;
+      search?: string;
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.page) {
+        query.set('page', String(params.page));
+      }
+      if (params?.page_size) {
+        query.set('page_size', String(params.page_size));
+      }
+      if (params?.project_id) {
+        query.set('project_id', String(params.project_id));
+      }
+      if (params?.suite_id) {
+        query.set('suite_id', String(params.suite_id));
+      }
+      if (params?.enabled !== undefined) {
+        query.set('enabled', String(params.enabled));
+      }
+      if (params?.search) {
+        query.set('search', params.search);
+      }
+      const suffix = query.toString() ? `?${query.toString()}` : '';
+      return client.request<ScheduledJobListResult>(`/scheduled-jobs${suffix}`);
+    },
+    createScheduledJob: (payload: {
+      project_id: number;
+      suite_id: number;
+      environment_id?: number | null;
+      name: string;
+      description: string;
+      cron_expr: string;
+      timezone: string;
+      enabled: boolean;
+      concurrency_policy: ScheduledJobConcurrencyPolicy;
+      misfire_policy: ScheduledJobMisfirePolicy;
+    }) => client.request<ScheduledJob>('/scheduled-jobs', { method: 'POST', body: JSON.stringify(payload) }),
+    updateScheduledJob: (
+      jobId: number,
+      payload: {
+        project_id: number;
+        suite_id: number;
+        environment_id?: number | null;
+        name: string;
+        description: string;
+        cron_expr: string;
+        timezone: string;
+        enabled: boolean;
+        concurrency_policy: ScheduledJobConcurrencyPolicy;
+        misfire_policy: ScheduledJobMisfirePolicy;
+      },
+    ) => client.request<ScheduledJob>(`/scheduled-jobs/${jobId}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    enableScheduledJob: (jobId: number) => client.request<ScheduledJob>(`/scheduled-jobs/${jobId}/enable`, { method: 'POST' }),
+    disableScheduledJob: (jobId: number) => client.request<ScheduledJob>(`/scheduled-jobs/${jobId}/disable`, { method: 'POST' }),
+    triggerScheduledJob: (jobId: number) => client.request<ScheduledJobRun>(`/scheduled-jobs/${jobId}/trigger`, { method: 'POST' }),
+    listScheduledJobRuns: (jobId: number, limit = 20) =>
+      client.request<ScheduledJobRun[]>(`/scheduled-jobs/${jobId}/runs?limit=${limit}`),
     listReports: async () => {
       const result = await client.request<PaginatedResult<Report>>(`/reports?page=1&page_size=${listPageSize}`);
       return result.items;

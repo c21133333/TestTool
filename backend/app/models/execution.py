@@ -21,6 +21,11 @@ class ExecutionScope(str, enum.Enum):
     suite = "suite"
 
 
+class ExecutionTriggerSource(str, enum.Enum):
+    manual = "manual"
+    schedule = "schedule"
+
+
 class Execution(TimestampMixin, Base):
     __tablename__ = "executions"
 
@@ -33,6 +38,21 @@ class Execution(TimestampMixin, Base):
         index=True,
     )
     triggered_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    trigger_source: Mapped[ExecutionTriggerSource] = mapped_column(
+        Enum(ExecutionTriggerSource),
+        nullable=False,
+        default=ExecutionTriggerSource.manual,
+    )
+    scheduled_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("scheduled_jobs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    scheduled_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("scheduled_job_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     scope: Mapped[ExecutionScope] = mapped_column(Enum(ExecutionScope), nullable=False)
     status: Mapped[ExecutionStatus] = mapped_column(Enum(ExecutionStatus), nullable=False, default=ExecutionStatus.pending)
     target_name: Mapped[str] = mapped_column(String(128), nullable=False)

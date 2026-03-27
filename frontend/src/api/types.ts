@@ -99,11 +99,16 @@ export type ExecutionItem = {
   failure_message: string;
 };
 
+export type ExecutionTriggerSource = 'manual' | 'schedule';
+
 export type Execution = {
   id: number;
   project_id: number;
   suite_id: number | null;
   environment_id: number | null;
+  trigger_source: ExecutionTriggerSource;
+  scheduled_job_id: number | null;
+  scheduled_run_id: number | null;
   scope: 'case' | 'suite';
   status: 'pending' | 'running' | 'success' | 'failed';
   target_name: string;
@@ -129,6 +134,45 @@ export type AiExecutionPreparation = {
 };
 
 export type ExecutionListResult = PaginatedResult<Execution>;
+
+export type ScheduledJobConcurrencyPolicy = 'forbid' | 'allow' | 'replace';
+export type ScheduledJobMisfirePolicy = 'skip' | 'fire_once';
+export type ScheduledJobRunStatus = 'triggered' | 'skipped' | 'failed';
+
+export type ScheduledJobRun = {
+  id: number;
+  scheduled_job_id: number;
+  planned_run_at: string;
+  triggered_at: string | null;
+  execution_id: number | null;
+  status: ScheduledJobRunStatus;
+  message: string;
+  created_at: string;
+};
+
+export type ScheduledJob = {
+  id: number;
+  project_id: number;
+  suite_id: number;
+  environment_id: number | null;
+  name: string;
+  description: string;
+  cron_expr: string;
+  timezone: string;
+  enabled: boolean;
+  next_run_at: string | null;
+  last_triggered_at: string | null;
+  last_triggered_execution_id: number | null;
+  concurrency_policy: ScheduledJobConcurrencyPolicy;
+  misfire_policy: ScheduledJobMisfirePolicy;
+  created_by_user_id: number | null;
+  updated_by_user_id: number | null;
+  created_at: string;
+  updated_at: string;
+  runs: ScheduledJobRun[];
+};
+
+export type ScheduledJobListResult = PaginatedResult<ScheduledJob>;
 
 export type Report = {
   id: number;

@@ -1,5 +1,6 @@
 import {
   ApiOutlined,
+  ClockCircleOutlined,
   DashboardOutlined,
   EnvironmentOutlined,
   FileSearchOutlined,
@@ -105,6 +106,20 @@ function buildNavigationGroups(canSeeAuditLogs: boolean, canSeeUsers: boolean): 
       ],
     },
     {
+      key: 'schedule',
+      label: '调度',
+      code: 'SCH',
+      items: [
+        {
+          key: '/scheduled-jobs',
+          icon: <ClockCircleOutlined />,
+          label: '定时任务',
+          code: 'SCH-01',
+          description: '管理套件调度、触发记录和下一次运行时间，将自动化运行与手工执行分层。',
+        },
+      ],
+    },
+    {
       key: 'govern',
       label: '治理',
       code: 'GOV',
@@ -204,7 +219,7 @@ export function AppShell() {
                 EazyTest
               </Typography.Title>
               <Typography.Paragraph className="brand-panel__summary">
-                面向接口测试的统一质量中台，聚合工作台、执行、报告与审计视图。
+                面向接口测试的统一质量中台，聚合工作台、执行、报告、审计与调度视图。
               </Typography.Paragraph>
             </>
           ) : (
@@ -250,7 +265,7 @@ export function AppShell() {
           <div className="app-shell__sider-footer">
             <Typography.Text className="app-shell__sider-footer-code">COMMAND STATUS</Typography.Text>
             <Typography.Paragraph className="app-shell__sider-footer-copy">
-              用统一视图管理接口资产、执行记录和归档结果，保证团队协同始终可见、可追踪。
+              用统一视图管理接口资产、执行记录、调度编排和归档结果，保证团队协同始终可见、可追踪。
             </Typography.Paragraph>
           </div>
         ) : null}

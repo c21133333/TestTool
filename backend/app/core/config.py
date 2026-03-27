@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     execution_request_timeout_seconds: int = Field(default=20, ge=1, le=600)
     execution_retry_limit: int = Field(default=1, ge=0, le=5)
     execution_stale_timeout_seconds: int = Field(default=900, ge=30, le=86400)
+    scheduler_poll_interval_seconds: float = Field(default=5.0, gt=0, le=3600)
+    scheduler_batch_size: int = Field(default=20, ge=1, le=500)
     bootstrap_admin_enabled: bool = False
     bootstrap_admin_username: str = ""
     bootstrap_admin_password: str = ""
@@ -67,13 +69,13 @@ class Settings(BaseSettings):
             raise ValueError("Bootstrap admin is forbidden in production. Provision the first admin explicitly.")
         return self
 
-    def validate_runtime_requirements(self, component: Literal["api", "worker", "migrate"]) -> "Settings":
+    def validate_runtime_requirements(self, component: Literal["api", "worker", "scheduler", "migrate"]) -> "Settings":
         self.validate_runtime_safety()
         if component in {"api", "worker"} and not self.resolved_report_template_path.is_file():
             raise ValueError(
                 f"Report template does not exist: {self.resolved_report_template_path}"
             )
-        if self.deployment_env == "production" and component in {"api", "worker"}:
+        if self.deployment_env == "production" and component in {"api", "worker", "scheduler"}:
             if self.is_sqlite:
                 raise ValueError("Production runtime cannot use SQLite. Configure PostgreSQL or another production-grade database.")
             if self.database_auto_migrate:

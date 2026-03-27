@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from openpyxl import load_workbook
@@ -9,9 +9,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.app.api.dependencies.auth import require_roles
-from backend.app.models import AccessToken, ApiCase, Environment, Execution, Project, Report, Suite, User
+from backend.app.models import AccessToken, ApiCase, Environment, Execution, Project, Report, ScheduledJob, ScheduledJobRun, Suite, User
 from backend.app.models.base import Base
-from backend.app.models.execution import ExecutionStatus
+from backend.app.models.execution import ExecutionScope, ExecutionStatus, ExecutionTriggerSource
+from backend.app.models.scheduled_job import (
+    ScheduledJobConcurrencyPolicy,
+    ScheduledJobMisfirePolicy,
+    ScheduledJobRunStatus,
+)
 from backend.app.models.user import UserRole
 from backend.app.schemas.audit_log import AuditLogRead
 from backend.app.services.audit_log_service import AuditLogService
@@ -54,6 +59,82 @@ def test_auth_service_creates_and_resolves_session():
     assert auth_session.expires_at.endswith("+08:00")
     assert session.query(User).count() == 1
     assert session.query(AccessToken).count() == 1
+
+
+def test_scheduled_job_models_persist():
+    session = _make_session()
+    workspace = WorkspaceService(session)
+    actor = AuthService(session).create_user("schedule_owner", "Schedule Owner", "Owner#Secret2026", UserRole.admin)
+    project = workspace.create_project(ProjectCreate(name="Schedule Demo", description=""))
+    suite = workspace.create_suite(SuiteCreate(project_id=project.id, name="Daily Smoke", description=""))
+    environment = workspace.create_environment(
+        EnvironmentCreate(project_id=project.id, name="staging", base_url="https://example.com")
+    )
+    session.flush()
+
+    execution = Execution(
+        project_id=project.id,
+        suite_id=suite.id,
+        environment_id=environment.id,
+        scope=ExecutionScope.suite,
+        status=ExecutionStatus.pending,
+        target_name=suite.name,
+        trigger_source=ExecutionTriggerSource.schedule,
+    )
+    session.add(execution)
+    session.flush()
+
+    planned_run_at = datetime(2026, 3, 27, 1, 0, tzinfo=UTC)
+    triggered_at = datetime(2026, 3, 27, 1, 0, 5, tzinfo=UTC)
+    scheduled_job = ScheduledJob(
+        project_id=project.id,
+        suite_id=suite.id,
+        environment_id=environment.id,
+        name="Daily Smoke Job",
+        description="Run the smoke suite every weekday morning.",
+        cron_expr="0 9 * * 1-5",
+        timezone="Asia/Shanghai",
+        enabled=True,
+        next_run_at=planned_run_at,
+        last_triggered_at=triggered_at,
+        last_triggered_execution_id=execution.id,
+        concurrency_policy=ScheduledJobConcurrencyPolicy.forbid,
+        misfire_policy=ScheduledJobMisfirePolicy.skip,
+        created_by_user_id=actor.id,
+        updated_by_user_id=actor.id,
+    )
+    session.add(scheduled_job)
+    session.flush()
+
+    scheduled_run = ScheduledJobRun(
+        scheduled_job_id=scheduled_job.id,
+        planned_run_at=planned_run_at,
+        triggered_at=triggered_at,
+        execution_id=execution.id,
+        status=ScheduledJobRunStatus.triggered,
+        message="Dispatched to execution queue.",
+    )
+    session.add(scheduled_run)
+    session.flush()
+
+    execution.scheduled_job_id = scheduled_job.id
+    execution.scheduled_run_id = scheduled_run.id
+    session.commit()
+
+    stored_job = session.get(ScheduledJob, scheduled_job.id)
+    stored_run = session.get(ScheduledJobRun, scheduled_run.id)
+    stored_execution = session.get(Execution, execution.id)
+
+    assert stored_job is not None
+    assert stored_job.suite_id == suite.id
+    assert stored_job.last_triggered_execution_id == execution.id
+    assert stored_run is not None
+    assert stored_run.execution_id == execution.id
+    assert stored_run.status == ScheduledJobRunStatus.triggered
+    assert stored_execution is not None
+    assert stored_execution.trigger_source == ExecutionTriggerSource.schedule
+    assert stored_execution.scheduled_job_id == scheduled_job.id
+    assert stored_execution.scheduled_run_id == scheduled_run.id
 
 
 def test_execution_service_runs_single_case(monkeypatch):

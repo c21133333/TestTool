@@ -43,9 +43,17 @@ import { StatePanel } from '../components/product/StatePanel';
 import { StatusBadge } from '../components/product/StatusBadge';
 import { formatDateTime, formatDurationMs, formatPercent } from '../utils/display';
 import { artifactStatusMeta, executionItemStatusMeta, executionStatusMeta } from '../utils/status';
+import { Link } from 'react-router-dom';
 
 function scopeLabel(scope: Execution['scope']) {
   return scope === 'suite' ? '套件' : '用例';
+}
+
+function executionSourceMeta(execution: Execution) {
+  if (execution.trigger_source === 'schedule') {
+    return { color: 'processing', label: 'Scheduled' };
+  }
+  return { color: 'default', label: 'Manual' };
 }
 
 function summaryNumber(summary: Record<string, unknown>, key: string): number | null {
@@ -515,6 +523,14 @@ export function ExecutionsPage() {
                 },
               })}
               columns={[
+                {
+                  title: 'Source',
+                  width: 130,
+                  render: (_, row) => {
+                    const meta = executionSourceMeta(row);
+                    return <Tag color={meta.color}>{meta.label}</Tag>;
+                  },
+                },
                 { title: 'ID', dataIndex: 'id', width: 80 },
                 { title: '范围', dataIndex: 'scope', width: 90, render: (value: Execution['scope']) => scopeLabel(value) },
                 { title: '目标', dataIndex: 'target_name' },
@@ -561,6 +577,24 @@ export function ExecutionsPage() {
         ) : (
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Descriptions bordered column={2} size="small">
+              <Descriptions.Item label="Source">
+                <Tag color={executionSourceMeta(selectedExecution).color}>
+                  {executionSourceMeta(selectedExecution).label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Schedule">
+                {selectedExecution.scheduled_job_id ? (
+                  <Space wrap>
+                    <Typography.Text>{`Job #${selectedExecution.scheduled_job_id}`}</Typography.Text>
+                    <Link to="/scheduled-jobs">Open schedules</Link>
+                  </Space>
+                ) : (
+                  '-'
+                )}
+              </Descriptions.Item>
+              <Descriptions.Item label="Scheduled run">
+                {selectedExecution.scheduled_run_id ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="执行目标">{selectedExecution.target_name}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <StatusBadge {...executionStatusMeta(selectedExecution.status)} />

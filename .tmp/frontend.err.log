@@ -1,0 +1,214 @@
+[2m16:58:25[22m [31m[1m[vite][22m[39m [31mInternal server error: D:\works\project\ezTest\TestTool\frontend\src\components\ai-copilot\AiChatLauncher.tsx: Unterminated string constant. (79:48)
+
+[0m [90m 77 |[31m
+ [90m 78 |[31m [36mfunction[31m pageTitleFor(pathname[33m:[31m string) {
+[31m[1m>[22m[31m[90m 79 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/workspace'[31m)) [36mreturn[31m [32m'宸ヤ綔鍙?;[31m
+ [90m    |[31m                                                 [31m[1m^[22m[31m
+ [90m 80 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/environments'[31m)) [36mreturn[31m [32m'鐜'[31m[33m;[31m
+ [90m 81 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/executions'[31m)) [36mreturn[31m [32m'鎵ц'[31m[33m;[31m
+ [90m 82 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/reports'[31m)) [36mreturn[31m [32m'鎶ュ憡'[31m[33m;[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mD:/works/project/ezTest/TestTool/frontend/src/components/ai-copilot/AiChatLauncher.tsx[39m:79:48
+[33m  79 |    if (pathname.startsWith('/workspace')) return '宸ヤ綔鍙?;
+  80 |    if (pathname.startsWith('/environments')) return '鐜';
+  81 |    if (pathname.startsWith('/executions')) return '鎵ц';
+     |              ^
+  82 |    if (pathname.startsWith('/reports')) return '鎶ュ憡';
+  83 |    if (pathname.startsWith('/audit-logs')) return '瀹¤鏃ュ織';[39m
+      at constructor (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6599:19)
+      at Object.unterminated (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5664:20)
+      at readStringContents (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5406:16)
+      at TypeScriptParserMixin.readString (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6498:9)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6258:14)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:4797:11)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9987:11)
+      at TypeScriptParserMixin.nextToken (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5782:10)
+      at TypeScriptParserMixin.next (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5692:10)
+      at TypeScriptParserMixin.parseReturnStatement (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13138:10)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12798:21)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseStatementOrSloppyAnnexBFunctionDeclaration (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12757:17)
+      at TypeScriptParserMixin.parseIfStatement (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13130:28)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12796:21)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseStatementListItem (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12747:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13316:61)
+      at TypeScriptParserMixin.parseBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+      at TypeScriptParserMixin.parseBlock (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13297:10)
+      at TypeScriptParserMixin.parseFunctionBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12100:24)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12086:10)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9172:18)
+      at D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13445:12
+      at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12403:14)
+      at TypeScriptParserMixin.parseFunction (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13444:10)
+      at TypeScriptParserMixin.parseFunctionStatement (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13125:17)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12791:21)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseModuleItem (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12744:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13316:36)
+      at TypeScriptParserMixin.parseBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+      at TypeScriptParserMixin.parseProgram (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12622:10)
+      at TypeScriptParserMixin.parseTopLevel (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12612:25)
+      at TypeScriptParserMixin.parse (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:14488:25)
+      at TypeScriptParserMixin.parse (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10126:18)
+      at parse (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:14522:38)
+      at parser (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\parser\index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\transformation\normalize-file.js:64:37)
+      at normalizeFile.next (<anonymous>)
+      at run (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\transformation\index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (D:\works\project\ezTest\TestTool\frontend\node_modules\gensync\index.js:261:32)
+[2m16:59:57[22m [31m[1m[vite][22m[39m [31mInternal server error: D:\works\project\ezTest\TestTool\frontend\src\components\ai-copilot\AiChatLauncher.tsx: Unterminated string constant. (79:48)
+
+[0m [90m 77 |[31m
+ [90m 78 |[31m [36mfunction[31m pageTitleFor(pathname[33m:[31m string) {
+[31m[1m>[22m[31m[90m 79 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/workspace'[31m)) [36mreturn[31m [32m'宸ヤ綔鍙?;[31m
+ [90m    |[31m                                                 [31m[1m^[22m[31m
+ [90m 80 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/environments'[31m)) [36mreturn[31m [32m'鐜'[31m[33m;[31m
+ [90m 81 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/executions'[31m)) [36mreturn[31m [32m'鎵ц'[31m[33m;[31m
+ [90m 82 |[31m   [36mif[31m (pathname[33m.[31mstartsWith([32m'/reports'[31m)) [36mreturn[31m [32m'鎶ュ憡'[31m[33m;[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mD:/works/project/ezTest/TestTool/frontend/src/components/ai-copilot/AiChatLauncher.tsx[39m:79:48
+[33m  79 |    if (pathname.startsWith('/workspace')) return '宸ヤ綔鍙?;
+  80 |    if (pathname.startsWith('/environments')) return '鐜';
+  81 |    if (pathname.startsWith('/executions')) return '鎵ц';
+     |              ^
+  82 |    if (pathname.startsWith('/reports')) return '鎶ュ憡';
+  83 |    if (pathname.startsWith('/audit-logs')) return '瀹¤鏃ュ織';[39m
+      at constructor (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6599:19)
+      at Object.unterminated (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5664:20)
+      at readStringContents (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5406:16)
+      at TypeScriptParserMixin.readString (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6498:9)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6258:14)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:4797:11)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9987:11)
+      at TypeScriptParserMixin.nextToken (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5782:10)
+      at TypeScriptParserMixin.next (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5692:10)
+      at TypeScriptParserMixin.parseReturnStatement (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13138:10)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12798:21)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseStatementOrSloppyAnnexBFunctionDeclaration (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12757:17)
+      at TypeScriptParserMixin.parseIfStatement (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13130:28)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12796:21)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseStatementListItem (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12747:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13316:61)
+      at TypeScriptParserMixin.parseBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+      at TypeScriptParserMixin.parseBlock (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13297:10)
+      at TypeScriptParserMixin.parseFunctionBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12100:24)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12086:10)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9172:18)
+      at D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13445:12
+      at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12403:14)
+      at TypeScriptParserMixin.parseFunction (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13444:10)
+      at TypeScriptParserMixin.parseFunctionStatement (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13125:17)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12791:21)
+      at TypeScriptParserMixin.parseStatementContent (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseModuleItem (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12744:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13316:36)
+      at TypeScriptParserMixin.parseBlockBody (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:13309:10)
+      at TypeScriptParserMixin.parseProgram (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12622:10)
+      at TypeScriptParserMixin.parseTopLevel (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12612:25)
+      at TypeScriptParserMixin.parse (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:14488:25)
+      at TypeScriptParserMixin.parse (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10126:18)
+      at parse (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:14522:38)
+      at parser (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\parser\index.js:41:34)
+      at parser.next (<anonymous>)
+      at normalizeFile (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\transformation\normalize-file.js:64:37)
+      at normalizeFile.next (<anonymous>)
+      at run (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\transformation\index.js:22:50)
+      at run.next (<anonymous>)
+      at transform (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\core\lib\transform.js:22:33)
+      at transform.next (<anonymous>)
+      at step (D:\works\project\ezTest\TestTool\frontend\node_modules\gensync\index.js:261:32)
+[2m17:02:43[22m [31m[1m[vite][22m[39m [31mInternal server error: D:\works\project\ezTest\TestTool\frontend\src\components\ai-copilot\AiChatLauncher.tsx: Unexpected character '：'. (801:49)
+
+[0m [90m 799 |[31m             [33m<[31m[33mTypography[31m[33m.[31m[33mText[31m type[33m=[31m[32m"secondary"[31m[33m>[31m
+ [90m 800 |[31m               {chatMode [33m===[31m [32m'project'[31m
+[31m[1m>[22m[31m[90m 801 |[31m                 [33m?[31m (chatMeta[33m?[31m[33m.[31mproject_name [33m?[31m 当前上下文： [33m:[31m [32m'当前未绑定具体项目'[31m)
+ [90m     |[31m                                                  [31m[1m^[22m[31m
+ [90m 802 |[31m                 [33m:[31m [32m'褰撳墠涓婁笅鏂囷細鑷敱瀵硅瘽'[31m}
+ [90m 803 |[31m             [33m<[31m[33m/[31m[33mTypography[31m[33m.[31m[33mText[31m[33m>[31m
+ [90m 804 |[31m             [33m<[31m[33mButton[31m type[33m=[31m[32m"primary"[31m onClick[33m=[31m{() [33m=>[31m [36mvoid[31m sendMessage()} loading[33m=[31m{streaming}[33m>[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mD:/works/project/ezTest/TestTool/frontend/src/components/ai-copilot/AiChatLauncher.tsx[39m:801:49
+      at constructor (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6599:19)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:6306:16)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:4797:11)
+      at TypeScriptParserMixin.getTokenFromCode (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9987:11)
+      at TypeScriptParserMixin.nextToken (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5782:10)
+      at TypeScriptParserMixin.next (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:5692:10)
+      at TypeScriptParserMixin.parseIdentifierName (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12213:10)
+      at TypeScriptParserMixin.parseIdentifier (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12181:23)
+      at TypeScriptParserMixin.parseExprAtom (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11416:27)
+      at TypeScriptParserMixin.parseExprAtom (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+      at TypeScriptParserMixin.parseMaybeConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+      at TypeScriptParserMixin.parseMaybeAssign (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9786:20)
+      at D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10800:39
+      at TypeScriptParserMixin.allowInAnd (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12426:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10800:17)
+      at TypeScriptParserMixin.parseConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10891:30)
+      at TypeScriptParserMixin.parseConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9603:18)
+      at TypeScriptParserMixin.parseMaybeConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10885:17)
+      at TypeScriptParserMixin.parseMaybeAssign (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9786:20)
+      at D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10800:39
+      at TypeScriptParserMixin.allowInAnd (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12426:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10800:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12493:17)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11675:28)
+      at TypeScriptParserMixin.parseExprAtom (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11331:23)
+      at TypeScriptParserMixin.parseExprAtom (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10904:23)
+      at TypeScriptParserMixin.parseMaybeConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10881:23)
+      at TypeScriptParserMixin.parseMaybeAssign (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9786:20)
+      at D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10800:39
+      at TypeScriptParserMixin.allowInAnd (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:12426:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10800:17)
+      at TypeScriptParserMixin.parseConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10891:30)
+      at TypeScriptParserMixin.parseConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:9603:18)
+      at TypeScriptParserMixin.parseMaybeConditional (D:\works\project\ezTest\TestTool\frontend\node_modules\@babel\parser\lib\index.js:10885:17)
+[2m09:49:05[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./pages/ScheduledJobsPage" from "src/App.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/works/project/ezTest/TestTool/frontend/src/App.tsx[39m:18:69
+[33m  38 |  const ReportsPage = lazy(_c11 = async () => ({ default: (await import("./pages/ReportsPage")).ReportsPage }));
+  39 |  _c12 = ReportsPage;
+  40 |  const ScheduledJobsPage = lazy(_c13 = async () => ({ default: (await import("./pages/ScheduledJobsPage")).ScheduledJobsPage }));
+     |                                                                              ^
+  41 |  _c14 = ScheduledJobsPage;
+  42 |  const UsersPage = lazy(_c15 = async () => ({ default: (await import("./pages/UsersPage")).UsersPage }));[39m
+      at TransformPluginContext._formatLog (file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:42528:41)
+      at TransformPluginContext.error (file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:42525:16)
+      at normalizeUrl (file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:40504:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:40623:37
+      at async Promise.all (index 18)
+      at async TransformPluginContext.transform (file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:40550:7)
+      at async EnvironmentPluginContainer.transform (file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:42323:18)
+      at async loadAndTransform (file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:35739:27)
+      at async viteTransformMiddleware (file:///D:/works/project/ezTest/TestTool/frontend/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:37254:24)

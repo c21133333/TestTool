@@ -1901,3 +1901,147 @@ a {
     max-width: min(78vw, 280px);
   }
 }
+
+.scheduled-overview-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.scheduled-overview-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -12% -38% auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(47, 95, 147, 0.2) 0%, rgba(47, 95, 147, 0.04) 52%, transparent 72%);
+  pointer-events: none;
+}
+
+.scheduled-overview-card__dial {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: center;
+}
+
+.scheduled-overview-card__core {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(248, 251, 255, 0.96) 0%, rgba(234, 241, 250, 0.9) 52%, rgba(223, 232, 245, 0.72) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 18px 40px rgba(25, 46, 74, 0.12);
+}
+
+.scheduled-overview-card__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(47, 95, 147, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.scheduled-overview-card__ring--outer {
+  width: 172px;
+  height: 172px;
+}
+
+.scheduled-overview-card__ring--mid {
+  width: 126px;
+  height: 126px;
+  border-style: dashed;
+  animation: scheduled-orbit 14s linear infinite;
+}
+
+.scheduled-overview-card__ring--inner {
+  width: 86px;
+  height: 86px;
+  border-color: rgba(47, 95, 147, 0.2);
+}
+
+.scheduled-overview-card__legend {
+  display: grid;
+  gap: 12px;
+}
+
+.scheduled-overview-card__legend .ant-typography {
+  margin-bottom: 0;
+}
+
+.scheduled-job-cell {
+  display: grid;
+  gap: 6px;
+}
+
+.scheduled-job-cell__desc {
+  margin-bottom: 0 !important;
+  color: var(--ant-color-text-description, #6c7a8f);
+}
+
+.scheduled-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 18px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(47, 95, 147, 0.12);
+}
+
+.scheduled-run-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.scheduled-run-card {
+  border-radius: 24px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 248, 252, 0.92) 100%) !important;
+  box-shadow: 0 18px 36px rgba(24, 38, 58, 0.08);
+}
+
+.scheduled-run-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.scheduled-run-card__message {
+  margin: 16px 0 8px !important;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(47, 95, 147, 0.06);
+}
+
+@keyframes scheduled-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1080px) {
+  .scheduled-overview-card__dial {
+    grid-template-columns: 1fr;
+  }
+
+  .scheduled-overview-card__core {
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .scheduled-run-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -31,6 +31,8 @@ from backend.app.services.auth_service import AuthService
 from backend.app.services.execution_service import ExecutionService
 from backend.app.services.import_service import ImportService
 from backend.app.services.report_service import ReportService
+from backend.app.services.schedule_dispatch_service import ScheduleDispatchService
+from backend.app.services.scheduled_job_service import ScheduledJobService
 from backend.app.services.workspace_service import WorkspaceService
 
 __all__ = [
@@ -67,5 +69,7 @@ __all__ = [
     "ExecutionService",
     "ImportService",
     "ReportService",
+    "ScheduleDispatchService",
+    "ScheduledJobService",
     "WorkspaceService",
 ]

@@ -9,6 +9,7 @@ __all__ = [
     "imports",
     "projects",
     "reports",
+    "scheduled_jobs",
     "suites",
     "users",
 ]

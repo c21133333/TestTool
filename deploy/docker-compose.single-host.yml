@@ -52,6 +52,20 @@ services:
     volumes:
       - reports_data:/var/lib/eazytest/reports
 
+  scheduler:
+    image: eazytest-web:local
+    restart: unless-stopped
+    env_file:
+      - ./env/production.env.example
+    environment:
+      EAZYTEST_DATABASE_URL: postgresql://eazytest:eazytest@db:5432/eazytest
+    command: ["python", "-m", "backend.scheduler"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - reports_data:/var/lib/eazytest/reports
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped

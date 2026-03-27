@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.app.models.execution import ExecutionScope, ExecutionStatus
+from backend.app.models.execution import ExecutionScope, ExecutionStatus, ExecutionTriggerSource
 
 
 class AiExecutionPreparationSelection(BaseModel):
@@ -50,6 +50,9 @@ class ExecutionRead(BaseModel):
     project_id: int
     suite_id: int | None
     environment_id: int | None
+    trigger_source: ExecutionTriggerSource
+    scheduled_job_id: int | None
+    scheduled_run_id: int | None
     scope: ExecutionScope
     status: ExecutionStatus
     target_name: str
